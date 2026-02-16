@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ bot_name }} - Premium File Streaming</title>
+    <link rel="icon" type="image/png" href="https://i.ibb.co/pQ0tSCj/1232b12e0a0c.png">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            overflow: hidden;
+        }
+        .bg-animation span {
+            position: absolute;
+            display: block;
+            width: 20px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            animation: animate 25s linear infinite;
+            bottom: -150px;
+        }
+        .bg-animation span:nth-child(1) { left: 25%; width: 80px; height: 80px; animation-delay: 0s; }
+        .bg-animation span:nth-child(2) { left: 10%; width: 20px; height: 20px; animation-delay: 2s; animation-duration: 12s; }
+        .bg-animation span:nth-child(3) { left: 70%; width: 20px; height: 20px; animation-delay: 4s; }
+        .bg-animation span:nth-child(4) { left: 40%; width: 60px; height: 60px; animation-delay: 0s; animation-duration: 18s; }
+        .bg-animation span:nth-child(5) { left: 65%; width: 20px; height: 20px; animation-delay: 0s; }
+        .bg-animation span:nth-child(6) { left: 75%; width: 110px; height: 110px; animation-delay: 3s; }
+        .bg-animation span:nth-child(7) { left: 35%; width: 150px; height: 150px; animation-delay: 7s; }
+        .bg-animation span:nth-child(8) { left: 50%; width: 25px; height: 25px; animation-delay: 15s; animation-duration: 45s; }
+        .bg-animation span:nth-child(9) { left: 20%; width: 15px; height: 15px; animation-delay: 2s; animation-duration: 35s; }
+        .bg-animation span:nth-child(10) { left: 85%; width: 150px; height: 150px; animation-delay: 0s; animation-duration: 11s; }
+        @keyframes animate {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; border-radius: 0; }
+            100% { transform: translateY(-1000px) rotate(720deg); opacity: 0; border-radius: 50%; }
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .hero {
+            text-align: center;
+            padding: 80px 20px;
+            animation: fadeInDown 1s ease;
+        }
+        .hero-icon {
+            font-size: 6em;
+            color: white;
+            margin-bottom: 20px;
+            animation: float 3s ease-in-out infinite;
+            text-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .hero h1 {
+            font-size: 4.5em;
+            font-weight: 900;
+            color: white;
+            margin-bottom: 20px;
+            text-shadow: 0 5px 25px rgba(0,0,0,0.3);
+            letter-spacing: 2px;
+        }
+        .hero-subtitle {
+            font-size: 1.5em;
+            color: rgba(255,255,255,0.95);
+            margin-bottom: 30px;
+            text-shadow: 0 3px 15px rgba(0,0,0,0.2);
+        }
+        .cta-button {
+            display: inline-block;
+            background: white;
+            color: #667eea;
+            padding: 18px 50px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 1.2em;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+            animation: pulse 2s infinite;
+        }
+        .cta-button:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin: 60px 0;
+            animation: fadeInUp 1s ease 0.3s both;
+        }
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 25px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .stat-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        }
+        .stat-card:hover::before {
+            opacity: 1;
+        }
+        .stat-icon {
+            font-size: 3.5em;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .stat-number {
+            font-size: 3em;
+            font-weight: 900;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        .stat-label {
+            color: #666;
+            font-size: 1.1em;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin: 60px 0;
+            animation: fadeInUp 1s ease 0.6s both;
+        }
+        .feature-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 25px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            transition: all 0.4s ease;
+        }
+        .feature-card:hover {
+            transform: translateY(-10px);
+        }
+        .feature-icon {
+            font-size: 3.5em;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .feature-card h3 {
+            font-size: 1.6em;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        .feature-card p {
+            color: #666;
+            line-height: 1.6;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: white;
+            animation: fadeIn 1s ease 1.2s both;
+        }
+        .footer p {
+            margin: 10px 0;
+            font-size: 1.1em;
+        }
+        .footer a {
+            color: #ffd700;
+            text-decoration: none;
+            font-weight: 700;
+            transition: all 0.3s ease;
+        }
+        .footer a:hover {
+            color: #ffed4e;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+        
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-50px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(50px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2.5em; }
+            .hero-subtitle { font-size: 1.2em; }
+            .stats-grid, .features { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-animation">
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+    </div>
+    
+    <div class="container">
+        <div class="hero">
+            <div class="hero-icon">
+                <i class="fas fa-cloud-upload-alt"></i>
+            </div>
+            <h1>{{ bot_name }}</h1>
+            <p class="hero-subtitle">⚡ ᴘʀᴇᴍɪᴜᴍ ғɪʟᴇ sᴛʀᴇᴀᴍɪɴɢ & ᴅᴏᴡɴʟᴏᴀᴅ sᴇʀᴠɪᴄᴇ</p>
+            <a href="https://t.me/{{ bot_username }}" target="_blank" class="cta-button">
+                <i class="fab fa-telegram"></i> sᴛᴀʀᴛ ᴜsɪɴɢ ʙᴏᴛ
+            </a>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-file"></i></div>
+                <div class="stat-number">{{ total_files }}</div>
+                <div class="stat-label">ᴛᴏᴛᴀʟ ғɪʟᴇs</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-users"></i></div>
+                <div class="stat-number">{{ total_users }}</div>
+                <div class="stat-label">ᴛᴏᴛᴀʟ ᴜsᴇʀs</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-download"></i></div>
+                <div class="stat-number">{{ total_downloads }}</div>
+                <div class="stat-label">ᴛᴏᴛᴀʟ ᴅᴏᴡɴʟᴏᴀᴅs</div>
+            </div>
+        </div>
+        
+        <div class="features">
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-rocket"></i></div>
+                <h3>ʟɪɢʜᴛɴɪɴɢ ғᴀsᴛ</h3>
+                <p>sᴛʀᴇᴀᴍ ғɪʟᴇs ɪɴsᴛᴀɴᴛʟʏ ᴡɪᴛʜ ʜɪɢʜ-sᴘᴇᴇᴅ sᴇʀᴠᴇʀs. ɴᴏ ʙᴜғғᴇʀɪɴɢ, ɴᴏ ᴡᴀɪᴛɪɴɢ.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-shield-halved"></i></div>
+                <h3>sᴇᴄᴜʀᴇ & ᴘʀɪᴠᴀᴛᴇ</h3>
+                <p>ʏᴏᴜʀ ғɪʟᴇs ᴀʀᴇ ᴇɴᴄʀʏᴘᴛᴇᴅ ᴀɴᴅ sᴛᴏʀᴇᴅ sᴇᴄᴜʀᴇʟʏ. ʀᴇᴠᴏᴋᴇ ᴀᴄᴄᴇss ᴀɴʏᴛɪᴍᴇ.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-mobile-screen"></i></div>
+                <h3>ᴍᴜʟᴛɪ-ᴘʟᴀᴛғᴏʀᴍ</h3>
+                <p>sᴛʀᴇᴀᴍ ᴏɴ ᴀɴʏ ᴅᴇᴠɪᴄᴇ - ʙʀᴏᴡsᴇʀ, ᴠʟᴄ, ᴍx ᴘʟᴀʏᴇʀ, ᴏʀ ᴅᴏᴡɴʟᴏᴀᴅ ᴅɪʀᴇᴄᴛʟʏ.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-gauge-high"></i></div>
+                <h3>ʜɪɢʜ Qᴜᴀʟɪᴛʏ</h3>
+                <p>sᴜᴘᴘᴏʀᴛ ғᴏʀ ғɪʟᴇs ᴜᴘ ᴛᴏ 4ɢʙ. ᴏʀɪɢɪɴᴀʟ Qᴜᴀʟɪᴛʏ ᴘʀᴇsᴇʀᴠᴇᴅ.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-share-nodes"></i></div>
+                <h3>ᴇᴀsʏ sʜᴀʀɪɴɢ</h3>
+                <p>sʜᴀʀᴇ ʟɪɴᴋs ɪɴsᴛᴀɴᴛʟʏ ᴡɪᴛʜ ᴀɴʏᴏɴᴇ. sɪᴍᴘʟᴇ, ғᴀsᴛ, ᴀɴᴅ ʜᴀssʟᴇ-ғʀᴇᴇ.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
+                <h3>ʙᴀɴᴅᴡɪᴅᴛʜ ᴄᴏɴᴛʀᴏʟ</h3>
+                <p>ᴀᴅᴠᴀɴᴄᴇᴅ ʙᴀɴᴅᴡɪᴅᴛʜ ᴍᴏɴɪᴛᴏʀɪɴɢ ᴀɴᴅ ᴄᴏɴᴛʀᴏʟ sʏsᴛᴇᴍ ғᴏʀ ᴏᴘᴛɪᴍᴀʟ ᴘᴇʀғᴏʀᴍᴀɴᴄᴇ.</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p style="font-size: 1.3em; margin-bottom: 20px;">
+                <i class="fas fa-crown" style="color: #ffd700;"></i>
+                ᴄʀᴇᴀᴛᴇᴅ ᴡɪᴛʜ ❤️ ʙʏ <a href="https://t.me/{{ owner_username }}" target="_blank">@{{ owner_username }}</a>
+            </p>
+            <p style="opacity: 0.9; margin-top: 20px;">
+                ᴘᴏᴡᴇʀᴇᴅ ʙʏ {{ bot_name }} • ᴘʏᴛʜᴏɴ
+            </p>
+        </div>
+    </div>
+</body>
+</html>

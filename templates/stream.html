@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ file_name }} | {{ bot_name }}</title>
+    <link rel="icon" type="image/png" href="https://i.ibb.co/pQ0tSCj/1232b12e0a0c.png">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #7e22ce 100%);
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+            position: relative;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            width: 200%;
+            height: 200%;
+            top: -50%;
+            left: -50%;
+            z-index: 0;
+            background: radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: moveBackground 20s linear infinite;
+        }
+        @keyframes moveBackground {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            animation: fadeInDown 0.8s ease;
+        }
+        .header h1 {
+            font-size: 3em;
+            font-weight: 800;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            margin-bottom: 10px;
+        }
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.95;
+        }
+        .main-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 30px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            animation: fadeInUp 0.8s ease;
+        }
+        .file-info {
+            background: linear-gradient(135deg, rgba(30, 60, 114, 0.9), rgba(126, 34, 206, 0.9));
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            color: white;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .file-info h2 {
+            font-size: 1.8em;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .file-info p {
+            font-size: 1em;
+            opacity: 0.9;
+            margin: 8px 0;
+        }
+        .player-container {
+            background: #000;
+            border-radius: 20px;
+            overflow: hidden;
+            margin-bottom: 30px;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.6);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+        video, audio {
+            width: 100%;
+            max-height: 70vh;
+            display: block;
+            background: #000;
+        }
+        .buttons-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .btn {
+            padding: 15px 25px;
+            border-radius: 15px;
+            text-decoration: none;
+            color: white;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+        .btn:hover::before {
+            left: 100%;
+        }
+        .btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+        }
+        .btn-primary { background: linear-gradient(135deg, #7e22ce, #9333ea); }
+        .btn-success { background: linear-gradient(135deg, #059669, #10b981); }
+        .btn-info { background: linear-gradient(135deg, #0ea5e9, #06b6d4); }
+        .btn-telegram { background: linear-gradient(135deg, #0088cc, #229ED9); }
+        .link-box {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .link-box h3 {
+            color: #fff;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .link-input-group {
+            display: flex;
+            gap: 10px;
+        }
+        .link-input {
+            flex: 1;
+            padding: 12px 20px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            font-size: 0.95em;
+            font-family: 'Courier New', monospace;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+        }
+        .copy-btn {
+            padding: 12px 25px;
+            background: linear-gradient(135deg, #7e22ce, #9333ea);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .copy-btn:hover {
+            transform: scale(1.05);
+        }
+        .copy-btn.copied {
+            background: linear-gradient(135deg, #56ab2f, #a8e063);
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: white;
+        }
+        .footer a {
+            color: #ffd700;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .header h1 { font-size: 1.8em; }
+            .main-card { padding: 20px; }
+            .buttons-grid { grid-template-columns: 1fr; }
+            .link-input-group { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-cloud"></i> {{ bot_name }}</h1>
+            <p>⚡ ᴘʀᴇᴍɪᴜᴍ ғɪʟᴇ sᴛʀᴇᴀᴍɪɴɢ ᴇxᴘᴇʀɪᴇɴᴄᴇ</p>
+        </div>
+        
+        <div class="main-card">
+            <div class="file-info">
+                <h2>
+                    <i class="fas fa-file-{{ file_type }}"></i>
+                    {{ file_name }}
+                </h2>
+                <p><i class="fas fa-hdd"></i> ꜱɪᴢᴇ: {{ file_size }}</p>
+                <p><i class="fas fa-tag"></i> ᴛʏᴘᴇ: {{ file_type|upper }}</p>
+                <p><i class="fas fa-check-circle"></i> ꜱᴛᴀᴛᴜꜱ: ʀᴇᴀᴅʏ ᴛᴏ ꜱᴛʀᴇᴀᴍ</p>
+            </div>
+            
+            {% if file_type == 'video' %}
+            <div class="player-container">
+                <video controls preload="metadata" playsinline crossorigin="anonymous">
+                    <source src="{{ stream_url }}" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+            {% elif file_type == 'audio' %}
+            <div class="player-container">
+                <audio controls preload="metadata" crossorigin="anonymous" style="width: 100%;">
+                    <source src="{{ stream_url }}" type="audio/mpeg">
+                    Your browser does not support the audio tag.
+                </audio>
+            </div>
+            {% endif %}
+            
+            <div class="buttons-grid">
+                <a href="{{ download_url }}" class="btn btn-primary">
+                    <i class="fas fa-download"></i> ᴅᴏᴡɴʟᴏᴀᴅ
+                </a>
+                <button onclick="copyLink('{{ stream_url }}')" class="btn btn-success">
+                    <i class="fas fa-copy"></i> ᴄᴏᴘʏ ʟɪɴᴋ
+                </button>
+                <a href="{{ telegram_url }}" class="btn btn-telegram">
+                    <i class="fab fa-telegram"></i> ᴛᴇʟᴇɢʀᴀᴍ
+                </a>
+                <button onclick="shareFile()" class="btn btn-info">
+                    <i class="fas fa-share-alt"></i> ꜱʜᴀʀᴇ
+                </button>
+            </div>
+            
+            <div class="link-box">
+                <h3><i class="fas fa-link"></i> ᴅɪʀᴇᴄᴛ ꜱᴛʀᴇᴀᴍ ʟɪɴᴋ</h3>
+                <div class="link-input-group">
+                    <input type="text" class="link-input" value="{{ stream_url }}" readonly>
+                    <button class="copy-btn" onclick="copyLink('{{ stream_url }}')">
+                        <i class="fas fa-copy"></i> ᴄᴏᴘʏ
+                    </button>
+                </div>
+            </div>
+            
+            <div class="link-box">
+                <h3><i class="fas fa-download"></i> ᴅᴏᴡɴʟᴏᴀᴅ ʟɪɴᴋ</h3>
+                <div class="link-input-group">
+                    <input type="text" class="link-input" value="{{ download_url }}" readonly>
+                    <button class="copy-btn" onclick="copyLink('{{ download_url }}')">
+                        <i class="fas fa-copy"></i> ᴄᴏᴘʏ
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>
+                <i class="fas fa-crown" style="color: #ffd700;"></i>
+                ᴄʀᴇᴀᴛᴇᴅ ᴡɪᴛʜ ❤️ ʙʏ <a href="https://t.me/{{ owner_username }}" target="_blank">@{{ owner_username }}</a>
+            </p>
+            <p style="margin-top: 10px; opacity: 0.9;">
+                ᴘᴏᴡᴇʀᴇᴅ ʙʏ {{ bot_name }} • ᴘʏᴛʜᴏɴ
+            </p>
+        </div>
+    </div>
+    
+    <script>
+        function copyLink(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = event.target.closest('button');
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i> ᴄᴏᴘɪᴇᴅ!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                    btn.classList.remove('copied');
+                }, 2000);
+            });
+        }
+        
+        function shareFile() {
+            if (navigator.share) {
+                navigator.share({
+                    title: '{{ file_name }}',
+                    text: 'Watch/Download this file from {{ bot_name }}',
+                    url: window.location.href
+                }).catch(err => console.log('Error sharing:', err));
+            } else {
+                copyLink(window.location.href);
+            }
+        }
+    </script>
+</body>
+</html>
