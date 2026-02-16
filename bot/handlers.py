@@ -372,18 +372,20 @@ def setup_handlers(client: Client, database: Database):
             )
             return
         
-        # Forward to channel
+        # Forward to channel WITHOUT sending extra info message
         try:
             forwarded = await message.copy(Config.BOT_CHANNEL)
             
-            # Send user info to channel
-            user_name = f"@{message.from_user.username}" if message.from_user.username else message.from_user.first_name
-            info_text = (
-                f"ʀᴇQᴜᴇsᴛᴇᴅ ʙʏ : {user_name}\n"
-                f"ᴜsᴇʀ ɪᴅ : {message.from_user.id}\n"
-                f"ғɪʟᴇ ɴᴀᴍᴇ : {file_name}"
-            )
-            await client.send_message(Config.BOT_CHANNEL, info_text, reply_to_message_id=forwarded.id)
+            # Extract Telegram file_id for faster future access
+            telegram_file_id = ""
+            if message.document:
+                telegram_file_id = message.document.file_id
+            elif message.video:
+                telegram_file_id = message.video.file_id
+            elif message.audio:
+                telegram_file_id = message.audio.file_id
+            elif message.photo:
+                telegram_file_id = message.photo.file_id
             
         except Exception as e:
             logger.error(f"Error forwarding to channel: {e}")
@@ -394,14 +396,14 @@ def setup_handlers(client: Client, database: Database):
         file_hash = Cryptic.hash_file_id(str(forwarded.id))
         secret_token = generate_secret_token()
         
-        # Get webhook URL from environment or construct from request
-        webhook_url = Config.WEBHOOK_URL
-        if not webhook_url:
-            webhook_url = "https://your-domain.com"  # Will be replaced by Flask app
+        # Get base URL from environment
+        base_url = Config.BASE_URL
+        if not base_url:
+            base_url = "https://your-domain.com"  # Fallback
         
-        stream_page = f"{webhook_url}/streampage?file={file_hash}"
-        stream_link = f"{webhook_url}/stream/{file_hash}"
-        download_link = f"{webhook_url}/dl/{file_hash}"
+        stream_page = f"{base_url}/streampage?file={file_hash}"
+        stream_link = f"{base_url}/stream/{file_hash}"
+        download_link = f"{base_url}/dl/{file_hash}"
         telegram_link = f"https://t.me/{(await client.get_me()).username}?start={file_hash}"
         
         # Register user
@@ -412,15 +414,17 @@ def setup_handlers(client: Client, database: Database):
             "last_name": message.from_user.last_name or ""
         })
         
-        # Save to database
+        # Save to database with telegram_file_id
         await db.add_file({
             "file_id": file_hash,
             "message_id": str(forwarded.id),
+            "telegram_file_id": telegram_file_id,  # Store for faster access
             "user_id": str(message.from_user.id),
             "username": message.from_user.username or "",
             "file_name": file_name,
             "file_size": file_size,
             "file_type": file_type,
+            "mime_type": file.mime_type if hasattr(file, 'mime_type') else "",
             "secret_token": secret_token
         })
         
@@ -520,11 +524,11 @@ def setup_handlers(client: Client, database: Database):
             
             # Generate links
             file_hash = file_data["file_id"]
-            webhook_url = Config.WEBHOOK_URL or "https://your-domain.com"
+            base_url = Config.BASE_URL or "https://your-domain.com"
             
-            stream_page = f"{webhook_url}/streampage?file={file_hash}"
-            stream_link = f"{webhook_url}/stream/{file_hash}"
-            download_link = f"{webhook_url}/dl/{file_hash}"
+            stream_page = f"{base_url}/streampage?file={file_hash}"
+            stream_link = f"{base_url}/stream/{file_hash}"
+            download_link = f"{base_url}/dl/{file_hash}"
             telegram_link = f"https://t.me/{(await client.get_me()).username}?start={file_hash}"
             
             safe_name = escape_markdown(file_data["file_name"])
@@ -620,8 +624,8 @@ def setup_handlers(client: Client, database: Database):
             results = []
             # Note: Inline mode file sharing would require additional implementation
             # For now, return a text result with link
-            webhook_url = Config.WEBHOOK_URL or "https://your-domain.com"
-            download_link = f"{webhook_url}/dl/{query}"
+            base_url = Config.BASE_URL or "https://your-domain.com"
+            download_link = f"{base_url}/dl/{query}"
             
             results = [
                 InlineQueryResultArticle(

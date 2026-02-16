@@ -8,7 +8,15 @@ logger = logging.getLogger(__name__)
 
 class Database:
     def __init__(self, mongo_uri: str, database_name: str):
-        self.client = AsyncIOMotorClient(mongo_uri)
+        # Connection pooling configuration for better performance
+        self.client = AsyncIOMotorClient(
+            mongo_uri,
+            maxPoolSize=50,  # Maximum connections in pool
+            minPoolSize=10,  # Minimum connections to maintain
+            maxIdleTimeMS=45000,  # Close connections idle for 45s
+            waitQueueTimeoutMS=5000,  # Wait max 5s for connection
+            serverSelectionTimeoutMS=5000  # Server selection timeout
+        )
         self.db = self.client[database_name]
         
         # Collections
@@ -23,6 +31,7 @@ class Database:
             # Files collection indexes
             await self.files.create_index("file_id", unique=True)
             await self.files.create_index("message_id", unique=True)
+            await self.files.create_index("telegram_file_id")  # Index for Telegram file_id lookups
             await self.files.create_index("user_id")
             await self.files.create_index("secret_token", unique=True)
             await self.files.create_index("created_at")
@@ -51,11 +60,13 @@ class Database:
             file_doc = {
                 "file_id": file_data["file_id"],
                 "message_id": file_data["message_id"],
+                "telegram_file_id": file_data.get("telegram_file_id", ""),  # Store Telegram's file_id for faster access
                 "user_id": file_data["user_id"],
                 "username": file_data.get("username", ""),
                 "file_name": file_data["file_name"],
                 "file_size": file_data["file_size"],
                 "file_type": file_data["file_type"],
+                "mime_type": file_data.get("mime_type", ""),  # Store actual MIME type
                 "secret_token": file_data["secret_token"],
                 "created_at": datetime.utcnow(),
                 "downloads": 0,

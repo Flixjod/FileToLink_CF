@@ -17,9 +17,8 @@ class Config:
     MONGO_URI = os.getenv('MONGO_URI', 'mongodb://localhost:27017/')
     DATABASE_NAME = os.getenv('DATABASE_NAME', 'filestream_bot')
     
-    # Security
+    # Security - HMAC signing for file links
     SECRET_KEY = os.getenv('SECRET_KEY', 'change-this-secret-key')
-    BOT_SECRET = os.getenv('BOT_SECRET', 'change-this-bot-secret')
     
     # Mode Configuration
     PUBLIC_BOT = os.getenv('PUBLIC_BOT', 'False').lower() == 'true'
@@ -32,12 +31,16 @@ class Config:
     MAX_STREAM_SIZE = int(os.getenv('MAX_STREAM_SIZE', 2147483648))  # 2GB
     
     # Server Configuration
+    # PORT: Cloud platforms (Heroku, Render, Railway) provide this dynamically via environment
     HOST = os.getenv('HOST', '0.0.0.0')
     PORT = int(os.getenv('PORT', 8080))
-    WEBHOOK_URL = os.getenv('WEBHOOK_URL', '')
+    # BASE_URL: Used only for generating download/stream links, NOT for webhooks (Pyrogram uses long-polling)
+    BASE_URL = os.getenv('BASE_URL', os.getenv('WEBHOOK_URL', ''))  # Keep WEBHOOK_URL for backward compatibility
     
-    # Cache Configuration
+    # Performance Configuration
     CACHE_DURATION = int(os.getenv('CACHE_DURATION', 3600))
+    STREAM_CHUNK_SIZE = int(os.getenv('STREAM_CHUNK_SIZE', 262144))  # 256KB chunks for optimal streaming
+    MAX_CONCURRENT_DOWNLOADS = int(os.getenv('MAX_CONCURRENT_DOWNLOADS', 10))
     
     @staticmethod
     def validate():
@@ -47,5 +50,9 @@ class Config:
         
         if missing:
             raise ValueError(f"Missing required configuration: {', '.join(missing)}")
+        
+        # Warn if BASE_URL is not set
+        if not Config.BASE_URL:
+            print("⚠️  Warning: BASE_URL not set. Download links will use localhost.")
         
         return True

@@ -1,5 +1,6 @@
 # Core Framework
 Flask==3.0.0
+Flask-Compress==1.14  # For gzip compression
 Werkzeug==3.0.1
 gunicorn==21.2.0
 
