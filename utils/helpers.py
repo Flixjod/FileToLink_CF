@@ -1,5 +1,9 @@
 import secrets
 import string
+from config import Config
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def format_size(bytes_size: int) -> str:
@@ -48,3 +52,26 @@ def small_caps(text: str) -> str:
             result.append(char)
     
     return ''.join(result)
+
+
+async def check_fsub(client, user_id: int) -> bool:
+    """Check if user has joined the force subscription channel"""
+    from pyrogram.errors import UserNotParticipant
+    
+    # If force sub is disabled, return True
+    if not Config.get("fsub_mode", False):
+        return True
+    
+    fsub_chat_id = Config.get("fsub_chat_id", 0)
+    if not fsub_chat_id:
+        return True
+    
+    try:
+        member = await client.get_chat_member(fsub_chat_id, user_id)
+        # Check if user is member, admin, or creator
+        return member.status in ["member", "administrator", "creator"]
+    except UserNotParticipant:
+        return False
+    except Exception as e:
+        logger.error(f"Force sub check error: {e}")
+        return True  # On error, allow access

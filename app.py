@@ -1,7 +1,6 @@
 from flask import Flask, request, Response, render_template, jsonify
 from flask_compress import Compress  # For response compression
-from pyrogram import idle
-from bot import bot_client, setup_handlers
+from bot import bot
 from database import Database
 from utils import Cryptic, format_size
 from config import Config
@@ -10,7 +9,6 @@ from middlewares import check_bandwidth_limit
 from constants import *
 import asyncio
 import logging
-import threading
 
 # Configure logging
 logging.basicConfig(
@@ -27,74 +25,17 @@ app.config['SECRET_KEY'] = Config.SECRET_KEY
 compress = Compress()
 compress.init_app(app)
 
-# Global instances
+# Global instances (will be initialized by main.py)
 db = None
-bot_me = None
 streaming_service = None
 
 
-async def init_app():
-    """Initialize the application"""
-    global db, bot_me, streaming_service
-    
-    try:
-        # Validate config
-        Config.validate()
-        
-        # Initialize database with connection pooling
-        db = Database(Config.MONGO_URI, Config.DATABASE_NAME)
-        await db.init_db()
-        logger.info("✅ Database initialized with connection pooling")
-        
-        # Start bot
-        await bot_client.start()
-        bot_me = await bot_client.get_me()
-        logger.info(f"✅ Bot started: @{bot_me.username}")
-        
-        # Setup handlers
-        setup_handlers(bot_client, db)
-        logger.info("✅ Bot handlers registered")
-        
-        # Initialize streaming service
-        streaming_service = StreamingService(bot_client, db)
-        logger.info("✅ Streaming service initialized with range request support")
-        
-        return True
-    except Exception as e:
-        logger.error(f"❌ Initialization error: {e}")
-        return False
-
-
-async def stop_app():
-    """Stop the application"""
-    global db
-    
-    try:
-        if db:
-            await db.close()
-        await bot_client.stop()
-        logger.info("Application stopped successfully")
-    except Exception as e:
-        logger.error(f"Stop error: {e}")
-
-
-def run_bot():
-    """Run the bot in a separate thread"""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    
-    try:
-        loop.run_until_complete(init_app())
-        loop.run_until_complete(idle())
-    except KeyboardInterrupt:
-        loop.run_until_complete(stop_app())
-    finally:
-        loop.close()
-
-
-# Start bot in separate thread
-bot_thread = threading.Thread(target=run_bot, daemon=True)
-bot_thread.start()
+def init_flask_services(database: Database):
+    """Initialize Flask services with database instance"""
+    global db, streaming_service
+    db = database
+    streaming_service = StreamingService(bot, db)
+    logger.info("✅ Flask services initialized")
 
 
 # ==================== ROUTES ====================
@@ -107,12 +48,12 @@ async def home():
             return "Bot is initializing...", HTTP_SERVICE_UNAVAILABLE
         
         stats = await db.get_stats()
-        bot_username = bot_me.username if bot_me else "filestream_bot"
+        bot_username = Config.BOT_USERNAME or "filestream_bot"
         
         return render_template('home.html',
-                             bot_name=Config.BOT_NAME,
+                             bot_name="FileStream Bot",
                              bot_username=bot_username,
-                             owner_username=Config.OWNER_USERNAME,
+                             owner_username="FLiX_LY",
                              total_files=stats['total_files'],
                              total_users=stats['total_users'],
                              total_downloads=stats['total_downloads'])
@@ -130,8 +71,8 @@ async def stream_page():
         return "Missing file parameter", HTTP_BAD_REQUEST
     
     try:
-        message_id = Cryptic.dehash_file_id(file_hash)
-        file_data = await db.get_file(message_id)
+        # Get file from database using hash
+        file_data = await db.get_file_by_hash(file_hash)
         
         if not file_data:
             return "File not found", HTTP_NOT_FOUND
@@ -146,7 +87,7 @@ async def stream_page():
         base_url = request.url_root.rstrip('/')
         stream_url = f"{base_url}/stream/{file_hash}"
         download_url = f"{base_url}/dl/{file_hash}"
-        telegram_url = f"https://t.me/{bot_me.username}?start={file_hash}"
+        telegram_url = f"https://t.me/{Config.BOT_USERNAME}?start={file_hash}"
         
         file_type = 'video' if file_data['file_type'] == FILE_TYPE_VIDEO else \
                    'audio' if file_data['file_type'] == FILE_TYPE_AUDIO else 'document'
@@ -243,8 +184,8 @@ def health():
     """Health check endpoint"""
     return jsonify({
         "status": "ok",
-        "bot": "running" if bot_me else "initializing",
-        "bot_username": bot_me.username if bot_me else None,
+        "bot": "running" if Config.BOT_USERNAME else "initializing",
+        "bot_username": Config.BOT_USERNAME,
         "streaming_service": "ready" if streaming_service else "initializing"
     })
 
@@ -261,15 +202,3 @@ def internal_error(error):
     """Handle 500 errors"""
     logger.error(f"Internal server error: {error}")
     return jsonify({"error": "Internal server error"}), HTTP_INTERNAL_ERROR
-
-
-if __name__ == '__main__':
-    logger.info(f"🚀 Starting FileStream Bot on {Config.HOST}:{Config.PORT}")
-    logger.info(f"📊 Performance optimizations enabled:")
-    logger.info(f"   ✓ Range request support for video streaming")
-    logger.info(f"   ✓ MongoDB connection pooling (10-50 connections)")
-    logger.info(f"   ✓ Gzip compression for JSON responses")
-    logger.info(f"   ✓ Optimized chunk size: {Config.STREAM_CHUNK_SIZE} bytes")
-    logger.info(f"   ✓ Telegram file_id storage for faster access")
-    
-    app.run(host=Config.HOST, port=Config.PORT, debug=False)

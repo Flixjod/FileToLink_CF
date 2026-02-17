@@ -1,5 +1,6 @@
 """
 File streaming service with range request support and performance optimizations
+Uses get_messages and stream_media instead of download_media (no 20MB limit!)
 """
 import re
 import logging
@@ -9,26 +10,16 @@ from database import Database
 from config import Config
 from constants import *
 from typing import Tuple, Optional
-from io import BytesIO
 
 logger = logging.getLogger(__name__)
 
 
 class StreamingService:
-    """Handle file streaming with range request support"""
+    """Handle file streaming with range request support using Pyrogram's stream_media"""
     
     def __init__(self, bot_client: Client, db: Database):
         self.bot = bot_client
         self.db = db
-    
-    async def get_file_message(self, message_id: int):
-        """Get message from bot channel"""
-        try:
-            message = await self.bot.get_messages(Config.BOT_CHANNEL, int(message_id))
-            return message
-        except Exception as e:
-            logger.error(f"Failed to get message {message_id}: {e}")
-            return None
     
     def parse_range_header(self, range_header: str, file_size: int) -> Optional[Tuple[int, int]]:
         """Parse HTTP Range header and return (start, end) tuple"""
@@ -55,7 +46,7 @@ class StreamingService:
     
     async def stream_file(self, file_hash: str, is_download: bool = False):
         """
-        Stream file with support for range requests
+        Stream file with range request support using get_messages (no 20MB limit!)
         
         Args:
             file_hash: Hashed file identifier
@@ -64,23 +55,21 @@ class StreamingService:
         Returns:
             Flask Response object
         """
-        from utils import Cryptic
-        
         try:
-            # Decode and get file info
-            message_id = Cryptic.dehash_file_id(file_hash)
-            file_data = await self.db.get_file(message_id)
+            # Get file info from database using hash
+            file_data = await self.db.get_file_by_hash(file_hash)
             
             if not file_data:
                 return {"error": "File not found"}, HTTP_NOT_FOUND
             
             # Check bandwidth
             stats = await self.db.get_bandwidth_stats()
-            if stats["total_bandwidth"] >= Config.MAX_BANDWIDTH:
+            max_bandwidth = Config.get("max_bandwidth", 107374182400)
+            if stats["total_bandwidth"] >= max_bandwidth:
                 return {"error": "Bandwidth limit exceeded"}, HTTP_SERVICE_UNAVAILABLE
             
-            # Get Telegram message
-            message = await self.get_file_message(message_id)
+            # Get message using get_messages (works for all file sizes!)
+            message = await self.bot.get_messages(Config.DUMP_CHAT_ID, int(file_data['message_id']))
             if not message:
                 return {"error": "File not found in channel"}, HTTP_NOT_FOUND
             
@@ -113,55 +102,54 @@ class StreamingService:
                 status_code = HTTP_OK
                 content_length = file_size
             
-            # Download file (Pyrogram handles this efficiently)
-            # For large files, we'll use iter_download for streaming
-            file_stream = await self.bot.download_media(message, in_memory=True)
-            
-            if not file_stream:
-                return {"error": "Failed to download file"}, HTTP_INTERNAL_ERROR
-            
             # Increment download counter (async, don't wait)
             import asyncio
-            asyncio.create_task(self.db.increment_downloads(message_id, file_size))
+            asyncio.create_task(self.db.increment_downloads(file_data['message_id'], content_length))
             
-            # Generate streaming response
+            # Use Pyrogram's stream_media for efficient streaming (no download to memory!)
+            # This streams directly from Telegram servers
             def generate():
-                if isinstance(file_stream, BytesIO):
-                    file_stream.seek(start)
-                    remaining = content_length
+                """Synchronous generator for Flask Response"""
+                import asyncio
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
+                try:
+                    bytes_sent = 0
+                    offset = start
+                    limit = content_length
                     
-                    while remaining > 0:
-                        chunk_size = min(Config.STREAM_CHUNK_SIZE, remaining)
-                        chunk = file_stream.read(chunk_size)
-                        if not chunk:
-                            break
-                        remaining -= len(chunk)
-                        yield chunk
-                else:
-                    # File path - read from disk
-                    with open(file_stream, 'rb') as f:
-                        f.seek(start)
-                        remaining = content_length
-                        
-                        while remaining > 0:
-                            chunk_size = min(Config.STREAM_CHUNK_SIZE, remaining)
-                            chunk = f.read(chunk_size)
-                            if not chunk:
-                                break
-                            remaining -= len(chunk)
+                    # Stream file in chunks
+                    async def async_stream():
+                        nonlocal bytes_sent
+                        async for chunk in self.bot.stream_media(message, offset=offset, limit=limit):
+                            if chunk and bytes_sent < content_length:
+                                bytes_to_send = min(len(chunk), content_length - bytes_sent)
+                                yield chunk[:bytes_to_send]
+                                bytes_sent += bytes_to_send
+                                if bytes_sent >= content_length:
+                                    break
+                    
+                    # Run async generator in sync context
+                    async_gen = async_stream()
+                    while True:
+                        try:
+                            chunk = loop.run_until_complete(async_gen.__anext__())
                             yield chunk
+                        except StopAsyncIteration:
+                            break
+                finally:
+                    loop.close()
             
             # Determine MIME type
-            mime_type = file_data.get('file_type', 'application/octet-stream')
-            if mime_type in MIME_TYPE_MAP:
-                mime_type = MIME_TYPE_MAP[mime_type]
+            mime_type = file_data.get('mime_type') or MIME_TYPE_MAP.get(file_data.get('file_type'), 'application/octet-stream')
             
             # Build response
             response = Response(generate(), mimetype=mime_type, status=status_code)
             
             # Set headers
             disposition = 'attachment' if is_download else 'inline'
-            response.headers['Content-Disposition'] = f'{disposition}; filename=\"{file_name}\"'
+            response.headers['Content-Disposition'] = f'{disposition}; filename="{file_name}"'
             response.headers['Content-Length'] = str(content_length)
             response.headers['Accept-Ranges'] = 'bytes'
             response.headers['Access-Control-Allow-Origin'] = '*'

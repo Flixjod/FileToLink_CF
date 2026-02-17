@@ -86,6 +86,14 @@ class Database:
             logger.error(f"Get file error: {e}")
             return None
     
+    async def get_file_by_hash(self, file_hash: str) -> Optional[Dict]:
+        """Get file by hash (file_id field)"""
+        try:
+            return await self.files.find_one({"file_id": file_hash})
+        except Exception as e:
+            logger.error(f"Get file by hash error: {e}")
+            return None
+    
     async def get_file_by_token(self, token: str) -> Optional[Dict]:
         """Get file by secret token"""
         try:

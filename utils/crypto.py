@@ -1,6 +1,5 @@
 import hmac
 import hashlib
-import base64
 import secrets
 from config import Config
 
@@ -14,41 +13,46 @@ class Cryptic:
         return secrets.token_urlsafe(length)[:length]
     
     @staticmethod
-    def hmac_sha256(message: str, secret: str) -> str:
-        """Generate HMAC-SHA256 signature"""
-        key = secret.encode('utf-8')
-        msg = message.encode('utf-8')
-        signature = hmac.new(key, msg, hashlib.sha256).digest()
-        return base64.urlsafe_b64encode(signature).decode('utf-8').rstrip('=')
-    
-    @staticmethod
     def hash_file_id(message_id: str) -> str:
         """
-        Generate secure hash: random_token + message_id + HMAC(random_token:message_id, secret)
-        Format: randomToken.messageId.signature
+        Generate secure short hash: HMAC-SHA256 truncated to 24 chars (12 bytes hex)
+        Format: 6891b4165eab4ca5917ce1e6 (24 characters)
         """
-        random_token = Cryptic.generate_random_token(12)
-        payload = f"{random_token}:{message_id}"
-        signature = Cryptic.hmac_sha256(payload, Config.SECRET_KEY)
-        return f"{random_token}.{message_id}.{signature[:32]}"
+        # Combine message_id with secret for security
+        payload = f"{message_id}:{Config.SECRET_KEY}"
+        signature = hmac.new(
+            Config.SECRET_KEY.encode('utf-8'),
+            payload.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+        
+        # Take first 24 characters for short hash
+        return signature[:24]
+    
+    @staticmethod
+    def verify_hash(file_hash: str, message_id: str) -> bool:
+        """Verify if hash matches the message_id"""
+        try:
+            expected_hash = Cryptic.hash_file_id(message_id)
+            return file_hash == expected_hash
+        except Exception:
+            return False
     
     @staticmethod
     def dehash_file_id(hashed: str) -> str:
         """
-        Verify and extract message_id from hash
-        Raises ValueError if hash is invalid
+        Cannot directly decode hash - must query database
+        This method is kept for compatibility but now requires DB lookup
+        Raises ValueError if hash is invalid format
         """
-        parts = hashed.split('.')
-        if len(parts) != 3:
-            raise ValueError('Invalid hash format')
+        if not hashed or len(hashed) != 24:
+            raise ValueError('Invalid hash format - must be 24 characters')
         
-        random_token, message_id, provided_signature = parts
+        # Hash validation will be done by database lookup
+        # This just validates format
+        try:
+            int(hashed, 16)  # Check if valid hex
+        except ValueError:
+            raise ValueError('Invalid hash format - must be hexadecimal')
         
-        # Verify HMAC signature
-        payload = f"{random_token}:{message_id}"
-        expected_signature = Cryptic.hmac_sha256(payload, Config.SECRET_KEY)[:32]
-        
-        if provided_signature != expected_signature:
-            raise ValueError('Invalid signature - hash verification failed')
-        
-        return message_id
+        return hashed  # Return hash for DB lookup
