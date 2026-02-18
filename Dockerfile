@@ -27,9 +27,12 @@ RUN mkdir -p logs
 # Expose port
 EXPOSE 8080
 
+# Default port for local runs
+ENV PORT=8080
+
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8080/ || exit 1
+    CMD sh -c "curl -f http://localhost:${PORT:-8080}/health || exit 1"
 
 # Run the application
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "4", "--worker-class", "sync", "--timeout", "120", "app:app"]
+CMD ["sh", "-c", "python3 main.py & gunicorn -w 4 app:app --bind 0.0.0.0:$PORT"]

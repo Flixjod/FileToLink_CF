@@ -2,10 +2,10 @@
 Main Entry Point - Runs both Bot and Flask App
 """
 import asyncio
-import threading
 import logging
+import os
+import threading
 from bot import bot
-from database import Database
 from config import Config
 
 # Configure logging
@@ -26,30 +26,30 @@ async def init_bot():
     try:
         # Validate config
         Config.validate()
-        
+
         # Initialize database
         from database import Database
         global_db = Database(Config.DB_URI, Config.DATABASE_NAME)
         await global_db.init_db()
         bot.db = global_db
         logger.info("✅ Database initialized")
-        
+
         # Load config from database
         await Config.load(global_db.db)
         logger.info("✅ Config loaded from database")
-        
+
         # Initialize Flask services with database
         from app import init_flask_services
-        init_flask_services(global_db)
-        
+        init_flask_services(global_db, bot)
+
         # Start bot
         await bot.start()
         logger.info("✅ Bot started successfully")
-        
+
         # Keep bot running
         from pyrogram import idle
         await idle()
-        
+
     except Exception as e:
         logger.error(f"❌ Bot initialization failed: {e}", exc_info=True)
         raise
@@ -71,7 +71,7 @@ def run_bot():
 def run_flask():
     """Run Flask app in main thread"""
     from app import app
-    
+
     logger.info(f"🚀 Starting Flask server on {Config.HOST}:{Config.PORT}")
     app.run(host=Config.HOST, port=Config.PORT, debug=False)
 
@@ -80,19 +80,25 @@ if __name__ == "__main__":
     logger.info("=" * 60)
     logger.info("🎬 FileStream Bot v2.0 - Starting...")
     logger.info("=" * 60)
-    
-    # Start bot in background thread
-    bot_thread = threading.Thread(target=run_bot, daemon=True, name="BotThread")
-    bot_thread.start()
-    logger.info("🤖 Bot thread started")
-    
-    # Small delay to let bot initialize
-    import time
-    time.sleep(3)
-    
-    # Run Flask in main thread
+
+    run_flask_server = os.getenv("RUN_FLASK", "").lower() in {"1", "true", "yes"}
+
     try:
-        run_flask()
+        if run_flask_server:
+            # Start bot in background thread
+            bot_thread = threading.Thread(target=run_bot, daemon=True, name="BotThread")
+            bot_thread.start()
+            logger.info("🤖 Bot thread started")
+
+            # Small delay to let bot initialize
+            import time
+            time.sleep(3)
+
+            # Run Flask in main thread
+            run_flask()
+        else:
+            # Run only the bot (for Procfile/Docker multi-process setup)
+            run_bot()
     except KeyboardInterrupt:
         logger.info("\n🛑 Shutting down gracefully...")
     except Exception as e:

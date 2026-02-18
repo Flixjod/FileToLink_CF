@@ -22,6 +22,19 @@ class Bot(Client):
             sleep_threshold=Config.SLEEP_THRESHOLD
         )
         self.db = None
+
+
+def create_stream_client() -> Client:
+    """Create a lightweight client for streaming (no updates)."""
+    return Client(
+        name="FileStreamStream",
+        api_id=Config.API_ID,
+        api_hash=Config.API_HASH,
+        bot_token=Config.BOT_TOKEN,
+        workers=1,
+        sleep_threshold=Config.SLEEP_THRESHOLD,
+        no_updates=True
+    )
         
     async def start(self):
         """Start the bot"""

@@ -1,6 +1,6 @@
 from flask import Flask, request, Response, render_template, jsonify
 from flask_compress import Compress  # For response compression
-from bot import bot
+from bot import bot, create_stream_client
 from database import Database
 from utils import Cryptic, format_size
 from config import Config
@@ -25,16 +25,44 @@ app.config['SECRET_KEY'] = Config.SECRET_KEY
 compress = Compress()
 compress.init_app(app)
 
-# Global instances (will be initialized by main.py)
+# Global instances (initialized lazily or via main.py)
 db = None
 streaming_service = None
+stream_bot = None
+init_lock = asyncio.Lock()
 
 
-def init_flask_services(database: Database):
-    """Initialize Flask services with database instance"""
-    global db, streaming_service
+async def ensure_services_ready():
+    """Ensure database and streaming client are initialized."""
+    global db, streaming_service, stream_bot
+    if db and streaming_service and stream_bot:
+        return
+
+    async with init_lock:
+        if db and streaming_service and stream_bot:
+            return
+
+        Config.validate()
+        database = Database(Config.DB_URI, Config.DATABASE_NAME)
+        await database.init_db()
+        await Config.load(database.db)
+
+        stream_bot = create_stream_client()
+        await stream_bot.start()
+        me = await stream_bot.get_me()
+        Config.BOT_USERNAME = me.username
+
+        db = database
+        streaming_service = StreamingService(stream_bot, db)
+        logger.info("✅ Flask services initialized")
+
+
+def init_flask_services(database: Database, bot_client=None):
+    """Initialize Flask services with provided database and bot client."""
+    global db, streaming_service, stream_bot
     db = database
-    streaming_service = StreamingService(bot, db)
+    stream_bot = bot_client or bot
+    streaming_service = StreamingService(stream_bot, db)
     logger.info("✅ Flask services initialized")
 
 
@@ -44,9 +72,10 @@ def init_flask_services(database: Database):
 async def home():
     """Home page with bot statistics"""
     try:
+        await ensure_services_ready()
         if not db:
             return "Bot is initializing...", HTTP_SERVICE_UNAVAILABLE
-        
+
         stats = await db.get_stats()
         bot_username = Config.BOT_USERNAME or "filestream_bot"
         
@@ -71,6 +100,7 @@ async def stream_page():
         return "Missing file parameter", HTTP_BAD_REQUEST
     
     try:
+        await ensure_services_ready()
         # Get file from database using hash
         file_data = await db.get_file_by_hash(file_hash)
         
@@ -114,6 +144,7 @@ async def stream_file(file_hash):
     Stream file with range request support
     Optimized for video/audio streaming with seeking capability
     """
+    await ensure_services_ready()
     if not streaming_service:
         return jsonify({"error": "Service not initialized"}), HTTP_SERVICE_UNAVAILABLE
     
@@ -126,6 +157,7 @@ async def download_file(file_hash):
     Download file with range request support
     Set Content-Disposition to attachment for downloading
     """
+    await ensure_services_ready()
     if not streaming_service:
         return jsonify({"error": "Service not initialized"}), HTTP_SERVICE_UNAVAILABLE
     
@@ -136,6 +168,7 @@ async def download_file(file_hash):
 async def stats():
     """Get bot statistics"""
     try:
+        await ensure_services_ready()
         if not db:
             return jsonify({"error": "Database not initialized"}), HTTP_SERVICE_UNAVAILABLE
         
@@ -157,6 +190,7 @@ async def stats():
 async def bandwidth():
     """Get bandwidth statistics"""
     try:
+        await ensure_services_ready()
         if not db:
             return jsonify({"error": "Database not initialized"}), HTTP_SERVICE_UNAVAILABLE
         
