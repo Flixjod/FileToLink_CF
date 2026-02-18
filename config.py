@@ -26,7 +26,7 @@ class Config:
     
     # Database Configuration
     DB_URI = os.environ.get("DB_URI", "mongodb://localhost:27017/")
-    DATABASE_NAME = os.environ.get("DATABASE_NAME", "filestream_bot")
+    DATABASE_NAME = os.environ.get("DATABASE_NAME", "FileStream_New_bot")
     
     # Channel/Chat Configuration
     LOGS_CHAT_ID = int(os.environ.get("LOGS_CHAT_ID", "0"))
