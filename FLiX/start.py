@@ -166,7 +166,7 @@ async def about_command(client: Client, message: Message):
         f"💾 ᴍᴏɴɢᴏᴅʙ sᴛᴏʀᴀɢᴇ\n"
         f"📊 ʙᴀɴᴅᴡɪᴅᴛʜ ᴄᴏɴᴛʀᴏʟ\n\n"
         f"💻 *{small_caps('developer')}:* @FLiX_LY\n"
-        f"🐍 *{small_caps('framework')}:* Pyrogram + Flask\n"
+        f"🐍 *{small_caps('framework')}:* Pyrogram + aiohttp\n"
         f"⚡ *{small_caps('version')}:* 2.0"
     )
     

@@ -5,7 +5,13 @@ from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from config import Config
 from utils import Cryptic, format_size, escape_markdown, generate_secret_token, small_caps, check_fsub
-from constants import *
+from config import Config
+# File-type constants now live in Config
+FILE_TYPE_VIDEO    = Config.FILE_TYPE_VIDEO
+FILE_TYPE_AUDIO    = Config.FILE_TYPE_AUDIO
+FILE_TYPE_IMAGE    = Config.FILE_TYPE_IMAGE
+FILE_TYPE_DOCUMENT = Config.FILE_TYPE_DOCUMENT
+STREAMABLE_TYPES   = Config.STREAMABLE_TYPES
 import logging
 
 logger = logging.getLogger(__name__)
@@ -138,9 +144,9 @@ async def file_handler(client: Client, message: Message):
     secret_token = generate_secret_token()
     
     # Get base URL
-    base_url = Config.BASE_URL
+    base_url = Config.URL
     if not base_url:
-        base_url = "https://your-domain.com"
+        base_url = f"http://localhost:{Config.PORT}"
     
     stream_page = f"{base_url}/streampage?file={file_hash}"
     stream_link = f"{base_url}/stream/{file_hash}"

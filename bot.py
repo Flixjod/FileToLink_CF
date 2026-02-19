@@ -2,6 +2,7 @@
 Bot Client Initialization
 """
 from pyrogram import Client
+from pyrogram.types import BotCommand, BotCommandScopeChat
 from config import Config
 import logging
 
@@ -10,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 class Bot(Client):
     """Enhanced Bot Client with plugin system"""
-    
+
     def __init__(self):
         super().__init__(
             name="FileStreamBot",
@@ -19,72 +20,67 @@ class Bot(Client):
             bot_token=Config.BOT_TOKEN,
             plugins=dict(root="FLiX"),
             workers=Config.WORKERS,
-            sleep_threshold=Config.SLEEP_THRESHOLD
+            sleep_threshold=Config.SLEEP_THRESHOLD,
         )
-        self.db = None
-        
+
     async def start(self):
         """Start the bot"""
         await super().start()
         me = await self.get_me()
         Config.BOT_USERNAME = me.username
         logger.info(f"🤖 Bot started: @{me.username}")
-        logger.info(f"👤 Bot ID: {me.id}")
-        logger.info(f"⚡ Workers: {Config.WORKERS}")
-        
-        # Set bot commands
-        await self.set_bot_commands()
-        
+        logger.info(f"👤 Bot ID:       {me.id}")
+        logger.info(f"⚡ Workers:      {Config.WORKERS}")
+
+        await self._set_commands()
         return me
-    
+
     async def stop(self, *args):
         """Stop the bot"""
         await super().stop()
         logger.info("🛑 Bot stopped")
-    
-    async def set_bot_commands(self):
-        """Set bot commands for better UX"""
-        from pyrogram.types import BotCommand
-        
-        commands = [
-            BotCommand("start", "Start the bot"),
-            BotCommand("help", "Get help information"),
-            BotCommand("about", "About this bot"),
-            BotCommand("files", "View your files"),
-            BotCommand("stats", "View bot statistics"),
+
+    async def _set_commands(self):
+        """Register bot command list with Telegram"""
+        user_commands = [
+            BotCommand("start",     "Start the bot"),
+            BotCommand("help",      "Get help information"),
+            BotCommand("about",     "About this bot"),
+            BotCommand("files",     "View your files"),
+            BotCommand("stats",     "View bot statistics"),
             BotCommand("bandwidth", "Check bandwidth usage"),
         ]
-        
-        # Add owner commands
-        owner_commands = commands + [
-            BotCommand("setpublic", "Toggle public/private mode"),
-            BotCommand("addsudo", "Add sudo user"),
-            BotCommand("rmsudo", "Remove sudo user"),
-            BotCommand("sudolist", "List sudo users"),
+
+        owner_commands = user_commands + [
+            BotCommand("setpublic",    "Toggle public/private mode"),
+            BotCommand("addsudo",      "Add sudo user"),
+            BotCommand("rmsudo",       "Remove sudo user"),
+            BotCommand("sudolist",     "List sudo users"),
             BotCommand("setbandwidth", "Set bandwidth limit"),
-            BotCommand("broadcast", "Broadcast message"),
-            BotCommand("logs", "Get bot logs"),
+            BotCommand("setfsub",      "Toggle force subscription"),
+            BotCommand("broadcast",    "Broadcast message"),
+            BotCommand("revokeall",    "Delete all files"),
+            BotCommand("logs",         "Get bot logs"),
         ]
-        
+
         try:
-            # Set commands for all users
-            await self.set_bot_commands(commands)
-            
-            # Set commands for owners
-            from pyrogram.types import BotCommandScopeChat
+            # Default commands for all users
+            await self.set_bot_commands(user_commands)
+
+            # Expanded commands for each owner
             for owner_id in Config.OWNER_ID:
                 try:
                     await self.set_bot_commands(
                         owner_commands,
-                        scope=BotCommandScopeChat(chat_id=owner_id)
+                        scope=BotCommandScopeChat(chat_id=owner_id),
                     )
                 except Exception as e:
-                    logger.warning(f"Could not set commands for owner {owner_id}: {e}")
-            
-            logger.info("✅ Bot commands set successfully")
+                    logger.warning(f"Could not set owner commands for {owner_id}: {e}")
+
+            logger.info("✅ Bot commands registered")
         except Exception as e:
-            logger.error(f"Failed to set bot commands: {e}")
+            logger.error(f"Failed to register bot commands: {e}")
 
 
-# Initialize bot instance
+# Singleton instance used throughout the project
 bot = Bot()

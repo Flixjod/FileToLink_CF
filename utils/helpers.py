@@ -1,25 +1,21 @@
 import secrets
 import string
-from config import Config
 import logging
+from config import Config
 
 logger = logging.getLogger(__name__)
 
 
 def format_size(bytes_size: int) -> str:
-    """Format bytes to human readable size"""
-    if bytes_size == 0:
+    """Format bytes to human-readable size"""
+    if not bytes_size:
         return '0 B'
-    
     sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-    k = 1024
+    size = float(bytes_size)
     i = 0
-    size = bytes_size
-    
-    while size >= k and i < len(sizes) - 1:
-        size /= k
+    while size >= 1024 and i < len(sizes) - 1:
+        size /= 1024
         i += 1
-    
     return f"{size:.2f} {sizes[i]}"
 
 
@@ -27,8 +23,6 @@ def escape_markdown(text: str) -> str:
     """Escape markdown special characters"""
     if not text:
         return 'Unknown File'
-    
-    # Replace backticks with single quotes to avoid markdown issues
     return text.replace('`', "'")
 
 
@@ -39,39 +33,40 @@ def generate_secret_token(length: int = 16) -> str:
 
 
 def small_caps(text: str) -> str:
-    """Convert text to small caps (Unicode small capitals)"""
-    normal = "abcdefghijklmnopqrstuvwxyz"
-    small_caps_chars = "ᴀʙᴄᴅᴇꜰɢʜɪᴊᴋʟᴍɴᴏᴘQʀꜱᴛᴜᴠᴡxʏᴢ"
-    
+    """Convert text to Unicode small capitals"""
+    normal     = "abcdefghijklmnopqrstuvwxyz"
+    small      = "ᴀʙᴄᴅᴇꜰɢʜɪᴊᴋʟᴍɴᴏᴘQʀꜱᴛᴜᴠᴡxʏᴢ"
     result = []
     for char in text.lower():
-        if char in normal:
-            idx = normal.index(char)
-            result.append(small_caps_chars[idx])
-        else:
-            result.append(char)
-    
+        idx = normal.find(char)
+        result.append(small[idx] if idx != -1 else char)
     return ''.join(result)
 
 
 async def check_fsub(client, user_id: int) -> bool:
-    """Check if user has joined the force subscription channel"""
+    """
+    Check if user has joined the force-subscription channel.
+    Returns True (allow) if fsub is disabled or on any error.
+    """
     from pyrogram.errors import UserNotParticipant
-    
-    # If force sub is disabled, return True
+    from pyrogram.enums import ChatMemberStatus
+
     if not Config.get("fsub_mode", False):
         return True
-    
+
     fsub_chat_id = Config.get("fsub_chat_id", 0)
     if not fsub_chat_id:
         return True
-    
+
     try:
         member = await client.get_chat_member(fsub_chat_id, user_id)
-        # Check if user is member, admin, or creator
-        return member.status in ["member", "administrator", "creator"]
+        return member.status in (
+            ChatMemberStatus.MEMBER,
+            ChatMemberStatus.ADMINISTRATOR,
+            ChatMemberStatus.OWNER,
+        )
     except UserNotParticipant:
         return False
     except Exception as e:
-        logger.error(f"Force sub check error: {e}")
-        return True  # On error, allow access
+        logger.error(f"Force-sub check error: {e}")
+        return True   # fail-open on unexpected errors

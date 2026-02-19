@@ -1,53 +1,55 @@
 """
-Middleware functions for Flask request processing
+Middleware helpers for aiohttp request processing
 """
-from functools import wraps
-from flask import request, jsonify
+import logging
+from aiohttp import web
 from database import Database
 from config import Config
-import logging
 
 logger = logging.getLogger(__name__)
 
 
 async def check_bandwidth_limit(db: Database):
-    """Check if bandwidth limit has been exceeded"""
+    """
+    Check if the global bandwidth limit has been exceeded.
+    Returns (allowed: bool, stats: dict).
+    """
     try:
         stats = await db.get_bandwidth_stats()
-        if stats["total_bandwidth"] >= Config.MAX_BANDWIDTH:
+        max_bw = Config.get("max_bandwidth", 107374182400)
+        if stats["total_bandwidth"] >= max_bw:
             return False, stats
         return True, stats
     except Exception as e:
         logger.error(f"Bandwidth check error: {e}")
-        return True, None
+        return True, {}
 
 
 async def check_user_access(db: Database, user_id: int) -> bool:
-    """Check if user has access to bot features"""
-    # Public bot - everyone has access
-    if Config.PUBLIC_BOT:
+    """Return True if the user is allowed to upload / access bot features."""
+    if Config.get("public_bot", False):
         return True
-    
-    # Owner always has access
-    if user_id == Config.BOT_OWNER:
+    if user_id in Config.OWNER_ID:
         return True
-    
-    # Check sudo users
     return await db.is_sudo_user(str(user_id))
 
 
-def require_bandwidth(db: Database):
-    """Decorator to check bandwidth before processing request"""
-    def decorator(f):
-        @wraps(f)
-        async def wrapper(*args, **kwargs):
-            allowed, stats = await check_bandwidth_limit(db)
-            if not allowed:
-                return jsonify({
+def bandwidth_middleware(db: Database):
+    """
+    aiohttp middleware factory that blocks requests when bandwidth is exhausted.
+    Attach to the aiohttp Application with app.middlewares.
+    """
+    @web.middleware
+    async def middleware(request: web.Request, handler):
+        allowed, stats = await check_bandwidth_limit(db)
+        if not allowed:
+            return web.json_response(
+                {
                     "error": "Bandwidth limit exceeded",
-                    "used": stats.get("total_bandwidth", 0),
-                    "limit": Config.MAX_BANDWIDTH
-                }), 503
-            return await f(*args, **kwargs)
-        return wrapper
-    return decorator
+                    "used":  stats.get("total_bandwidth", 0),
+                    "limit": Config.get("max_bandwidth", 0),
+                },
+                status=503,
+            )
+        return await handler(request)
+    return middleware

@@ -1,14 +1,15 @@
 """
-Main Entry Point - Runs both Bot and Flask App
+Main Entry Point – async-native, aiohttp web server + Pyrogram bot
 """
 import asyncio
-import threading
 import logging
-from bot import bot
-from database import Database
-from config import Config
+from aiohttp import web
+from pyrogram import idle
 
-# Configure logging
+from bot import bot
+from config import Config
+from database import Database, db_instance
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -20,82 +21,63 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def init_bot():
-    """Initialize bot and database"""
-    global_db = None
-    try:
-        # Validate config
-        Config.validate()
-        
-        # Initialize database
-        from database import Database
-        global_db = Database(Config.DB_URI, Config.DATABASE_NAME)
-        await global_db.init_db()
-        bot.db = global_db
-        logger.info("✅ Database initialized")
-        
-        # Load config from database
-        await Config.load(global_db.db)
-        logger.info("✅ Config loaded from database")
-        
-        # Initialize Flask services with database
-        from app import init_flask_services
-        init_flask_services(global_db)
-        
-        # Start bot
-        await bot.start()
-        logger.info("✅ Bot started successfully")
-        
-        # Keep bot running
-        from pyrogram import idle
-        await idle()
-        
-    except Exception as e:
-        logger.error(f"❌ Bot initialization failed: {e}", exc_info=True)
-        raise
+async def start_services():
+    print()
+    print("-------------------- Initializing Database ---------------------")
+    # Validate env vars first
+    Config.validate()
 
+    database = Database(Config.DB_URI, Config.DATABASE_NAME)
+    await database.init_db()
 
-def run_bot():
-    """Run bot in separate thread"""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    
-    try:
-        loop.run_until_complete(init_bot())
-    except KeyboardInterrupt:
-        logger.info("🛑 Bot stopped by user")
-    finally:
-        loop.close()
+    # Expose globally so plugins can import it
+    db_instance.set(database)
 
+    await Config.load(database.db)
+    print("------------------------------ DONE ------------------------------")
+    print()
+    print("-------------------- Initializing Telegram Bot --------------------")
 
-def run_flask():
-    """Run Flask app in main thread"""
-    from app import app
-    
-    logger.info(f"🚀 Starting Flask server on {Config.HOST}:{Config.PORT}")
-    app.run(host=Config.HOST, port=Config.PORT, debug=False)
+    await bot.start()
+    bot_info = await bot.get_me()
+    Config.BOT_USERNAME = bot_info.username
+    print("------------------------------ DONE ------------------------------")
+    print()
+    print("--------------------- Initializing Web Server ---------------------")
+
+    from app import build_app
+    web_app = build_app(database)
+
+    runner = web.AppRunner(web_app)
+    await runner.setup()
+    site = web.TCPSite(runner, Config.BIND_ADDRESS, Config.PORT)
+    await site.start()
+    print("------------------------------ DONE ------------------------------")
+    print()
+    print("------------------------- Service Started -------------------------")
+    print("                        bot =>> {}".format(bot_info.first_name))
+    if bot_info.dc_id:
+        print("                        DC ID =>> {}".format(str(bot_info.dc_id)))
+    print(" URL =>> {}".format(Config.URL or f"http://{Config.BIND_ADDRESS}:{Config.PORT}"))
+    print("------------------------------------------------------------------")
+
+    await idle()
+
+    # ---- graceful shutdown ----
+    await runner.cleanup()
+    await bot.stop()
+    await database.close()
 
 
 if __name__ == "__main__":
-    logger.info("=" * 60)
-    logger.info("🎬 FileStream Bot v2.0 - Starting...")
-    logger.info("=" * 60)
-    
-    # Start bot in background thread
-    bot_thread = threading.Thread(target=run_bot, daemon=True, name="BotThread")
-    bot_thread.start()
-    logger.info("🤖 Bot thread started")
-    
-    # Small delay to let bot initialize
-    import time
-    time.sleep(3)
-    
-    # Run Flask in main thread
+    print("=" * 68)
+    print("🎬  FileStream Bot – Starting …")
+    print("=" * 68)
     try:
-        run_flask()
+        asyncio.run(start_services())
     except KeyboardInterrupt:
-        logger.info("\n🛑 Shutting down gracefully...")
-    except Exception as e:
-        logger.error(f"❌ Fatal error: {e}", exc_info=True)
+        logger.info("🛑 Stopped by user")
+    except Exception as exc:
+        logger.exception(f"❌ Fatal error: {exc}")
     finally:
         logger.info("👋 Goodbye!")

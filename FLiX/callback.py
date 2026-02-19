@@ -120,7 +120,7 @@ async def callback_handler(client: Client, callback: CallbackQuery):
         
         # Generate links
         file_hash = file_data["file_id"]
-        base_url = Config.BASE_URL or "https://your-domain.com"
+        base_url = Config.URL or f"http://localhost:{Config.PORT}"
         
         stream_page = f"{base_url}/streampage?file={file_hash}"
         stream_link = f"{base_url}/stream/{file_hash}"
