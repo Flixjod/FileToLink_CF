@@ -9,7 +9,7 @@ import logging
 
 from aiohttp import web
 
-from bot import Bot()
+from bot import Bot
 from config import Config
 from database import Database, db_instance
 
