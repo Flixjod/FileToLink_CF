@@ -9,7 +9,7 @@ import logging
 
 from aiohttp import web
 
-from bot import bot
+from bot import Bot()
 from config import Config
 from database import Database, db_instance
 
@@ -28,11 +28,7 @@ logger = logging.getLogger(__name__)
 # ══════════════════════════════════════════════════════════════════════════
 #  Services that run inside bot.run()'s event loop
 # ══════════════════════════════════════════════════════════════════════════
-async def _run_services():
-    """
-    Called by bot.run() once the Pyrogram client is connected.
-    Initialises DB, web server, then keeps the loop alive.
-    """
+async def main():
 
     # ── Database ───────────────────────────────────────────────────────
     logger.info("Initialising database …")
@@ -48,7 +44,9 @@ async def _run_services():
     await Config.load(database.db)
     logger.info("Database ready")
 
-    # ── Bot identity ───────────────────────────────────────────────────
+    # ── Bot  ───────────────────────────────────────────────────
+    bot = Bot()
+    await bot.start()
     bot_info = await bot.get_me()
     Config.BOT_USERNAME = bot_info.username
     logger.info(
@@ -78,10 +76,7 @@ async def _run_services():
         Config.URL or f"http://{Config.BIND_ADDRESS}:{Config.PORT}",
     )
 
-    # ── Keep-alive ─────────────────────────────────────────────────────
-    # bot.run() keeps the loop alive; we just yield control indefinitely
-    # so the web-server and handlers remain active.
-    try:
+     try:
         await asyncio.Event().wait()
     finally:
         logger.info("Shutting down web server …")
@@ -89,18 +84,9 @@ async def _run_services():
         logger.info("Shutting down database …")
         await database.close()
         logger.info("Shutdown complete")
+        await bot.stop()
+        sys.exit(1)
 
 
-# ══════════════════════════════════════════════════════════════════════════
-#  Entry point
-# ══════════════════════════════════════════════════════════════════════════
-if __name__ == "__main__":
-    logger.info("FileStream Bot — starting")
-    try:
-        bot.run(_run_services())
-    except KeyboardInterrupt:
-        logger.info("Stopped by user (KeyboardInterrupt)")
-    except Exception as exc:
-        logger.exception("Fatal error during startup: %s", exc)
-    finally:
-        logger.info("Goodbye")
+asyncio.run(main())
+
