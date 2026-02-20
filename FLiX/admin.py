@@ -479,7 +479,7 @@ async def cb_view_file(client: Client, callback: CallbackQuery):
 
     file_hash    = file_data["file_id"]
     base_url     = Config.URL or f"http://localhost:{Config.PORT}"
-    stream_page  = f"{base_url}/streampage?file={file_hash}"
+    stream_page  = f"{base_url}/stream/{file_hash}"
     download_link = f"{base_url}/dl/{file_hash}"
     telegram_link = f"https://t.me/{Config.BOT_USERNAME}?start={file_hash}"
 
@@ -489,7 +489,7 @@ async def cb_view_file(client: Client, callback: CallbackQuery):
     buttons = [
         [
             InlineKeyboardButton(
-                f"🌐 {small_caps('stream')}",   url=stream_page
+                f"🎬 {small_caps('stream')}",   url=stream_page
             ),
             InlineKeyboardButton(
                 f"📥 {small_caps('download')}", url=download_link

@@ -28,39 +28,37 @@ class Bot(Client):
         await super().start()
         me = await self.get_me()
         Config.BOT_USERNAME = me.username
-        logger.info(f"🤖 Bot started: @{me.username}")
-        logger.info(f"👤 Bot ID:       {me.id}")
-        logger.info(f"⚡ Workers:      {Config.WORKERS}")
-
+        logger.info("⚡  ʙᴏᴛ: @%s  │  ɪᴅ: %s  │  ᴡᴏʀᴋᴇʀs: %s",
+                    me.username, me.id, Config.WORKERS)
         await self._set_commands()
         return me
 
     async def stop(self, *args):
         """Stop the bot"""
         await super().stop()
-        logger.info("🛑 Bot stopped")
+        logger.info("🛑  ʙᴏᴛ sᴛᴏᴘᴘᴇᴅ")
 
     async def _set_commands(self):
         """Register bot command list with Telegram"""
         user_commands = [
-            BotCommand("start",     "Start the bot"),
-            BotCommand("help",      "Get help information"),
-            BotCommand("about",     "About this bot"),
-            BotCommand("files",     "View your files"),
-            BotCommand("stats",     "View bot statistics"),
-            BotCommand("bandwidth", "Check bandwidth usage"),
+            BotCommand("start",     "🚀 ꜱᴛᴀʀᴛ ᴛʜᴇ ʙᴏᴛ"),
+            BotCommand("help",      "📚 ɢᴇᴛ ʜᴇʟᴘ ɪɴꜰᴏ"),
+            BotCommand("about",     "ℹ️ ᴀʙᴏᴜᴛ ᴛʜɪꜱ ʙᴏᴛ"),
+            BotCommand("files",     "📂 ᴠɪᴇᴡ ʏᴏᴜʀ ꜰɪʟᴇꜱ"),
+            BotCommand("stats",     "📊 ʙᴏᴛ ꜱᴛᴀᴛɪꜱᴛɪᴄꜱ"),
+            BotCommand("bandwidth", "📡 ᴄʜᴇᴄᴋ ʙᴀɴᴅᴡɪᴅᴛʜ ᴜꜱᴀɢᴇ"),
         ]
 
         owner_commands = user_commands + [
-            BotCommand("setpublic",    "Toggle public/private mode"),
-            BotCommand("addsudo",      "Add sudo user"),
-            BotCommand("rmsudo",       "Remove sudo user"),
-            BotCommand("sudolist",     "List sudo users"),
-            BotCommand("setbandwidth", "Set bandwidth limit"),
-            BotCommand("setfsub",      "Toggle force subscription"),
-            BotCommand("broadcast",    "Broadcast message"),
-            BotCommand("revokeall",    "Delete all files"),
-            BotCommand("logs",         "Get bot logs"),
+            BotCommand("setpublic",    "🔓 ᴛᴏɢɢʟᴇ ᴘᴜʙʟɪᴄ/ᴘʀɪᴠᴀᴛᴇ ᴍᴏᴅᴇ"),
+            BotCommand("addsudo",      "➕ ᴀᴅᴅ ꜱᴜᴅᴏ ᴜꜱᴇʀ"),
+            BotCommand("rmsudo",       "➖ ʀᴇᴍᴏᴠᴇ ꜱᴜᴅᴏ ᴜꜱᴇʀ"),
+            BotCommand("sudolist",     "📋 ʟɪꜱᴛ ꜱᴜᴅᴏ ᴜꜱᴇʀꜱ"),
+            BotCommand("setbandwidth", "⚙️ ꜱᴇᴛ ʙᴀɴᴅᴡɪᴅᴛʜ ʟɪᴍɪᴛ"),
+            BotCommand("setfsub",      "🔔 ᴛᴏɢɢʟᴇ ꜰᴏʀᴄᴇ ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ"),
+            BotCommand("broadcast",    "📢 ʙʀᴏᴀᴅᴄᴀꜱᴛ ᴍᴇꜱꜱᴀɢᴇ"),
+            BotCommand("revokeall",    "🗑️ ᴅᴇʟᴇᴛᴇ ᴀʟʟ ꜰɪʟᴇꜱ"),
+            BotCommand("logs",         "📄 ɢᴇᴛ ʙᴏᴛ ʟᴏɢꜱ"),
         ]
 
         try:
@@ -75,11 +73,14 @@ class Bot(Client):
                         scope=BotCommandScopeChat(chat_id=owner_id),
                     )
                 except Exception as e:
-                    logger.warning(f"Could not set owner commands for {owner_id}: {e}")
+                    logger.warning(
+                        "⚠️  ᴄᴏᴜʟᴅ ɴᴏᴛ ꜱᴇᴛ ᴏᴡɴᴇʀ ᴄᴏᴍᴍᴀɴᴅꜱ ꜰᴏʀ %s: %s",
+                        owner_id, e,
+                    )
 
-            logger.info("✅ Bot commands registered")
+            logger.info("✅  ʙᴏᴛ ᴄᴏᴍᴍᴀɴᴅꜱ ʀᴇɢɪꜱᴛᴇʀᴇᴅ")
         except Exception as e:
-            logger.error(f"Failed to register bot commands: {e}")
+            logger.error("❌  ꜰᴀɪʟᴇᴅ ᴛᴏ ʀᴇɢɪꜱᴛᴇʀ ᴄᴏᴍᴍᴀɴᴅꜱ: %s", e)
 
 
 # Singleton instance used throughout the project

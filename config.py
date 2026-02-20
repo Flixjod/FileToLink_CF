@@ -95,7 +95,7 @@ class Config:
         """Load settings from DB into memory"""
         doc = await db.config.find_one({"key": "Settings"})
         if not doc:
-            logger.warning("⚠️ Config not found in DB — applying fresh config values")
+            logger.warning("⚠️  ᴄᴏɴꜰɪɢ ɴᴏᴛ ꜰᴏᴜɴᴅ ɪɴ ᴅʙ — ᴄʀᴇᴀᴛɪɴɢ ꜰʀᴇꜱʜ ᴄᴏɴꜰɪɢ…")
             doc = {
                 "key": "Settings",
                 # Force Sub
@@ -112,12 +112,12 @@ class Config:
                 "max_stream_size":   int(os.environ.get('MAX_STREAM_SIZE',   2147483648)),  # 2 GB
             }
             await db.config.insert_one(doc)
-            logger.info("✅ Config created & saved in DB")
+            logger.info("✅  ᴄᴏɴꜰɪɢ ᴄʀᴇᴀᴛᴇᴅ & ꜰᴜʟʟʏ ᴛᴜɴᴇᴅ ɪɴ ᴅʙ")
         else:
-            logger.info("📥 Config loaded from DB")
+            logger.info("📥  ᴄᴏɴꜰɪɢ ʟᴏᴀᴅᴇᴅ ꜰʀᴏᴍ ᴅʙ")
 
         cls._data = doc
-        logger.info("✨ Config is live")
+        logger.info("✨  ᴄᴏɴꜰɪɢ ɪꜱ ʟɪᴠᴇ")
 
     @classmethod
     async def update(cls, db, updates: dict):
@@ -128,7 +128,7 @@ class Config:
             {"$set": updates},
             upsert=True
         )
-        logger.info(f"✅ Config updated: {list(updates.keys())}")
+        logger.info("✅  ᴄᴏɴꜰɪɢ ᴜᴘᴅᴀᴛᴇᴅ: %s", list(updates.keys()))
 
     # ----- Accessors -----
     @classmethod
@@ -159,7 +159,7 @@ class Config:
             raise ValueError(f"Missing required configuration: {', '.join(missing)}")
 
         if not Config.URL:
-            logger.warning("⚠️  Warning: URL not set. Download links will use localhost.")
+            logger.warning("⚠️  URL ɴᴏᴛ ꜱᴇᴛ — ᴅᴏᴡɴʟᴏᴀᴅ ʟɪɴᴋꜱ ᴡɪʟʟ ᴜꜱᴇ ʟᴏᴄᴀʟʜᴏꜱᴛ")
 
-        logger.info("✅ Configuration validated successfully")
+        logger.info("✅  ᴄᴏɴꜰɪɢᴜʀᴀᴛɪᴏɴ ᴠᴀʟɪᴅᴀᴛᴇᴅ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ")
         return True

@@ -177,7 +177,7 @@ async def file_handler(client: Client, message: Message):
     secret_token  = generate_secret_token()
     base_url      = Config.URL or f"http://localhost:{Config.PORT}"
 
-    stream_page    = f"{base_url}/streampage?file={file_hash}"
+    stream_page    = f"{base_url}/stream/{file_hash}"
     stream_link    = f"{base_url}/stream/{file_hash}"
     download_link  = f"{base_url}/dl/{file_hash}"
     telegram_link  = f"https://t.me/{Config.BOT_USERNAME}?start={file_hash}"
@@ -211,8 +211,8 @@ async def file_handler(client: Client, message: Message):
 
     if is_streamable:
         buttons.append([
-            InlineKeyboardButton(f"🌐 {small_caps('stream page')}",  url=stream_page),
-            InlineKeyboardButton(f"📥 {small_caps('download')}",     url=download_link),
+            InlineKeyboardButton(f"🎬 {small_caps('stream')}",  url=stream_page),
+            InlineKeyboardButton(f"📥 {small_caps('download')}", url=download_link),
         ])
     else:
         buttons.append([
