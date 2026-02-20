@@ -1,6 +1,15 @@
 """
 aiohttp Web Application
 All routes are fully async – no Flask, no threading.
+
+Routes
+──────
+GET /                         → home page
+GET /stream/{file_hash}       → streaming page (FLiX template) AND raw stream
+GET /dl/{file_hash}           → force-download
+GET /stats                    → JSON statistics
+GET /bandwidth                → JSON bandwidth info
+GET /health                   → health-check JSON
 """
 import json
 import logging
@@ -53,27 +62,41 @@ def build_app(database: Database) -> web.Application:
                 "total_downloads": stats["total_downloads"],
             }
         except Exception as exc:
-            logger.error(f"Home page error: {exc}")
+            logger.error("Home page error: %s", exc)
             raise web.HTTPInternalServerError(reason=str(exc))
 
     @aiohttp_jinja2.template("stream.html")
     async def stream_page(request: web.Request):
-        """Streaming page with player"""
-        file_hash = request.rel_url.query.get("file")
-        if not file_hash:
-            raise web.HTTPBadRequest(reason="Missing 'file' parameter")
+        """
+        Streaming page — URL: /stream/<file_hash>
+        Renders the FLiX player HTML; the actual bytes come from the
+        same /stream/<file_hash> endpoint when the browser requests the src.
+        """
+        file_hash = request.match_info["file_hash"]
 
+        # If this is a plain HTTP request (no Range header) with Accept: text/html
+        # we return the player page; otherwise we fall through to stream_file.
+        accept = request.headers.get("Accept", "")
+        range_h = request.headers.get("Range", "")
+
+        # When Range header is present the browser/player wants raw bytes
+        if range_h or "text/html" not in accept:
+            return await streaming_service.stream_file(
+                request, file_hash, is_download=False
+            )
+
+        # ── Render the player page ──────────────────────────────────────
         file_data = await database.get_file_by_hash(file_hash)
         if not file_data:
-            raise web.HTTPNotFound(reason="File not found")
+            raise web.HTTPNotFound(reason="ғɪʟᴇ ɴᴏᴛ ғᴏᴜɴᴅ")
 
         allowed, _ = await check_bandwidth_limit(database)
         if not allowed:
-            raise web.HTTPServiceUnavailable(reason="Bandwidth limit exceeded")
+            raise web.HTTPServiceUnavailable(reason="ʙᴀɴᴅᴡɪᴅᴛʜ ʟɪᴍɪᴛ ᴇxᴄᴇᴇᴅᴇᴅ")
 
         base = str(request.url.origin())
         file_type = (
-            "video" if file_data["file_type"] == Config.FILE_TYPE_VIDEO
+            "video"    if file_data["file_type"] == Config.FILE_TYPE_VIDEO
             else "audio" if file_data["file_type"] == Config.FILE_TYPE_AUDIO
             else "document"
         )
@@ -89,15 +112,23 @@ def build_app(database: Database) -> web.Application:
             "telegram_url":   f"https://t.me/{Config.BOT_USERNAME}?start={file_hash}",
         }
 
-    async def stream_file(request: web.Request):
-        """Stream file with range-request support"""
+    async def stream_file_raw(request: web.Request):
+        """
+        Raw byte streaming endpoint.
+        Serves range-requests from browser players, VLC, MX, wget, etc.
+        URL: /stream/<file_hash>  (non-HTML Accept / Range present)
+        """
         file_hash = request.match_info["file_hash"]
-        return await streaming_service.stream_file(request, file_hash, is_download=False)
+        return await streaming_service.stream_file(
+            request, file_hash, is_download=False
+        )
 
     async def download_file(request: web.Request):
         """Download file (Content-Disposition: attachment)"""
         file_hash = request.match_info["file_hash"]
-        return await streaming_service.stream_file(request, file_hash, is_download=True)
+        return await streaming_service.stream_file(
+            request, file_hash, is_download=True
+        )
 
     async def stats_endpoint(request: web.Request):
         """JSON statistics endpoint"""
@@ -111,7 +142,7 @@ def build_app(database: Database) -> web.Application:
                 text=json.dumps(stats), content_type="application/json"
             )
         except Exception as exc:
-            logger.error(f"Stats error: {exc}")
+            logger.error("Stats error: %s", exc)
             return web.json_response({"error": str(exc)}, status=500)
 
     async def bandwidth_endpoint(request: web.Request):
@@ -133,7 +164,7 @@ def build_app(database: Database) -> web.Application:
                 text=json.dumps(stats), content_type="application/json"
             )
         except Exception as exc:
-            logger.error(f"Bandwidth error: {exc}")
+            logger.error("Bandwidth error: %s", exc)
             return web.json_response({"error": str(exc)}, status=500)
 
     async def health(request: web.Request):
@@ -146,12 +177,13 @@ def build_app(database: Database) -> web.Application:
         })
 
     # ── Register routes ──────────────────────────────────────────────────
-    app.router.add_get("/",              home)
-    app.router.add_get("/streampage",    stream_page)
-    app.router.add_get("/stream/{file_hash}", stream_file)
+    app.router.add_get("/",                   home)
+    # /stream/<id>  — serves player HTML for browsers, raw bytes for players
+    app.router.add_get("/stream/{file_hash}", stream_page)
+    # /dl/<id>      — force-download (attachment)
     app.router.add_get("/dl/{file_hash}",     download_file)
-    app.router.add_get("/stats",         stats_endpoint)
-    app.router.add_get("/bandwidth",     bandwidth_endpoint)
-    app.router.add_get("/health",        health)
+    app.router.add_get("/stats",              stats_endpoint)
+    app.router.add_get("/bandwidth",          bandwidth_endpoint)
+    app.router.add_get("/health",             health)
 
     return app
