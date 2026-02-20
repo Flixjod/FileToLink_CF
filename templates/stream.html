@@ -14,6 +14,19 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@500;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* ── Button text + icon centred ────────────────────────────────── */
+        .downloadBtn button {
+            display:         inline-flex;
+            align-items:     center;
+            justify-content: center;
+            gap:             8px;
+            text-align:      center;
+        }
+        .downloadBtn button img {
+            flex-shrink: 0;
+        }
+    </style>
 </head>
 
 <body>
@@ -31,8 +44,8 @@
 
     <center>
         <div class="about-nav">
-            <a href="#abtus"    class="wlcm magnet"      onclick="toggleWidth(this)">WELCOME</a>
-            <a href="#channels" class="abt-chnl magnet"  onclick="toggleWidth(this)">CHANNELS</a>
+            <a href="#abtus"    class="wlcm magnet"       onclick="toggleWidth(this)">WELCOME</a>
+            <a href="#channels" class="abt-chnl magnet"   onclick="toggleWidth(this)">CHANNELS</a>
             <a href="#contact"  class="magnet contact-btn" onclick="toggleWidth(this)">CONTACT</a>
         </div>
     </center>
@@ -41,20 +54,20 @@
         <div class="inner">
             <div class="main" id="main">
 
-                <!-- ── Player ─────────────────────────────────────────── -->
+                <!-- ── Player ──────────────────────────────────────────── -->
                 {% if file_type == 'video' %}
                 <video id="player" class="player" src="{{ stream_url }}"
-                       type="video/mp4" playsinline controls width="100%"></video>
+                       type="video/mp4" playsinline controls width="100%"
+                       preload="metadata"></video>
                 {% elif file_type == 'audio' %}
                 <audio id="player" class="player" src="{{ stream_url }}"
-                       controls style="width:100%; margin-bottom:16px;"></audio>
-                {% else %}
-                <!-- Non-media file: no player shown -->
+                       controls preload="metadata"
+                       style="width:100%; margin-bottom:16px;"></audio>
                 {% endif %}
 
                 <div class="player"></div>
 
-                <!-- ── File info ──────────────────────────────────────── -->
+                <!-- ── File info ───────────────────────────────────────── -->
                 <div class="file-name">
                     <h4 style="display:inline;">File Name: </h4>
                     <p  style="display:inline;" id="myDiv">{{ file_name }}</p><br>
@@ -62,26 +75,22 @@
                     <p  style="display:inline;">{{ file_size }}</p>
                 </div>
 
-                <!-- ── Action buttons ────────────────────────────────── -->
+                <!-- ── Action buttons ──────────────────────────────────── -->
                 <div class="downloadBtn">
-                    <button class="magnet" onclick="streamDownload()">
-                        <img style="height:30px;" src="https://i.ibb.co/RjzYttX/dl.png" alt="">
-                        ᴅᴏᴡɴʟᴏᴀᴅ ᴠɪᴅᴇᴏ
-                    </button>
                     <button class="magnet" onclick="copyStreamLink()">
                         <img src="https://i.ibb.co/CM4Y586/link.png" alt="Copy Link">
                         ᴄᴏᴘʏ ʟɪɴᴋ
                     </button>
                     <button class="magnet" onclick="vlc_player()">
-                        <img src="https://i.ibb.co/px6fQs1/vlc.png" alt="">
+                        <img src="https://i.ibb.co/px6fQs1/vlc.png" alt="VLC">
                         ᴡᴀᴛᴄʜ ɪɴ ᴠʟᴄ
                     </button>
                     <button class="magnet" onclick="mx_player()">
-                        <img src="https://i.ibb.co/41WvtQ3/mx.png" alt="">
+                        <img src="https://i.ibb.co/41WvtQ3/mx.png" alt="MX Player">
                         ᴡᴀᴛᴄʜ ɪɴ ᴍx ᴘʟᴀʏᴇʀ
                     </button>
                     <button class="magnet" onclick="n_player()">
-                        <img src="https://i.ibb.co/Hd2dS4t/nPlayer.png" alt="">
+                        <img src="https://i.ibb.co/Hd2dS4t/nPlayer.png" alt="nPlayer">
                         ᴡᴀᴛᴄʜ ɪɴ ɴᴘʟᴀʏᴇʀ
                     </button>
                 </div>
@@ -173,27 +182,16 @@
 <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/sheryjs/dist/Shery.js"></script>
 
 <script>
-    /* ── Inject template values for JS use ─────────────────────────── */
-    const STREAM_URL   = "{{ stream_url }}";
-    const DOWNLOAD_URL = "{{ download_url }}";
-    const FILE_NAME    = {{ file_name | tojson }};
+    /* ── Template values ─────────────────────────────────────────────── */
+    const STREAM_URL = "{{ stream_url }}";
+    const FILE_NAME  = {{ file_name | tojson }};
 
-    /* ── Block text selection on uncopyable elements ────────────────── */
+    /* ── Block text selection on .uncopyable elements ───────────────── */
     document.addEventListener("DOMContentLoaded", function () {
         document.querySelectorAll(".uncopyable").forEach(function (el) {
             el.addEventListener("selectstart", function (e) { e.preventDefault(); });
         });
     });
-
-    /* ── Download button ─────────────────────────────────────────────── */
-    function streamDownload() {
-        const a = document.createElement("a");
-        a.href     = DOWNLOAD_URL;
-        a.download = FILE_NAME;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-    }
 
     /* ── Copy stream link ────────────────────────────────────────────── */
     function copyStreamLink() {
@@ -205,14 +203,19 @@
     }
 
     /* ── External player helpers ─────────────────────────────────────── */
+    /* VLC: use vlc:// URI scheme so the OS hands the URL to VLC        */
     function vlc_player() {
         window.location.href = "vlc://" + STREAM_URL;
     }
+
+    /* MX Player: intent URI for Android                                 */
     function mx_player() {
         window.location.href =
             "intent:" + STREAM_URL +
             "#Intent;package=com.mxtech.videoplayer.ad;end";
     }
+
+    /* nPlayer                                                           */
     function n_player() {
         window.location.href = "nplayer-" + STREAM_URL;
     }
