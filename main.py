@@ -1,9 +1,3 @@
-"""
-Main Entry Point
-────────────────
-Starts the aiohttp web server inside Pyrogram's event loop.
-All third-party loggers (pyrogram, aiohttp) are suppressed to WARNING.
-"""
 import asyncio
 import logging
 import sys
@@ -11,17 +5,13 @@ import sys
 from aiohttp import web
 
 from bot import Bot
+from app import build_app
 from config import Config
 from database import Database, db_instance
 
 
-# ══════════════════════════════════════════════════════════════════════════
-#  Logging — styled, readable, noisy libs silenced to WARNING
-# ══════════════════════════════════════════════════════════════════════════
-
-class _ColorFormatter(logging.Formatter):
-    """Terminal-colour log formatter with small-caps level labels."""
-
+# Logging
+class LoggingFormatter(logging.Formatter):
     RESET  = "\033[0m"
     BOLD   = "\033[1m"
     GREY   = "\033[38;5;245m"
@@ -54,14 +44,14 @@ class _ColorFormatter(logging.Formatter):
         )
 
 
-def _setup_logging() -> None:
+def setup_logging() -> None:
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
 
     # ── Console (coloured) ─────────────────────────────────────────────
     console = logging.StreamHandler(sys.stdout)
     console.setLevel(logging.INFO)
-    console.setFormatter(_ColorFormatter())
+    console.setFormatter(LoggingFormatter())
     root.addHandler(console)
 
     # ── File (plain, full debug) ───────────────────────────────────────
@@ -86,22 +76,14 @@ def _setup_logging() -> None:
         logging.getLogger(noisy).setLevel(logging.WARNING)
 
 
-_setup_logging()
+setup_logging()
 logger = logging.getLogger(__name__)
 
 
-# ══════════════════════════════════════════════════════════════════════════
-#  Main coroutine
-# ══════════════════════════════════════════════════════════════════════════
-
 async def main() -> None:
-
-    # ── Banner ─────────────────────────────────────────────────────────
-    logger.info("━" * 52)
     logger.info("  🎬  ꜰʟɪx ꜰɪʟᴇ ꜱᴛʀᴇᴀᴍ ʙᴏᴛ  ʙᴏᴏᴛɪɴɢ ᴜᴘ…")
-    logger.info("━" * 52)
 
-    # ── Config validation ──────────────────────────────────────────────
+    #Config validation
     logger.info("🔍  ᴠᴀʟɪᴅᴀᴛɪɴɢ ᴄᴏɴꜰɪɢᴜʀᴀᴛɪᴏɴ…")
     try:
         Config.validate()
@@ -109,7 +91,7 @@ async def main() -> None:
         logger.critical("❌  ᴄᴏɴꜰɪɢ ᴇʀʀᴏʀ: %s", exc)
         raise SystemExit(1) from exc
 
-    # ── Database ───────────────────────────────────────────────────────
+    #Database
     logger.info("🗄️   ᴄᴏɴɴᴇᴄᴛɪɴɢ ᴛᴏ ᴅᴀᴛᴀʙᴀꜱᴇ…")
     database = Database(Config.DB_URI, Config.DATABASE_NAME)
     await database.init_db()
@@ -117,7 +99,7 @@ async def main() -> None:
     await Config.load(database.db)
     logger.info("✅  ᴄᴏɴꜰɪɢ ᴄʀᴇᴀᴛᴇᴅ & ꜰᴜʟʟʏ ᴛᴜɴᴇᴅ ɪɴ ᴅʙ")
 
-    # ── Bot ────────────────────────────────────────────────────────────
+    #Bot
     logger.info("🤖  ᴄᴏɴɴᴇᴄᴛɪɴɢ ʙᴏᴛ ᴛᴏ ᴛᴇʟᴇɢʀᴀᴍ…")
     bot = Bot()
     await bot.start()
@@ -130,10 +112,8 @@ async def main() -> None:
         bot_info.dc_id,
     )
 
-    # ── Web server ─────────────────────────────────────────────────────
+    #Web Server
     logger.info("🌐  ꜱᴛᴀʀᴛɪɴɢ ᴡᴇʙ ꜱᴇʀᴠᴇʀ…")
-    from app import build_app
-
     web_app = build_app(database)
     runner  = web.AppRunner(web_app)
     await runner.setup()
@@ -143,12 +123,10 @@ async def main() -> None:
     public_url = Config.URL or f"http://{Config.BIND_ADDRESS}:{Config.PORT}"
     logger.info("✅  ᴡᴇʙ ꜱᴇʀᴠᴇʀ ʟɪᴠᴇ")
     logger.info("🔗  %s", public_url)
-    logger.info("━" * 52)
     logger.info(
         "🚀  ᴀʟʟ ꜱᴇʀᴠɪᴄᴇꜱ ʀᴇᴀᴅʏ  │  ʙᴏᴛ: @%s",
         bot_info.username,
     )
-    logger.info("━" * 52)
 
     # ── Run until interrupted ──────────────────────────────────────────
     try:

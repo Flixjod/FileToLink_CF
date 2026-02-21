@@ -1,6 +1,3 @@
-"""
-Bot Client Initialization
-"""
 from pyrogram import Client
 from pyrogram.types import BotCommand, BotCommandScopeChat
 from config import Config
@@ -10,8 +7,6 @@ logger = logging.getLogger(__name__)
 
 
 class Bot(Client):
-    """Enhanced Bot Client with plugin system"""
-
     def __init__(self):
         super().__init__(
             name="FileStreamBot",
@@ -19,12 +14,11 @@ class Bot(Client):
             api_hash=Config.API_HASH,
             bot_token=Config.BOT_TOKEN,
             plugins=dict(root="FLiX"),
-            workers=Config.WORKERS,
-            sleep_threshold=Config.SLEEP_THRESHOLD,
+            workers=50,
+            sleep_threshold=10,
         )
 
     async def start(self):
-        """Start the bot"""
         await super().start()
         me = await self.get_me()
         Config.BOT_USERNAME = me.username
@@ -34,12 +28,10 @@ class Bot(Client):
         return me
 
     async def stop(self, *args):
-        """Stop the bot"""
         await super().stop()
         logger.info("🛑  ʙᴏᴛ sᴛᴏᴘᴘᴇᴅ")
 
     async def _set_commands(self):
-        """Register bot command list with Telegram"""
         user_commands = [
             BotCommand("start",     "🚀 ꜱᴛᴀʀᴛ ᴛʜᴇ ʙᴏᴛ"),
             BotCommand("help",      "📚 ɢᴇᴛ ʜᴇʟᴘ ɪɴꜰᴏ"),
@@ -62,10 +54,8 @@ class Bot(Client):
         ]
 
         try:
-            # Default commands for all users
             await self.set_bot_commands(user_commands)
 
-            # Expanded commands for each owner
             for owner_id in Config.OWNER_ID:
                 try:
                     await self.set_bot_commands(
@@ -83,5 +73,5 @@ class Bot(Client):
             logger.error("❌  ꜰᴀɪʟᴇᴅ ᴛᴏ ʀᴇɢɪꜱᴛᴇʀ ᴄᴏᴍᴍᴀɴᴅꜱ: %s", e)
 
 
-# Singleton instance used throughout the project
+
 bot = Bot()
