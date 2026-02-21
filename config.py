@@ -38,23 +38,6 @@ class Config:
     PORT         = int(os.environ.get("PORT", 8080))
     URL          = os.environ.get("URL", os.environ.get("BASE_URL", os.environ.get("WEBHOOK_URL", "")))
 
-    WORKERS         = int(os.environ.get("WORKERS", 50))
-    SLEEP_THRESHOLD = int(os.environ.get("SLEEP_THRESHOLD", 10))
-
-    FILE_TYPE_VIDEO    = "video"
-    FILE_TYPE_AUDIO    = "audio"
-    FILE_TYPE_IMAGE    = "image"
-    FILE_TYPE_DOCUMENT = "document"
-
-    STREAMABLE_TYPES = [FILE_TYPE_VIDEO, FILE_TYPE_AUDIO]
-
-    MIME_TYPE_MAP = {
-        FILE_TYPE_VIDEO:    "video/mp4",
-        FILE_TYPE_AUDIO:    "audio/mpeg",
-        FILE_TYPE_IMAGE:    "image/jpeg",
-        FILE_TYPE_DOCUMENT: "application/octet-stream",
-    }
-
     @classmethod
     async def load(cls, db):
         doc = await db.config.find_one({"key": "Settings"})
