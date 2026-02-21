@@ -1,7 +1,12 @@
 import logging
 
 from pyrogram import Client, filters
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import (
+    CallbackQuery,
+    Message,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+)
 
 from config import Config
 from helper import Cryptic, format_size, escape_markdown, small_caps, check_fsub
@@ -31,6 +36,10 @@ async def check_access(user_id: int) -> bool:
         return True
     return await db.is_sudo_user(str(user_id))
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# File upload handler
+# ──────────────────────────────────────────────────────────────────────────────
 
 @Client.on_message(
     (filters.document | filters.video | filters.audio | filters.photo) & filters.private,
@@ -176,12 +185,6 @@ Fɪʟᴇ ɪᴅ : {file_hash}
     download_link = f"{base_url}/dl/{file_hash}"
     telegram_link = f"https://t.me/{Config.BOT_USERNAME}?start={file_hash}"
 
-    await db.register_user({
-        "user_id":    str(user_id),
-        "username":   message.from_user.username   or "",
-        "first_name": message.from_user.first_name or "",
-        "last_name":  message.from_user.last_name  or "",
-    })
     await db.add_file({
         "file_id":          file_hash,
         "message_id":       str(file_info.id),
@@ -241,6 +244,10 @@ Fɪʟᴇ ɪᴅ : {file_hash}
     )
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# /files  — list user files
+# ──────────────────────────────────────────────────────────────────────────────
+
 @Client.on_message(filters.command("files") & filters.private, group=0)
 async def files_command(client: Client, message: Message):
     from database import db
@@ -288,6 +295,10 @@ async def files_command(client: Client, message: Message):
         reply_markup=InlineKeyboardMarkup(buttons),
     )
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# /revoke  — delete a file by hash
+# ──────────────────────────────────────────────────────────────────────────────
 
 @Client.on_message(filters.command("revoke") & filters.private, group=0)
 async def revoke_command(client: Client, message: Message):
@@ -349,6 +360,10 @@ async def revoke_command(client: Client, message: Message):
     )
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# /stats
+# ──────────────────────────────────────────────────────────────────────────────
+
 @Client.on_message(filters.command("stats") & filters.private, group=0)
 async def stats_command(client: Client, message: Message):
     from database import db
@@ -377,6 +392,10 @@ async def stats_command(client: Client, message: Message):
         reply_to_message_id=message.id,
     )
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# /bandwidth
+# ──────────────────────────────────────────────────────────────────────────────
 
 @Client.on_message(filters.command("bandwidth") & filters.private, group=0)
 async def bandwidth_command(client: Client, message: Message):
@@ -421,3 +440,119 @@ async def bandwidth_command(client: Client, message: Message):
         text=text,
         reply_to_message_id=message.id,
     )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Inline callbacks: revoke / view_file / back_to_files
+# ──────────────────────────────────────────────────────────────────────────────
+
+@Client.on_callback_query(filters.regex(r"^revoke_"), group=0)
+async def cb_revoke(client: Client, callback: CallbackQuery):
+    from database import db
+
+    user_id   = str(callback.from_user.id)
+    file_hash = callback.data.replace("revoke_", "", 1)
+
+    file_data = await db.get_file_by_hash(file_hash)
+    if not file_data:
+        await callback.answer("❌ ꜰɪʟᴇ ɴᴏᴛ ꜰᴏᴜɴᴅ ᴏʀ ᴀʟʀᴇᴀᴅʏ ᴅᴇʟᴇᴛᴇᴅ", show_alert=True)
+        return
+
+    if file_data["user_id"] != user_id and callback.from_user.id not in Config.OWNER_ID:
+        await callback.answer("❌ ʏᴏᴜ ᴅᴏɴ'ᴛ ʜᴀᴠᴇ ᴘᴇʀᴍɪꜱꜱɪᴏɴ", show_alert=True)
+        return
+
+    try:
+        await client.delete_messages(Config.DUMP_CHAT_ID, int(file_data["message_id"]))
+    except Exception as exc:
+        logger.error("cb_revoke dump delete error: msg=%s err=%s", file_data["message_id"], exc)
+
+    await db.delete_file(file_data["message_id"])
+
+    await callback.message.edit_text(
+        f"🗑️ *{small_caps('file revoked successfully')}!*\n\n"
+        f"ᴀʟʟ ʟɪɴᴋꜱ ʜᴀᴠᴇ ʙᴇᴇɴ ᴅᴇʟᴇᴛᴇᴅ."
+    )
+    await callback.answer("✅ ꜰɪʟᴇ ʀᴇᴠᴏᴋᴇᴅ!", show_alert=False)
+
+
+@Client.on_callback_query(filters.regex(r"^view_"), group=0)
+async def cb_view_file(client: Client, callback: CallbackQuery):
+    from database import db
+
+    message_id = callback.data.replace("view_", "", 1)
+
+    file_data = await db.get_file(message_id)
+    if not file_data:
+        await callback.answer("❌ ꜰɪʟᴇ ɴᴏᴛ ꜰᴏᴜɴᴅ", show_alert=True)
+        return
+
+    file_hash     = file_data["file_id"]
+    base_url      = Config.URL or f"http://localhost:{Config.PORT}"
+    stream_link   = f"{base_url}/stream/{file_hash}"
+    download_link = f"{base_url}/dl/{file_hash}"
+    telegram_link = f"https://t.me/{Config.BOT_USERNAME}?start={file_hash}"
+
+    safe_name      = escape_markdown(file_data["file_name"])
+    formatted_size = format_size(file_data["file_size"])
+
+    buttons = [
+        [
+            InlineKeyboardButton(f"🎬 {small_caps('stream')}",   url=stream_link),
+            InlineKeyboardButton(f"📥 {small_caps('download')}", url=download_link),
+        ],
+        [
+            InlineKeyboardButton(f"💬 {small_caps('telegram')}", url=telegram_link),
+            InlineKeyboardButton(f"🔁 {small_caps('share')}", switch_inline_query=file_hash),
+        ],
+        [InlineKeyboardButton(
+            f"🗑️ {small_caps('revoke')}",
+            callback_data=f"revoke_{file_hash}",
+        )],
+        [InlineKeyboardButton(
+            f"⬅️ {small_caps('back')}",
+            callback_data="back_to_files",
+        )],
+    ]
+
+    text = (
+        f"✅ *{small_caps('file details')}*\n\n"
+        f"📂 *{small_caps('name')}:* `{safe_name}`\n"
+        f"💾 *{small_caps('size')}:* `{formatted_size}`\n"
+        f"📊 *{small_caps('type')}:* `{file_data['file_type']}`\n"
+        f"📥 *{small_caps('downloads')}:* `{file_data.get('downloads', 0)}`\n"
+        f"📅 *{small_caps('uploaded')}:* `{file_data['created_at'].strftime('%Y-%m-%d')}`"
+    )
+
+    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons))
+    await callback.answer()
+
+
+@Client.on_callback_query(filters.regex(r"^back_to_files$"), group=0)
+async def cb_back_to_files(client: Client, callback: CallbackQuery):
+    from database import db
+
+    user_id = str(callback.from_user.id)
+    files   = await db.get_user_files(user_id, limit=50)
+
+    if not files:
+        await callback.message.edit_text(
+            f"📂 *{small_caps('your files')}*\n\nʏᴏᴜ ᴅᴏɴ'ᴛ ʜᴀᴠᴇ ᴀɴʏ ꜰɪʟᴇꜱ ʏᴇᴛ."
+        )
+        await callback.answer()
+        return
+
+    buttons = []
+    for f in files[:10]:
+        name = f["file_name"]
+        if len(name) > 30:
+            name = name[:27] + "..."
+        buttons.append([
+            InlineKeyboardButton(f"📄 {name}", callback_data=f"view_{f['message_id']}")
+        ])
+
+    await callback.message.edit_text(
+        f"📂 *{small_caps('your files')}* ({len(files)} ᴛᴏᴛᴀʟ)\n\nᴄʟɪᴄᴋ ᴏɴ ᴀɴʏ ꜰɪʟᴇ:",
+        reply_markup=InlineKeyboardMarkup(buttons),
+    )
+    await callback.answer()

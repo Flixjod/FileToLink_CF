@@ -2,17 +2,18 @@ import logging
 
 from pyrogram import Client, filters
 from pyrogram.types import (
-    CallbackQuery,
+    Message,
     InlineKeyboardMarkup,
     InlineKeyboardButton,
-    Message,
 )
 
 from config import Config
-from helper import small_caps, format_size, escape_markdown
+from helper import small_caps, format_size
 
 logger = logging.getLogger(__name__)
 
+
+# ── Owner filter ──────────────────────────────────────────────────────────────
 
 def _is_owner(_, __, message: Message) -> bool:
     return message.from_user.id in Config.OWNER_ID
@@ -20,6 +21,10 @@ def _is_owner(_, __, message: Message) -> bool:
 
 owner = filters.create(_is_owner)
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# /setpublic
+# ──────────────────────────────────────────────────────────────────────────────
 
 @Client.on_message(filters.command("setpublic") & filters.private & owner, group=2)
 async def setpublic_command(client: Client, message: Message):
@@ -36,6 +41,10 @@ async def setpublic_command(client: Client, message: Message):
         reply_to_message_id=message.id,
     )
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# /addsudo
+# ──────────────────────────────────────────────────────────────────────────────
 
 @Client.on_message(filters.command("addsudo") & filters.private & owner, group=2)
 async def addsudo_command(client: Client, message: Message):
@@ -65,6 +74,10 @@ async def addsudo_command(client: Client, message: Message):
             reply_to_message_id=message.id,
         )
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# /rmsudo
+# ──────────────────────────────────────────────────────────────────────────────
 
 @Client.on_message(filters.command("rmsudo") & filters.private & owner, group=2)
 async def rmsudo_command(client: Client, message: Message):
@@ -102,6 +115,10 @@ async def rmsudo_command(client: Client, message: Message):
         )
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# /sudolist
+# ──────────────────────────────────────────────────────────────────────────────
+
 @Client.on_message(filters.command("sudolist") & filters.private & owner, group=2)
 async def sudolist_command(client: Client, message: Message):
     from database import db
@@ -124,6 +141,10 @@ async def sudolist_command(client: Client, message: Message):
         reply_to_message_id=message.id,
     )
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# /setbandwidth
+# ──────────────────────────────────────────────────────────────────────────────
 
 @Client.on_message(filters.command("setbandwidth") & filters.private & owner, group=2)
 async def setbandwidth_command(client: Client, message: Message):
@@ -159,6 +180,10 @@ async def setbandwidth_command(client: Client, message: Message):
         )
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# /setfsub
+# ──────────────────────────────────────────────────────────────────────────────
+
 @Client.on_message(filters.command("setfsub") & filters.private & owner, group=2)
 async def setfsub_command(client: Client, message: Message):
     from database import db
@@ -174,6 +199,10 @@ async def setfsub_command(client: Client, message: Message):
         reply_to_message_id=message.id,
     )
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# /broadcast
+# ──────────────────────────────────────────────────────────────────────────────
 
 @Client.on_message(filters.command("broadcast") & filters.private & owner, group=2)
 async def broadcast_command(client: Client, message: Message):
@@ -221,6 +250,10 @@ async def broadcast_command(client: Client, message: Message):
     )
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# /revokeall + /confirmdelete
+# ──────────────────────────────────────────────────────────────────────────────
+
 @Client.on_message(filters.command("revokeall") & filters.private & owner, group=2)
 async def revokeall_command(client: Client, message: Message):
     from database import db
@@ -263,6 +296,10 @@ async def confirmdelete_command(client: Client, message: Message):
     )
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# /logs
+# ──────────────────────────────────────────────────────────────────────────────
+
 @Client.on_message(filters.command("logs") & filters.private & owner, group=2)
 async def logs_command(client: Client, message: Message):
     try:
@@ -286,183 +323,3 @@ async def logs_command(client: Client, message: Message):
             text=f"❌ ᴇʀʀᴏʀ: {exc}",
             reply_to_message_id=message.id,
         )
-
-
-@Client.on_callback_query(filters.regex(r"^start$"), group=2)
-async def cb_start(client: Client, callback: CallbackQuery):
-    text = (
-        f"👋 *{small_caps('hello')} {callback.from_user.first_name}*,\n\n"
-        f"ɪ ᴀᴍ ᴀ *{small_caps('premium file stream bot')}*.\n\n"
-        f"📂 *{small_caps('send me any file')}* (ᴠɪᴅᴇᴏ, ᴀᴜᴅɪᴏ, ᴅᴏᴄᴜᴍᴇɴᴛ) "
-        f"ᴀɴᴅ ɪ ᴡɪʟʟ ɢᴇɴᴇʀᴀᴛᴇ ᴀ ᴅɪʀᴇᴄᴛ ᴅᴏᴡɴʟᴏᴀᴅ ᴀɴᴅ ꜱᴛʀᴇᴀᴍɪɴɢ ʟɪɴᴋ ꜰᴏʀ ʏᴏᴜ."
-    )
-    buttons = [[
-        InlineKeyboardButton(f"📚 {small_caps('help')}",  callback_data="help"),
-        InlineKeyboardButton(f"ℹ️ {small_caps('about')}", callback_data="about"),
-    ]]
-    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons))
-    await callback.answer()
-
-
-@Client.on_callback_query(filters.regex(r"^help$"), group=2)
-async def cb_help(client: Client, callback: CallbackQuery):
-    text = (
-        f"📚 *{small_caps('help & guide')}*\n\n"
-        f"*{small_caps('how to use')}:*\n"
-        f"1️⃣ ꜱᴇɴᴅ ᴀɴʏ ꜰɪʟᴇ ᴛᴏ ᴛʜᴇ ʙᴏᴛ\n"
-        f"2️⃣ ɢᴇᴛ ɪɴꜱᴛᴀɴᴛ ꜱᴛʀᴇᴀᴍ & ᴅᴏᴡɴʟᴏᴀᴅ ʟɪɴᴋꜱ\n"
-        f"3️⃣ ꜱʜᴀʀᴇ ʟɪɴᴋꜱ ᴀɴʏᴡʜᴇʀᴇ!\n\n"
-        f"*{small_caps('supported files')}:*\n"
-        f"🎬 ᴠɪᴅᴇᴏꜱ\n"
-        f"🎵 ᴀᴜᴅɪᴏ\n"
-        f"📄 ᴅᴏᴄᴜᴍᴇɴᴛꜱ\n"
-        f"🖼️ ɪᴍᴀɢᴇꜱ"
-    )
-    await callback.message.edit_text(
-        text,
-        reply_markup=InlineKeyboardMarkup([[
-            InlineKeyboardButton(f"🏠 {small_caps('home')}", callback_data="start"),
-        ]]),
-    )
-    await callback.answer()
-
-
-@Client.on_callback_query(filters.regex(r"^about$"), group=2)
-async def cb_about(client: Client, callback: CallbackQuery):
-    from database import db
-
-    try:
-        stats = await db.get_stats()
-    except Exception as exc:
-        logger.error("cb_about stats error: %s", exc)
-        stats = {"total_files": 0, "total_users": 0, "total_downloads": 0}
-
-    text = (
-        f"ℹ️ *{small_caps('about filestream bot')}*\n\n"
-        f"🤖 *{small_caps('bot')}:* @{Config.BOT_USERNAME}\n"
-        f"📊 *{small_caps('files')}:* {stats['total_files']}\n"
-        f"👥 *{small_caps('users')}:* {stats['total_users']}\n"
-        f"📥 *{small_caps('downloads')}:* {stats['total_downloads']}\n\n"
-        f"💻 *{small_caps('developer')}:* @FLiX_LY\n"
-        f"⚡ *{small_caps('version')}:* 2.0"
-    )
-    await callback.message.edit_text(
-        text,
-        reply_markup=InlineKeyboardMarkup([[
-            InlineKeyboardButton(f"🏠 {small_caps('home')}", callback_data="start"),
-        ]]),
-    )
-    await callback.answer()
-
-
-@Client.on_callback_query(filters.regex(r"^revoke_"), group=2)
-async def cb_revoke(client: Client, callback: CallbackQuery):
-    from database import db
-
-    user_id   = str(callback.from_user.id)
-    file_hash = callback.data.replace("revoke_", "", 1)
-
-    file_data = await db.get_file_by_hash(file_hash)
-    if not file_data:
-        await callback.answer("❌ ꜰɪʟᴇ ɴᴏᴛ ꜰᴏᴜɴᴅ ᴏʀ ᴀʟʀᴇᴀᴅʏ ᴅᴇʟᴇᴛᴇᴅ", show_alert=True)
-        return
-
-    if file_data["user_id"] != user_id and callback.from_user.id not in Config.OWNER_ID:
-        await callback.answer("❌ ʏᴏᴜ ᴅᴏɴ'ᴛ ʜᴀᴠᴇ ᴘᴇʀᴍɪꜱꜱɪᴏɴ", show_alert=True)
-        return
-
-    try:
-        await client.delete_messages(Config.DUMP_CHAT_ID, int(file_data["message_id"]))
-    except Exception as exc:
-        logger.error("cb_revoke dump delete error: msg=%s err=%s", file_data["message_id"], exc)
-
-    await db.delete_file(file_data["message_id"])
-
-    await callback.message.edit_text(
-        f"🗑️ *{small_caps('file revoked successfully')}!*\n\n"
-        f"ᴀʟʟ ʟɪɴᴋꜱ ʜᴀᴠᴇ ʙᴇᴇɴ ᴅᴇʟᴇᴛᴇᴅ."
-    )
-    await callback.answer("✅ ꜰɪʟᴇ ʀᴇᴠᴏᴋᴇᴅ!", show_alert=False)
-
-
-@Client.on_callback_query(filters.regex(r"^view_"), group=2)
-async def cb_view_file(client: Client, callback: CallbackQuery):
-    from database import db
-
-    user_id    = str(callback.from_user.id)
-    message_id = callback.data.replace("view_", "", 1)
-
-    file_data = await db.get_file(message_id)
-    if not file_data:
-        await callback.answer("❌ ꜰɪʟᴇ ɴᴏᴛ ꜰᴏᴜɴᴅ", show_alert=True)
-        return
-
-    file_hash     = file_data["file_id"]
-    base_url      = Config.URL or f"http://localhost:{Config.PORT}"
-    stream_link   = f"{base_url}/stream/{file_hash}"
-    download_link = f"{base_url}/dl/{file_hash}"
-    telegram_link = f"https://t.me/{Config.BOT_USERNAME}?start={file_hash}"
-
-    safe_name      = escape_markdown(file_data["file_name"])
-    formatted_size = format_size(file_data["file_size"])
-
-    buttons = [
-        [
-            InlineKeyboardButton(f"🎬 {small_caps('stream')}",   url=stream_link),
-            InlineKeyboardButton(f"📥 {small_caps('download')}", url=download_link),
-        ],
-        [
-            InlineKeyboardButton(f"💬 {small_caps('telegram')}", url=telegram_link),
-            InlineKeyboardButton(f"🔁 {small_caps('share')}", switch_inline_query=file_hash),
-        ],
-        [InlineKeyboardButton(
-            f"🗑️ {small_caps('revoke')}",
-            callback_data=f"revoke_{file_hash}",
-        )],
-        [InlineKeyboardButton(
-            f"⬅️ {small_caps('back')}",
-            callback_data="back_to_files",
-        )],
-    ]
-
-    text = (
-        f"✅ *{small_caps('file details')}*\n\n"
-        f"📂 *{small_caps('name')}:* `{safe_name}`\n"
-        f"💾 *{small_caps('size')}:* `{formatted_size}`\n"
-        f"📊 *{small_caps('type')}:* `{file_data['file_type']}`\n"
-        f"📥 *{small_caps('downloads')}:* `{file_data.get('downloads', 0)}`\n"
-        f"📅 *{small_caps('uploaded')}:* `{file_data['created_at'].strftime('%Y-%m-%d')}`"
-    )
-
-    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons))
-    await callback.answer()
-
-
-@Client.on_callback_query(filters.regex(r"^back_to_files$"), group=2)
-async def cb_back_to_files(client: Client, callback: CallbackQuery):
-    from database import db
-
-    user_id = str(callback.from_user.id)
-    files   = await db.get_user_files(user_id, limit=50)
-
-    if not files:
-        await callback.message.edit_text(
-            f"📂 *{small_caps('your files')}*\n\nʏᴏᴜ ᴅᴏɴ'ᴛ ʜᴀᴠᴇ ᴀɴʏ ꜰɪʟᴇꜱ ʏᴇᴛ."
-        )
-        await callback.answer()
-        return
-
-    buttons = []
-    for f in files[:10]:
-        name = f["file_name"]
-        if len(name) > 30:
-            name = name[:27] + "..."
-        buttons.append([
-            InlineKeyboardButton(f"📄 {name}", callback_data=f"view_{f['message_id']}")
-        ])
-
-    await callback.message.edit_text(
-        f"📂 *{small_caps('your files')}* ({len(files)} ᴛᴏᴛᴀʟ)\n\nᴄʟɪᴄᴋ ᴏɴ ᴀɴʏ ꜰɪʟᴇ:",
-        reply_markup=InlineKeyboardMarkup(buttons),
-    )
-    await callback.answer()

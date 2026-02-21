@@ -1,7 +1,12 @@
 import logging
 
 from pyrogram import Client, filters
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import (
+    CallbackQuery,
+    Message,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+)
 
 from config import Config
 from helper import small_caps, check_fsub
@@ -9,18 +14,25 @@ from helper import small_caps, check_fsub
 logger = logging.getLogger(__name__)
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# /start
+# ──────────────────────────────────────────────────────────────────────────────
+
 @Client.on_message(filters.command("start") & filters.private, group=1)
 async def start_command(client: Client, message: Message):
     from database import db
 
     user_id = message.from_user.id
 
-    await db.register_user({
-        "user_id":    str(user_id),
-        "username":   message.from_user.username   or "",
-        "first_name": message.from_user.first_name or "",
-        "last_name":  message.from_user.last_name  or "",
-    })
+    # Register only if user doesn't already exist
+    existing = await db.get_user(str(user_id))
+    if not existing:
+        await db.register_user({
+            "user_id":    str(user_id),
+            "username":   message.from_user.username   or "",
+            "first_name": message.from_user.first_name or "",
+            "last_name":  message.from_user.last_name  or "",
+        })
 
     if len(message.command) > 1:
         file_hash = message.command[1]
@@ -127,6 +139,10 @@ async def start_command(client: Client, message: Message):
     )
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# /help
+# ──────────────────────────────────────────────────────────────────────────────
+
 @Client.on_message(filters.command("help") & filters.private, group=1)
 async def help_command(client: Client, message: Message):
     help_text = (
@@ -157,6 +173,10 @@ async def help_command(client: Client, message: Message):
         ]]),
     )
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# /about
+# ──────────────────────────────────────────────────────────────────────────────
 
 @Client.on_message(filters.command("about") & filters.private, group=1)
 async def about_command(client: Client, message: Message):
@@ -194,3 +214,74 @@ async def about_command(client: Client, message: Message):
             InlineKeyboardButton(f"🏠 {small_caps('home')}", callback_data="start"),
         ]]),
     )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Inline callbacks: start / help / about
+# ──────────────────────────────────────────────────────────────────────────────
+
+@Client.on_callback_query(filters.regex(r"^start$"), group=1)
+async def cb_start(client: Client, callback: CallbackQuery):
+    text = (
+        f"👋 *{small_caps('hello')} {callback.from_user.first_name}*,\n\n"
+        f"ɪ ᴀᴍ ᴀ *{small_caps('premium file stream bot')}*.\n\n"
+        f"📂 *{small_caps('send me any file')}* (ᴠɪᴅᴇᴏ, ᴀᴜᴅɪᴏ, ᴅᴏᴄᴜᴍᴇɴᴛ) "
+        f"ᴀɴᴅ ɪ ᴡɪʟʟ ɢᴇɴᴇʀᴀᴛᴇ ᴀ ᴅɪʀᴇᴄᴛ ᴅᴏᴡɴʟᴏᴀᴅ ᴀɴᴅ ꜱᴛʀᴇᴀᴍɪɴɢ ʟɪɴᴋ ꜰᴏʀ ʏᴏᴜ."
+    )
+    buttons = [[
+        InlineKeyboardButton(f"📚 {small_caps('help')}",  callback_data="help"),
+        InlineKeyboardButton(f"ℹ️ {small_caps('about')}", callback_data="about"),
+    ]]
+    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons))
+    await callback.answer()
+
+
+@Client.on_callback_query(filters.regex(r"^help$"), group=1)
+async def cb_help(client: Client, callback: CallbackQuery):
+    text = (
+        f"📚 *{small_caps('help & guide')}*\n\n"
+        f"*{small_caps('how to use')}:*\n"
+        f"1️⃣ ꜱᴇɴᴅ ᴀɴʏ ꜰɪʟᴇ ᴛᴏ ᴛʜᴇ ʙᴏᴛ\n"
+        f"2️⃣ ɢᴇᴛ ɪɴꜱᴛᴀɴᴛ ꜱᴛʀᴇᴀᴍ & ᴅᴏᴡɴʟᴏᴀᴅ ʟɪɴᴋꜱ\n"
+        f"3️⃣ ꜱʜᴀʀᴇ ʟɪɴᴋꜱ ᴀɴʏᴡʜᴇʀᴇ!\n\n"
+        f"*{small_caps('supported files')}:*\n"
+        f"🎬 ᴠɪᴅᴇᴏꜱ\n"
+        f"🎵 ᴀᴜᴅɪᴏ\n"
+        f"📄 ᴅᴏᴄᴜᴍᴇɴᴛꜱ\n"
+        f"🖼️ ɪᴍᴀɢᴇꜱ"
+    )
+    await callback.message.edit_text(
+        text,
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton(f"🏠 {small_caps('home')}", callback_data="start"),
+        ]]),
+    )
+    await callback.answer()
+
+
+@Client.on_callback_query(filters.regex(r"^about$"), group=1)
+async def cb_about(client: Client, callback: CallbackQuery):
+    from database import db
+
+    try:
+        stats = await db.get_stats()
+    except Exception as exc:
+        logger.error("cb_about stats error: %s", exc)
+        stats = {"total_files": 0, "total_users": 0, "total_downloads": 0}
+
+    text = (
+        f"ℹ️ *{small_caps('about filestream bot')}*\n\n"
+        f"🤖 *{small_caps('bot')}:* @{Config.BOT_USERNAME}\n"
+        f"📊 *{small_caps('files')}:* {stats['total_files']}\n"
+        f"👥 *{small_caps('users')}:* {stats['total_users']}\n"
+        f"📥 *{small_caps('downloads')}:* {stats['total_downloads']}\n\n"
+        f"💻 *{small_caps('developer')}:* @FLiX_LY\n"
+        f"⚡ *{small_caps('version')}:* 2.0"
+    )
+    await callback.message.edit_text(
+        text,
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton(f"🏠 {small_caps('home')}", callback_data="start"),
+        ]]),
+    )
+    await callback.answer()

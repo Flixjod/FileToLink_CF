@@ -1,224 +1,283 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FLIX FILE STREAM | {{ file_name }}</title>
-    <link rel="icon" href="https://i.ibb.co/Hh4kF2b/icon.png" type="image/x-icon">
-    <link rel="shortcut icon" href="https://i.ibb.co/Hh4kF2b/icon.png" type="image/x-icon">
-    <link rel="stylesheet" href="https://unpkg.com/sheryjs/dist/Shery.css" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/proavipatil/data@main/fs/src/style.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/proavipatil/data@main/fs/src/plyr.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@500;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{ file_name }} | Video Player</title>
+<link rel="icon" href="https://i.ibb.co/KzqHfL05/photo-2026-02-07-13-38-13.jpg">
+<meta property="og:title" content="{{ file_name }}">
+<meta property="og:image" content="https://i.ibb.co/KzqHfL05/photo-2026-02-07-13-38-13.jpg">
+<meta property="og:description" content="Watch {{ file_name }} — stream or download instantly.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.plyr.io/3.6.9/plyr.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<style>
+:root{--bg:#080b10;--card:#131922;--border:rgba(255,255,255,.07);--gold:#f0b429;--gold2:#ffd166;--text:#e8edf5;--muted:#6b7a99;--r:14px}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-height:100vh;overflow-x:hidden}
+.orb{position:fixed;border-radius:50%;filter:blur(90px);opacity:.18;pointer-events:none;z-index:0;animation:drift 14s ease-in-out infinite alternate}
+.orb1{width:500px;height:500px;background:#f0b429;top:-150px;left:-150px;animation-duration:16s}
+.orb2{width:400px;height:400px;background:#3b82f6;bottom:-100px;right:-100px;animation-duration:20s;animation-delay:-6s}
+.orb3{width:300px;height:300px;background:#a855f7;top:40%;left:50%;animation-duration:12s;animation-delay:-3s}
+@keyframes drift{from{transform:translate(0,0) scale(1)}to{transform:translate(30px,20px) scale(1.05)}}
+.wrap{position:relative;z-index:1;max-width:900px;margin:0 auto;padding:24px 16px 60px}
+.site-header{display:flex;align-items:center;justify-content:space-between;padding-bottom:28px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1.05rem;letter-spacing:-.02em}
+.brand-dot{width:10px;height:10px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold);animation:pdot 2s ease-in-out infinite}
+@keyframes pdot{0%,100%{box-shadow:0 0 8px var(--gold)}50%{box-shadow:0 0 20px var(--gold)}}
+.hcopy{background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:.78rem;font-family:'JetBrains Mono',monospace;color:var(--muted);cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:7px}
+.hcopy:hover{background:rgba(240,180,41,.12);color:var(--gold);border-color:var(--gold)}
+.file-title{font-size:clamp(1rem,2.5vw,1.35rem);font-weight:600;letter-spacing:-.02em;line-height:1.4;word-break:break-word;margin-bottom:6px}
+.meta-row{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:20px}
+.bp{font-size:.7rem;font-family:'JetBrains Mono',monospace;padding:3px 10px;border-radius:999px;letter-spacing:.04em;font-weight:500}
+.bp-s{background:rgba(240,180,41,.15);color:var(--gold);border:1px solid rgba(240,180,41,.3)}
+.bp-h{background:rgba(59,130,246,.15);color:#60a5fa;border:1px solid rgba(59,130,246,.3)}
+.bp-k{background:rgba(34,197,94,.12);color:#4ade80;border:1px solid rgba(34,197,94,.3)}
+.bp-sz{background:rgba(168,85,247,.12);color:#c084fc;border:1px solid rgba(168,85,247,.3)}
+.player-card{background:var(--card);border:1px solid var(--border);border-radius:18px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.5),0 0 40px rgba(240,180,41,.12);margin-bottom:20px;transition:box-shadow .3s}
+.player-card:hover{box-shadow:0 28px 70px rgba(0,0,0,.6),0 0 60px rgba(240,180,41,.16)}
+.plyr{border-radius:0}
+.plyr--video .plyr__controls{background:linear-gradient(transparent,rgba(0,0,0,.85))}
+.plyr__control--overlaid{background:var(--gold)!important}
+.plyr__control--overlaid:hover{background:var(--gold2)!important}
+.plyr--full-ui input[type=range]{color:var(--gold)}
+.no-player{display:flex;align-items:center;justify-content:center;min-height:180px;padding:40px;flex-direction:column;gap:14px;color:var(--muted)}
+.no-player i{font-size:3rem;color:var(--gold);opacity:.5}
+.speed-strip{display:flex;align-items:center;gap:8px;padding:14px 18px;border-top:1px solid var(--border);background:rgba(255,255,255,.02);flex-wrap:wrap}
+.slbl{font-size:.72rem;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-right:4px}
+.sbtn,.pip-btn{background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 11px;font-size:.72rem;font-family:'JetBrains Mono',monospace;cursor:pointer;transition:all .18s}
+.sbtn:hover,.sbtn.active{background:rgba(240,180,41,.15);color:var(--gold);border-color:rgba(240,180,41,.4)}
+.pip-btn{margin-left:auto;display:flex;align-items:center;gap:5px}
+.pip-btn:hover{background:rgba(59,130,246,.12);color:#60a5fa;border-color:rgba(59,130,246,.35)}
+.actions-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:20px}
+.ab{display:flex;align-items:center;justify-content:center;gap:9px;padding:13px 10px;border-radius:var(--r);font-size:.82rem;font-weight:600;cursor:pointer;border:1px solid transparent;transition:transform .18s,box-shadow .18s,background .18s;position:relative;overflow:hidden;text-decoration:none}
+.ab::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.08),transparent 60%);pointer-events:none}
+.ab:hover{transform:translateY(-2px)}.ab:active{transform:translateY(0)}
+.b-vlc{background:#1d2230;border-color:rgba(255,106,0,.35);color:#ff6a00}.b-vlc:hover{background:rgba(255,106,0,.15);box-shadow:0 8px 24px rgba(255,106,0,.2)}
+.b-mx{background:#1a2218;border-color:rgba(34,197,94,.3);color:#4ade80}.b-mx:hover{background:rgba(34,197,94,.12);box-shadow:0 8px 24px rgba(34,197,94,.15)}
+.b-pl{background:#211c10;border-color:rgba(251,191,36,.3);color:#fbbf24}.b-pl:hover{background:rgba(251,191,36,.12);box-shadow:0 8px 24px rgba(251,191,36,.15)}
+.b-km{background:#12182a;border-color:rgba(96,165,250,.3);color:#60a5fa}.b-km:hover{background:rgba(96,165,250,.1);box-shadow:0 8px 24px rgba(96,165,250,.15)}
+.b-sp{background:#1e1528;border-color:rgba(167,139,250,.3);color:#a78bfa}.b-sp:hover{background:rgba(167,139,250,.1);box-shadow:0 8px 24px rgba(167,139,250,.15)}
+.b-tg{background:#102030;border-color:rgba(41,182,246,.3);color:#29b6f6}.b-tg:hover{background:rgba(41,182,246,.1);box-shadow:0 8px 24px rgba(41,182,246,.15)}
+.b-dl{background:linear-gradient(135deg,#f0b429,#e09000);border-color:transparent;color:#080b10;font-weight:700}.b-dl:hover{box-shadow:0 8px 30px rgba(240,180,41,.4);filter:brightness(1.08)}
+.info-panel{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px 22px;margin-bottom:20px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.ii{display:flex;flex-direction:column;gap:2px}
+.ii .lbl{font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-family:'JetBrains Mono',monospace}
+.ii .val{font-size:.82rem;font-weight:600;font-family:'JetBrains Mono',monospace}
+.idiv{width:1px;height:36px;background:var(--border)}
+.clr{margin-left:auto}
+.clbtn{background:rgba(240,180,41,.1);border:1px solid rgba(240,180,41,.3);border-radius:8px;padding:8px 16px;color:var(--gold);font-size:.78rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px;transition:all .2s;white-space:nowrap}
+.clbtn:hover{background:rgba(240,180,41,.2);box-shadow:0 4px 16px rgba(240,180,41,.2)}
+.hk-panel{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px 22px;margin-bottom:20px}
+.hk-title{font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.hk-title::after{content:'';flex:1;height:1px;background:var(--border)}
+.hk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.hk{display:flex;align-items:center;gap:8px;font-size:.75rem;color:var(--muted)}
+.kbd{display:inline-flex;align-items:center;justify-content:center;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-bottom-width:2px;border-radius:5px;padding:2px 7px;font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--text);min-width:28px;text-align:center}
+.site-footer{text-align:center;font-size:.72rem;color:var(--muted);padding-top:10px;font-family:'JetBrains Mono',monospace}
+.site-footer a{color:var(--gold);text-decoration:none}
+.toast-wrap{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);z-index:9999;pointer-events:none}
+.tp{background:rgba(7,9,15,.95);border:1px solid var(--border);backdrop-filter:blur(12px);border-radius:999px;padding:10px 22px;font-size:.82rem;color:var(--text);display:flex;align-items:center;gap:9px;box-shadow:0 8px 32px rgba(0,0,0,.4);opacity:0;transform:translateY(12px);transition:opacity .25s,transform .25s}
+.tp.show{opacity:1;transform:translateY(0)}
+.ti{color:var(--gold)}
+@media(max-width:600px){.actions-grid{grid-template-columns:repeat(2,1fr)}.info-panel{flex-direction:column;align-items:flex-start;gap:12px}.clr{margin-left:0}.idiv{display:none}}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:3px}
+</style>
 </head>
-
 <body>
-    <nav>
-        <div class="nleft">
-            <a href="#">
-                <h3 id="heading" style="z-index: 100;" class="magnet title">FILE STREAM</h3>
-            </a>
-        </div>
-        <div class="nryt">
-            <a class="home-btn magnet" href="#main" onclick="toggleWidthnav(this)">HOME</a>
-            <a href="#abtus" class="about-btn magnet" onclick="toggleWidthnav(this)">ABOUT</a>
-        </div>
-    </nav>
+<div class="orb orb1"></div><div class="orb orb2"></div><div class="orb orb3"></div>
+<div class="wrap">
+  <header class="site-header">
+    <div class="brand"><div class="brand-dot"></div>File2Link by FLiX</div>
+    <button class="hcopy" onclick="copyLink()"><i class="fa-solid fa-link"></i> Copy Link</button>
+  </header>
 
-    <center>
-        <div class="about-nav">
-            <a href="#abtus"    class="wlcm magnet"      onclick="toggleWidth(this)">WELCOME</a>
-            <a href="#channels" class="abt-chnl magnet"  onclick="toggleWidth(this)">CHANNELS</a>
-            <a href="#contact"  class="magnet contact-btn" onclick="toggleWidth(this)">CONTACT</a>
-        </div>
-    </center>
+  <div class="file-title">{{ file_name }}</div>
+  <div class="meta-row">
+    {% if file_type in ('video', 'audio') %}
+    <span class="bp bp-s"><i class="fa-solid fa-circle-play" style="margin-right:4px"></i>Stream Ready</span>
+    {% endif %}
+    <span class="bp bp-sz"><i class="fa-solid fa-weight-hanging" style="margin-right:4px"></i>{{ file_size }}</span>
+    <span class="bp bp-h">{{ file_type | upper }}</span>
+    <span class="bp bp-k"><i class="fa-solid fa-shield-halved" style="margin-right:4px"></i>Secure</span>
+  </div>
 
-    <div class="outer">
-        <div class="inner">
-            <div class="main" id="main">
+  <div class="player-card">
+    {% if file_type == 'video' %}
+    <video id="player" playsinline controls preload="metadata">
+      <source src="{{ stream_url }}" type="video/mp4">
+    </video>
+    {% elif file_type == 'audio' %}
+    <audio id="player" controls preload="metadata" style="width:100%;display:block;">
+      <source src="{{ stream_url }}" type="audio/mpeg">
+    </audio>
+    {% else %}
+    <div class="no-player">
+      <i class="fa-solid fa-file-arrow-down"></i>
+      <span style="font-size:.85rem;">Preview not available — use Download below</span>
+    </div>
+    {% endif %}
 
-                <!-- ── Player ─────────────────────────────────────────── -->
-                {% if file_type == 'video' %}
-                <video id="player" class="player" src="{{ stream_url }}"
-                       type="video/mp4" playsinline controls width="100%"></video>
-                {% elif file_type == 'audio' %}
-                <audio id="player" class="player" src="{{ stream_url }}"
-                       controls style="width:100%; margin-bottom:16px;"></audio>
-                {% else %}
-                <!-- Non-media file: no player shown -->
-                {% endif %}
+    {% if file_type in ('video', 'audio') %}
+    <div class="speed-strip">
+      <span class="slbl">SPEED</span>
+      <button class="sbtn" onclick="setSpeed(0.5,this)">0.5×</button>
+      <button class="sbtn active" onclick="setSpeed(1,this)">1×</button>
+      <button class="sbtn" onclick="setSpeed(1.25,this)">1.25×</button>
+      <button class="sbtn" onclick="setSpeed(1.5,this)">1.5×</button>
+      <button class="sbtn" onclick="setSpeed(2,this)">2×</button>
+      {% if file_type == 'video' %}
+      <button class="pip-btn" onclick="togglePiP()"><i class="fa-solid fa-window-restore"></i> PiP</button>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
 
-                <div class="player"></div>
+  <div class="info-panel">
+    {% if file_type in ('video', 'audio') %}
+    <div class="ii"><span class="lbl">Duration</span><span class="val" id="dur-val">—</span></div>
+    <div class="idiv"></div>
+    {% if file_type == 'video' %}
+    <div class="ii"><span class="lbl">Resolution</span><span class="val" id="res-val">—</span></div>
+    <div class="idiv"></div>
+    {% endif %}
+    {% endif %}
+    <div class="ii"><span class="lbl">Size</span><span class="val">{{ file_size }}</span></div>
+    <div class="idiv"></div>
+    <div class="ii"><span class="lbl">Type</span><span class="val">{{ file_type | upper }}</span></div>
+    <div class="idiv"></div>
+    <div class="ii"><span class="lbl">Status</span><span class="val" id="status-val" style="color:#4ade80">Ready</span></div>
+    <div class="clr"><button class="clbtn" onclick="copyVideoUrl()"><i class="fa-solid fa-copy"></i> Copy Stream URL</button></div>
+  </div>
 
-                <!-- ── File info ──────────────────────────────────────── -->
-                <div class="file-name">
-                    <h4 style="display:inline;">File Name: </h4>
-                    <p  style="display:inline;" id="myDiv">{{ file_name }}</p><br>
-                    <h4 style="display:inline;">File Size: </h4>
-                    <p  style="display:inline;">{{ file_size }}</p>
-                </div>
+  <div class="actions-grid">
+    <button class="ab b-vlc" onclick="vlc_player()"><i class="fa-solid fa-circle-play"></i> VLC Player</button>
+    <button class="ab b-mx" onclick="mx_player()"><i class="fa-solid fa-mobile-screen-button"></i> MX Player</button>
+    <button class="ab b-pl" onclick="playit_player()"><i class="fa-solid fa-bolt"></i> PlayIt</button>
+    <button class="ab b-km" onclick="km_player()"><i class="fa-solid fa-film"></i> KM Player</button>
+    <button class="ab b-sp" onclick="s_player()"><i class="fa-solid fa-play"></i> Simple Player</button>
+    <a class="ab b-tg" href="{{ telegram_url }}" target="_blank"><i class="fa-brands fa-telegram"></i> Telegram</a>
+    <button class="ab b-dl" onclick="lazyDownload()"><i class="fa-solid fa-cloud-arrow-down"></i> Download</button>
+  </div>
 
-                <!-- ── Action buttons ────────────────────────────────── -->
-                <div class="downloadBtn">
-                    <button class="magnet" onclick="streamDownload()">
-                        <img style="height:30px;" src="https://i.ibb.co/RjzYttX/dl.png" alt="">
-                        ᴅᴏᴡɴʟᴏᴀᴅ ᴠɪᴅᴇᴏ
-                    </button>
-                    <button class="magnet" onclick="copyStreamLink()">
-                        <img src="https://i.ibb.co/CM4Y586/link.png" alt="Copy Link">
-                        ᴄᴏᴘʏ ʟɪɴᴋ
-                    </button>
-                    <button class="magnet" onclick="vlc_player()">
-                        <img src="https://i.ibb.co/px6fQs1/vlc.png" alt="">
-                        ᴡᴀᴛᴄʜ ɪɴ ᴠʟᴄ
-                    </button>
-                    <button class="magnet" onclick="mx_player()">
-                        <img src="https://i.ibb.co/41WvtQ3/mx.png" alt="">
-                        ᴡᴀᴛᴄʜ ɪɴ ᴍx ᴘʟᴀʏᴇʀ
-                    </button>
-                    <button class="magnet" onclick="n_player()">
-                        <img src="https://i.ibb.co/Hd2dS4t/nPlayer.png" alt="">
-                        ᴡᴀᴛᴄʜ ɪɴ ɴᴘʟᴀʏᴇʀ
-                    </button>
-                </div>
+  {% if file_type in ('video', 'audio') %}
+  <div class="hk-panel">
+    <div class="hk-title">Keyboard Shortcuts</div>
+    <div class="hk-grid">
+      <div class="hk"><span class="kbd">Space</span> Play / Pause</div>
+      <div class="hk"><span class="kbd">F</span> Fullscreen</div>
+      <div class="hk"><span class="kbd">M</span> Mute / Unmute</div>
+      <div class="hk"><span class="kbd">←</span><span class="kbd">→</span> Seek 5s</div>
+      <div class="hk"><span class="kbd">↑</span><span class="kbd">↓</span> Volume</div>
+      {% if file_type == 'video' %}
+      <div class="hk"><span class="kbd">P</span> Picture-in-Picture</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
 
-            </div><!-- /.main -->
+  <footer class="site-footer">Powered by <a href="https://t.me/Flix_botz">File2Link</a> · Files hosted on Telegram by <a href="https://t.me/FLiX_LY">FLiX</a></footer>
+</div>
 
-            <!-- ── About section ──────────────────────────────────────── -->
-            <div class="abt">
-                <div class="about">
-                    <div class="about-dets">
+<div class="toast-wrap"><div class="tp" id="toast"><i class="fa-solid fa-check ti" id="ti"></i><span id="tm">Copied!</span></div></div>
 
-                        <div class="abt-sec" id="abtus" style="padding:160px 30px;">
-                            <h1 style="text-align:center;">
-                                WELCOME TO OUR <span>FILE STREAM</span> BOT
-                            </h1>
-                            <p style="text-align:center; line-height:2; word-spacing:2px; letter-spacing:0.8px;">
-                                This is a Telegram Bot to Stream <span>Movies</span> and
-                                <span>Series</span> directly on Telegram. You can also
-                                <span>download</span> them if you want. This bot is developed by
-                                <a href="https://telegram.me/FLiX_LY">
-                                    <span style="font-weight:700;">Avi</span>
-                                </a>
-                                <br><br>
-                                If you like this bot, don't forget to share it with your friends and family.
-                            </p>
-                        </div>
-
-                        <div class="abt-sec" id="channels">
-                            <h1>JOIN OUR <span>TELEGRAM</span> CHANNELS</h1>
-                            <div class="links chnl-link">
-                                <a class="magnet" href="https://t.me/Flix_botz">
-                                    <button>FLiX Bot</button>
-                                </a>
-                            </div>
-                        </div>
-
-                        <div class="abt-sec" id="contact">
-                            <p style="text-align:center;">
-                                Report Bugs and Contact us on Telegram Below
-                            </p>
-                            <div class="links contact">
-                                <a href="https://telegram.me/FLiX_LY">
-                                    <button>CONTACT</button>
-                                </a>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-            </div>
-        </div><!-- /.inner -->
-
-        <footer>
-            <center>
-                <div class="movie-cont">
-                    <div class="movieSug">
-                        <div class="movieDets"></div>
-                        <div class="movieimg"><img src=""></div>
-                    </div>
-                    <div class="low-width-movie-dets">
-                        <div class="movieStsBar">
-                            <div class="movieDets-mini"></div>
-                        </div>
-                    </div>
-                    <button class="ranMovBtn" onclick="getDets()">Get More Movies Suggestion</button>
-                </div>
-            </center>
-            <center>
-                <div class="copyright">
-                    <h5 class="text-center">
-                        Copyright &copy; 2024
-                        <a href="https://telegram.me/FLiX_LY">
-                            <span style="font-weight:700;">FLIX LY</span>
-                        </a>.
-                        All Rights Reserved.
-                    </h5>
-                </div>
-            </center>
-        </footer>
-    </div><!-- /.outer -->
-
-</body>
-
-<!-- ── Scripts ──────────────────────────────────────────────────────── -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.155.0/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/automat/controlkit.js@master/bin/controlKit.min.js"></script>
-<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/sheryjs/dist/Shery.js"></script>
-
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.plyr.io/3.6.9/plyr.polyfilled.js"></script>
 <script>
-    /* ── Inject template values for JS use ─────────────────────────── */
-    const STREAM_URL   = "{{ stream_url }}";
-    const DOWNLOAD_URL = "{{ download_url }}";
-    const FILE_NAME    = {{ file_name | tojson }};
+const STREAM_URL   = {{ stream_url   | tojson }};
+const DOWNLOAD_URL = {{ download_url | tojson }};
+const FILE_NAME    = {{ file_name    | tojson }};
+const FILE_TYPE    = {{ file_type    | tojson }};
 
-    /* ── Block text selection on uncopyable elements ────────────────── */
-    document.addEventListener("DOMContentLoaded", function () {
-        document.querySelectorAll(".uncopyable").forEach(function (el) {
-            el.addEventListener("selectstart", function (e) { e.preventDefault(); });
-        });
-    });
+/* ── Plyr init (video/audio only) ──────────────────────────────────── */
+let plyrInstance = null;
+const mediaEl = document.getElementById('player');
+if (mediaEl) {
+  plyrInstance = new Plyr('#player', {
+    speed: {selected: 1, options: [.5, .75, 1, 1.25, 1.5, 2]},
+    keyboard: {focused: true, global: true},
+    tooltips: {controls: true, seek: true},
+  });
+  const sv = document.getElementById('status-val');
+  mediaEl.addEventListener('loadedmetadata', () => {
+    const s = Math.floor(mediaEl.duration),
+          h = Math.floor(s / 3600),
+          m = Math.floor((s % 3600) / 60),
+          sc = s % 60;
+    const durEl = document.getElementById('dur-val');
+    if (durEl) durEl.textContent = (h ? h+'h ' : '') + (m ? m+'m ' : '') + sc+'s';
+    const resEl = document.getElementById('res-val');
+    if (resEl && mediaEl.videoWidth) resEl.textContent = mediaEl.videoWidth + '×' + mediaEl.videoHeight;
+  });
+  if (sv) {
+    mediaEl.addEventListener('playing', () => { sv.textContent = '● Playing'; sv.style.color = '#4ade80'; });
+    mediaEl.addEventListener('pause',   () => { sv.textContent = 'Paused';    sv.style.color = '#fbbf24'; });
+    mediaEl.addEventListener('waiting', () => { sv.textContent = 'Buffering…'; sv.style.color = '#60a5fa'; });
+  }
+}
 
-    /* ── Download button ─────────────────────────────────────────────── */
-    function streamDownload() {
-        const a = document.createElement("a");
-        a.href     = DOWNLOAD_URL;
-        a.download = FILE_NAME;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-    }
+/* ── Speed control ─────────────────────────────────────────────────── */
+function setSpeed(s, btn) {
+  if (mediaEl) mediaEl.playbackRate = s;
+  document.querySelectorAll('.sbtn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
 
-    /* ── Copy stream link ────────────────────────────────────────────── */
-    function copyStreamLink() {
-        navigator.clipboard.writeText(STREAM_URL).then(function () {
-            alert("✅ ꜱᴛʀᴇᴀᴍ ʟɪɴᴋ ᴄᴏᴘɪᴇᴅ!");
-        }).catch(function () {
-            prompt("Copy this link:", STREAM_URL);
-        });
-    }
+/* ── Picture-in-Picture ────────────────────────────────────────────── */
+async function togglePiP() {
+  if (!document.pictureInPictureEnabled) return showToast('PiP not supported', 'fa-circle-xmark');
+  try {
+    document.pictureInPictureElement
+      ? await document.exitPictureInPicture()
+      : await mediaEl.requestPictureInPicture();
+    showToast('PiP toggled');
+  } catch(e) { showToast('PiP error', 'fa-circle-xmark'); }
+}
 
-    /* ── External player helpers ─────────────────────────────────────── */
-    function vlc_player() {
-        window.location.href = "vlc://" + STREAM_URL;
-    }
-    function mx_player() {
-        window.location.href =
-            "intent:" + STREAM_URL +
-            "#Intent;package=com.mxtech.videoplayer.ad;end";
-    }
-    function n_player() {
-        window.location.href = "nplayer-" + STREAM_URL;
-    }
+/* ── External players ──────────────────────────────────────────────── */
+const go = u => location.href = u;
+function vlc_player()    { go('vlc://' + STREAM_URL); }
+function mx_player()     { go('intent:' + STREAM_URL + '#Intent;package=com.mxtech.videoplayer.ad;end'); }
+function playit_player() { go('intent:' + STREAM_URL + '#Intent;package=com.playit.videoplayer;end'); }
+function km_player()     { go('intent:' + STREAM_URL + '#Intent;package=com.kmplayer;end'); }
+function s_player()      { go('intent:' + STREAM_URL + '#Intent;package=com.simplemobiletools.videoplayer;end'); }
+
+/* ── Download ──────────────────────────────────────────────────────── */
+function lazyDownload() {
+  showToast('Download started…', 'fa-cloud-arrow-down');
+  const a = document.createElement('a');
+  a.href = DOWNLOAD_URL;
+  a.download = FILE_NAME;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+/* ── Copy helpers ──────────────────────────────────────────────────── */
+function copyLink()     { navigator.clipboard.writeText(location.href).then(() => showToast('Page link copied!')); }
+function copyVideoUrl() { navigator.clipboard.writeText(STREAM_URL).then(() => showToast('Stream URL copied!')); }
+
+/* ── Toast ─────────────────────────────────────────────────────────── */
+let _tt;
+function showToast(msg, icon='fa-check') {
+  const t = document.getElementById('toast');
+  document.getElementById('tm').textContent = msg;
+  document.getElementById('ti').className = 'fa-solid ' + icon + ' ti';
+  t.classList.add('show');
+  clearTimeout(_tt);
+  _tt = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+/* ── Keyboard shortcuts ────────────────────────────────────────────── */
+document.addEventListener('keydown', e => {
+  if (['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return;
+  if (e.key.toLowerCase() === 'p') togglePiP();
+  if (e.key.toLowerCase() === 'c') copyVideoUrl();
+});
+
+document.addEventListener('contextmenu', e => e.preventDefault());
 </script>
-
-<script src="https://cdn.plyr.io/3.6.9/plyr.js"></script>
-<script src="https://proavipatil.github.io/data/fs/src/script.js"></script>
-
+</body>
 </html>

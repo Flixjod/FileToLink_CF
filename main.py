@@ -4,7 +4,6 @@ import sys
 
 from aiohttp import web
 
-from bot import Bot
 from app import build_app
 from config import Config
 from database import Database, db_instance
@@ -101,7 +100,7 @@ async def main() -> None:
 
     #Bot
     logger.info("🤖  ᴄᴏɴɴᴇᴄᴛɪɴɢ ʙᴏᴛ ᴛᴏ ᴛᴇʟᴇɢʀᴀᴍ…")
-    bot = Bot()
+    from bot import bot          # use the module-level singleton so app.py shares the same instance
     await bot.start()
     bot_info = await bot.get_me()
     Config.BOT_USERNAME = bot_info.username
