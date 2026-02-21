@@ -22,8 +22,8 @@ class Bot(Client):
         await super().start()
         me = await self.get_me()
         Config.BOT_USERNAME = me.username
-        logger.info("⚡  ʙᴏᴛ: @%s  │  ɪᴅ: %s  │  ᴡᴏʀᴋᴇʀs: %s",
-                    me.username, me.id, Config.WORKERS)
+        logger.info("⚡  ʙᴏᴛ: @%s  │  ɪᴅ: %s  │  ᴅᴄ: %s",
+                    me.username, me.id, me.dc_id)
         await self._set_commands()
         return me
 
