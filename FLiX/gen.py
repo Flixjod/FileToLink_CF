@@ -176,12 +176,6 @@ Fɪʟᴇ ɪᴅ : {file_hash}
     download_link = f"{base_url}/dl/{file_hash}"
     telegram_link = f"https://t.me/{Config.BOT_USERNAME}?start={file_hash}"
 
-    await db.register_user({
-        "user_id":    str(user_id),
-        "username":   message.from_user.username   or "",
-        "first_name": message.from_user.first_name or "",
-        "last_name":  message.from_user.last_name  or "",
-    })
     await db.add_file({
         "file_id":          file_hash,
         "message_id":       str(file_info.id),

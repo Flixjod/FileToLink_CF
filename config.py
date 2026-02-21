@@ -14,6 +14,19 @@ class Config:
     API_ID     = int(os.environ.get("API_ID", "0"))
     API_HASH   = os.environ.get("API_HASH", "")
 
+    # File-type constants (kept here so both app.py and stream.py can import them)
+    FILE_TYPE_VIDEO    = "video"
+    FILE_TYPE_AUDIO    = "audio"
+    FILE_TYPE_IMAGE    = "image"
+    FILE_TYPE_DOCUMENT = "document"
+
+    MIME_TYPE_MAP = {
+        "video":    "video/mp4",
+        "audio":    "audio/mpeg",
+        "image":    "image/jpeg",
+        "document": "application/octet-stream",
+    }
+
     BOT_USERNAME = None
 
     OWNER_ID = list(
