@@ -74,4 +74,3 @@ class Bot(Client):
 
 
 
-bot = Bot()
