@@ -10,7 +10,6 @@ from bot import Bot
 from config import Config
 from database import Database
 from helper import StreamingService, check_bandwidth_limit, format_size
-from helper.stream import _resolve_file_data_by_message_id
 
 logger = logging.getLogger(__name__)
 
