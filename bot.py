@@ -73,5 +73,3 @@ class Bot(Client):
             logger.error("❌  ꜰᴀɪʟᴇᴅ ᴛᴏ ʀᴇɢɪꜱᴛᴇʀ ᴄᴏᴍᴍᴀɴᴅꜱ: %s", e)
 
 
-
-bot = Bot()
