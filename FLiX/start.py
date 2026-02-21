@@ -15,7 +15,7 @@ async def start_command(client: Client, message: Message):
 
     user_id = message.from_user.id
 
-    await db.register_user({
+    await db.register_user_on_start({
         "user_id":    str(user_id),
         "username":   message.from_user.username   or "",
         "first_name": message.from_user.first_name or "",
