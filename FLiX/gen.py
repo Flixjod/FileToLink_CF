@@ -8,11 +8,19 @@ from helper import Cryptic, format_size, escape_markdown, small_caps, check_fsub
 
 logger = logging.getLogger(__name__)
 
-FILE_TYPE_VIDEO    = Config.FILE_TYPE_VIDEO
-FILE_TYPE_AUDIO    = Config.FILE_TYPE_AUDIO
-FILE_TYPE_IMAGE    = Config.FILE_TYPE_IMAGE
-FILE_TYPE_DOCUMENT = Config.FILE_TYPE_DOCUMENT
-STREAMABLE_TYPES   = Config.STREAMABLE_TYPES
+FILE_TYPE_VIDEO    = "video"
+FILE_TYPE_AUDIO    = "audio"
+FILE_TYPE_IMAGE    = "image"
+FILE_TYPE_DOCUMENT = "document"
+
+STREAMABLE_TYPES = [FILE_TYPE_VIDEO, FILE_TYPE_AUDIO]
+
+MIME_TYPE_MAP = {
+    FILE_TYPE_VIDEO:    "video/mp4",
+    FILE_TYPE_AUDIO:    "audio/mpeg",
+    FILE_TYPE_IMAGE:    "image/jpeg",
+    FILE_TYPE_DOCUMENT: "application/octet-stream",
+}
 
 
 async def check_access(user_id: int) -> bool:
