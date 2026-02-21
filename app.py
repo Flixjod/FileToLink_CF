@@ -6,7 +6,7 @@ from aiohttp import web
 import aiohttp_jinja2
 import jinja2
 
-from bot import bot
+from bot import Bot
 from config import Config
 from database import Database
 from helper import StreamingService, check_bandwidth_limit, format_size
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 
 
-def build_app(database: Database) -> web.Application:
+def build_app(bot: Bot, database) -> web.Application:
     streaming_service = StreamingService(bot, database)
 
     app = web.Application()
