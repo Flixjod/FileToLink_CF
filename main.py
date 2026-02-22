@@ -114,7 +114,7 @@ async def main() -> None:
 
     #Web Server
     logger.info("🌐  ꜱᴛᴀʀᴛɪɴɢ ᴡᴇʙ ꜱᴇʀᴠᴇʀ…")
-    web_app = build_app(database)
+    web_app = build_app(bot, database)
     runner  = web.AppRunner(web_app)
     await runner.setup()
     site = web.TCPSite(runner, Config.BIND_ADDRESS, Config.PORT)
