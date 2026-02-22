@@ -112,10 +112,6 @@ class Database:
             return False
 
     async def register_user(self, user_data: Dict) -> bool:
-        """
-        Upsert a user record — updates profile fields on every call.
-        Internal helper; prefer register_user_on_start() for /start logic.
-        """
         try:
             await self.users.update_one(
                 {"user_id": user_data["user_id"]},
@@ -136,16 +132,6 @@ class Database:
             return False
 
     async def register_user_on_start(self, user_data: Dict) -> bool:
-        """
-        Register a user ONLY when they send /start.
-
-        Logic:
-          1. Check if the user already exists in the database.
-          2. If YES  → do nothing (return True, already registered).
-          3. If NO   → insert the new user record.
-
-        This ensures auto-registration never happens anywhere other than /start.
-        """
         try:
             existing = await self.users.find_one({"user_id": user_data["user_id"]})
             if existing:

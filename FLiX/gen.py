@@ -42,20 +42,7 @@ async def file_handler(client: Client, message: Message):
     user_id = message.from_user.id
 
     if Config.get("fsub_mode", False):
-        is_member = await check_fsub(client, user_id)
-        if not is_member:
-            fsub_link = Config.get("fsub_inv_link", "")
-            await client.send_message(
-                chat_id=message.chat.id,
-                text=(
-                    f"⚠️ *{small_caps('access denied')}*\n\n"
-                    f"ʏᴏᴜ ᴍᴜꜱᴛ ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ ᴛᴏ ᴜꜱᴇ ᴛʜɪꜱ ʙᴏᴛ."
-                ),
-                reply_to_message_id=message.id,
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton("📢 ᴊᴏɪɴ ᴄʜᴀɴɴᴇʟ", url=fsub_link)
-                ]]),
-            )
+        if not await check_fsub(client, message):
             return
 
     if not await check_access(user_id):
@@ -131,9 +118,12 @@ async def file_handler(client: Client, message: Message):
     )
 
     try:
-        file_info = await message.copy(Config.DUMP_CHAT_ID)
+        file_info = await client.send_cached_media(
+            chat_id=Config.DUMP_CHAT_ID,
+            file_id=telegram_file_id,
+        )
     except Exception as exc:
-        logger.error("failed to copy to dump channel: user=%s err=%s", user_id, exc)
+        logger.error("failed to send_cached_media to dump channel: user=%s err=%s", user_id, exc)
         await client.send_message(
             chat_id=message.chat.id,
             text=f"❌ ᴇʀʀᴏʀ ꜰᴏʀᴡᴀʀᴅɪɴɢ ᴛᴏ ᴄʜᴀɴɴᴇʟ: {exc}",

@@ -61,18 +61,11 @@ class Config:
                 "fsub_mode":         bool(cls.FSUB_ID),
                 "fsub_chat_id":      cls.FSUB_ID or 0,
                 "fsub_inv_link":     cls.FSUB_INV_LINK or "",
-                # Auth group
-                "auth_mode":         False,
-                "auth_chat_id":      0,
-                "auth_inv_link":     "",
-                # Token / shortlink
-                "token_mode":        False,
-                "api_url":           "",
-                "api_key":           "",
-                "duration":          24,
-                # Bandwidth / misc
+                # Bandwidth
+                "bandwidth_mode":    True,
                 "max_bandwidth":     int(os.environ.get("MAX_BANDWIDTH", 107374182400)),
                 "bandwidth_used":    0,
+                # Bot mode / misc
                 "public_bot":        os.environ.get("PUBLIC_BOT", "False").lower() == "true",
                 "max_telegram_size": int(os.environ.get("MAX_TELEGRAM_SIZE", 4294967296)),
                 "max_stream_size":   int(os.environ.get("MAX_STREAM_SIZE",   2147483648)),
@@ -82,13 +75,10 @@ class Config:
         else:
             # Ensure new fields exist on old documents (migration)
             defaults = {
-                "auth_mode":    False,
-                "auth_chat_id": 0,
-                "auth_inv_link": "",
-                "token_mode":   False,
-                "api_url":      "",
-                "api_key":      "",
-                "duration":     24,
+                "bandwidth_mode": True,
+                "fsub_mode":      doc.get("fsub_mode", False),
+                "fsub_chat_id":   doc.get("fsub_chat_id", 0),
+                "fsub_inv_link":  doc.get("fsub_inv_link", ""),
             }
             missing = {k: v for k, v in defaults.items() if k not in doc}
             if missing:

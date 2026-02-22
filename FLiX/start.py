@@ -26,25 +26,7 @@ async def start_command(client: Client, message: Message):
         file_hash = message.command[1]
 
         if Config.get("fsub_mode", False):
-            is_member = await check_fsub(client, user_id)
-            if not is_member:
-                fsub_link = Config.get("fsub_inv_link", "")
-                await client.send_message(
-                    chat_id=message.chat.id,
-                    text=(
-                        f"⚠️ *{small_caps('access denied')}*\n\n"
-                        f"ʏᴏᴜ ᴍᴜꜱᴛ ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ ᴛᴏ ᴜꜱᴇ ᴛʜɪꜱ ʙᴏᴛ."
-                    ),
-                    reply_to_message_id=message.id,
-                    reply_markup=InlineKeyboardMarkup([[
-                        InlineKeyboardButton("📢 ᴊᴏɪɴ ᴄʜᴀɴɴᴇʟ", url=fsub_link),
-                    ], [
-                        InlineKeyboardButton(
-                            "🔄 ᴛʀʏ ᴀɢᴀɪɴ",
-                            url=f"https://t.me/{Config.BOT_USERNAME}?start={file_hash}",
-                        ),
-                    ]]),
-                )
+            if not await check_fsub(client, message):
                 return
 
         try:
@@ -90,9 +72,6 @@ async def start_command(client: Client, message: Message):
                 btn_rows.append([
                     InlineKeyboardButton(f"📥 {small_caps('download')}", url=download_link),
                 ])
-
-            import asyncio
-            asyncio.create_task(db.increment_downloads(file_data["message_id"], 0))
 
             await client.send_message(
                 chat_id=message.chat.id,

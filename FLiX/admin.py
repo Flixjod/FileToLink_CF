@@ -3,6 +3,7 @@ import logging
 
 from pyrogram import Client, filters, StopPropagation
 from pyrogram.enums import ChatMemberStatus
+from pyrogram.errors import UserNotParticipant, ChatAdminRequired
 from pyrogram.types import (
     CallbackQuery,
     InlineKeyboardButton,
@@ -28,30 +29,65 @@ owner = filters.create(_is_owner)
 
 
 async def check_owner(client: Client, event) -> bool:
-    """Return True if the user is an owner; send a denial message otherwise."""
-    user_id = (
-        event.from_user.id
-        if hasattr(event, "from_user")
-        else getattr(getattr(event, "message", None), "from_user", None)
-    )
-    if user_id and user_id in Config.OWNER_ID:
+    user_id = event.from_user.id
+
+    if user_id not in Config.OWNER_ID:
+        if isinstance(event, Message):
+            await client.send_message(
+                chat_id=event.chat.id,
+                text="🚫 𝗔𝗰𝗰𝗲𝘀𝘀 𝗗𝗲𝗻𝗶𝗲𝗱!\n\n🔒 This command is **restricted** to bot admins.",
+                reply_to_message_id=event.id,
+            )
+        elif isinstance(event, CallbackQuery):
+            await event.answer(
+                "🚫 𝗔𝗰𝗰𝗲𝘀𝘀 𝗗𝗲𝗻𝗶𝗲𝗱!\n\n🔒 This action is restricted to bot admins.",
+                show_alert=True,
+            )
+        return False
+    return True
+
+
+async def is_member(client, message, target_id: int = None) -> bool:
+    check_id = target_id or Config.get("fsub_chat_id", 0)
+    if check_id == 0:
         return True
 
-    if isinstance(event, Message):
-        await client.send_message(
-            chat_id=event.chat.id,
-            text=(
-                "🚫 **Aᴄᴄᴇꜱꜱ Dᴇɴɪᴇᴅ!**\n\n"
-                "🔒 This command is **restricted** to bot admins."
-            ),
-            reply_to_message_id=event.id,
+    enforce_fsub = target_id is None and Config.get("fsub_mode", False)
+    if target_id is None and not enforce_fsub:
+        return True
+
+    try:
+        member = await client.get_chat_member(check_id, message.from_user.id)
+        return member.status in (
+            ChatMemberStatus.MEMBER,
+            ChatMemberStatus.ADMINISTRATOR,
+            ChatMemberStatus.OWNER,
         )
-    elif isinstance(event, CallbackQuery):
-        await event.answer(
-            "🚫 Aᴄᴄᴇꜱꜱ Dᴇɴɪᴇᴅ!\n\n🔒 This action is restricted to bot admins.",
-            show_alert=True,
-        )
-    return False
+
+    except UserNotParticipant:
+        if target_id is None:
+            await client.send_photo(
+                chat_id=message.chat.id,
+                photo="https://t.me/FLiX_Logos/331",
+                caption=(
+                    f"ʜᴇʏ **{message.from_user.mention}**,\n\n"
+                    "🧩 ᴛᴏ ᴜɴʟᴏᴄᴋ ᴍʏ ғᴜʟʟ ғᴇᴀᴛᴜʀᴇ ꜱᴇᴛ,\n"
+                    "ʏᴏᴜ ɴᴇᴇᴅ ᴛᴏ ᴊᴏɪɴ ᴏᴜʀ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ ꜰɪʀꜱᴛ!\n\n"
+                    "🚀 ᴊᴏɪɴ ɴᴏᴡ, ᴛʜᴇɴ ʜɪᴛ **/start** ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ ʏᴏᴜʀ ᴍɪꜱꜱɪᴏɴ."
+                ),
+                reply_markup=InlineKeyboardMarkup(
+                    [[InlineKeyboardButton("✨ ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ✨", url=Config.get("fsub_inv_link"))]]
+                ),
+            )
+        return False
+
+    except ChatAdminRequired:
+        logger.warning(f"Bot lacks permission to check is_member in chat {check_id}.")
+        return True
+
+    except Exception as e:
+        logger.error(f"Membership check failed for user {message.from_user.id} in chat {check_id}: {e}")
+        return True
 
 
 # ═══════════════════════════════════════════════════════════════════════════ #
@@ -59,83 +95,90 @@ async def check_owner(client: Client, event) -> bool:
 # ═══════════════════════════════════════════════════════════════════════════ #
 
 async def show_panel(client: Client, source, panel_type: str):
-    """Render and send (or edit) the appropriate settings panel."""
     from database import db
 
     config = Config.all()
-    # source can be either a Message or a CallbackQuery
     msg = source.message if isinstance(source, CallbackQuery) else source
 
     # ── Main panel ──────────────────────────────────────────────────────
     if panel_type == "main_panel":
+        max_bw    = Config.get("max_bandwidth", 107374182400)
+        bw_toggle = Config.get("bandwidth_mode", True)
         text = (
             "✨ **Bᴏᴛ Sᴇᴛᴛɪɴɢꜱ Pᴀɴᴇʟ** ✨\n\n"
-            f"🔐 **Tᴏᴋᴇɴ Aᴜᴛʜ**  : {'🟢 ᴀᴄᴛɪᴠᴇ' if config.get('token_mode') else '🔴 ɪɴᴀᴄᴛɪᴠᴇ'}\n"
-            f"👥 **Aᴜᴛʜ Gʀᴏᴜᴘ** : {'🟢 ᴀᴄᴛɪᴠᴇ' if config.get('auth_mode')  else '🔴 ɪɴᴀᴄᴛɪᴠᴇ'}\n"
-            f"📢 **Fᴏʀᴄᴇ Sᴜʙ**  : {'🟢 ᴀᴄᴛɪᴠᴇ' if config.get('fsub_mode')  else '🔴 ɪɴᴀᴄᴛɪᴠᴇ'}\n\n"
+            f"📡 **Bᴀɴᴅᴡɪᴅᴛʜ**  : {'🟢 ᴀᴄᴛɪᴠᴇ' if bw_toggle else '🔴 ɪɴᴀᴄᴛɪᴠᴇ'} | `{format_size(max_bw)}`\n"
+            f"👥 **Sᴜᴅᴏ Uꜱᴇʀꜱ** : ᴍᴀɴᴀɢᴇ ᴀᴄᴄᴇꜱꜱ\n"
+            f"🤖 **Bᴏᴛ Mᴏᴅᴇ**  : {'🟢 ᴘᴜʙʟɪᴄ' if config.get('public_bot') else '🔴 ᴘʀɪᴠᴀᴛᴇ'}\n"
+            f"📢 **Fᴏʀᴄᴇ Sᴜʙ** : {'🟢 ᴀᴄᴛɪᴠᴇ' if config.get('fsub_mode') else '🔴 ɪɴᴀᴄᴛɪᴠᴇ'}\n\n"
             "👇 ᴄʜᴏᴏꜱᴇ ᴀ ᴄᴀᴛᴇɢᴏʀʏ ᴛᴏ ᴄᴏɴꜰɪɢᴜʀᴇ."
         )
         buttons = InlineKeyboardMarkup([
             [
-                InlineKeyboardButton("🔑 ᴛᴏᴋᴇɴ",       callback_data="settings_token"),
-                InlineKeyboardButton("👥 ᴀᴜᴛʜ ɢʀᴏᴜᴘ", callback_data="settings_authgroup"),
+                InlineKeyboardButton("📡 ʙᴀɴᴅᴡɪᴅᴛʜ",    callback_data="settings_bandwidth"),
+                InlineKeyboardButton("👥 ꜱᴜᴅᴏ ᴜꜱᴇʀꜱ",   callback_data="settings_sudo"),
             ],
             [
-                InlineKeyboardButton("📢 ꜰᴏʀᴄᴇ ꜱᴜʙ", callback_data="settings_fsub"),
+                InlineKeyboardButton("🤖 ʙᴏᴛ ᴍᴏᴅᴇ",     callback_data="settings_botmode"),
+                InlineKeyboardButton("📢 ꜰᴏʀᴄᴇ ꜱᴜʙ",    callback_data="settings_fsub"),
             ],
             [
                 InlineKeyboardButton("❌ ᴄʟᴏꜱᴇ", callback_data="settings_close"),
             ],
         ])
 
-    # ── Token panel ─────────────────────────────────────────────────────
-    elif panel_type == "token_panel":
+    # ── Bandwidth panel ──────────────────────────────────────────────────
+    elif panel_type == "bandwidth_panel":
+        max_bw    = Config.get("max_bandwidth", 107374182400)
+        bw_toggle = Config.get("bandwidth_mode", True)
         text = (
-            "💠 **Tᴏᴋᴇɴ Sᴇᴛᴛɪɴɢꜱ** 💠\n\n"
-            f"⚡ **Mᴏᴅᴇ**             : {'🟢 ᴀᴄᴛɪᴠᴇ' if config.get('token_mode') else '🔴 ɪɴᴀᴄᴛɪᴠᴇ'}\n"
-            f"🌐 **Aᴘɪ Uʀʟ**          : `{config.get('api_url') or 'Nᴏᴛ Sᴇᴛ'}`\n"
-            f"🔑 **Aᴘɪ Kᴇʏ**          : `{config.get('api_key') or 'Nᴏᴛ Sᴇᴛ'}`\n"
-            f"⏱ **Dᴜʀᴀᴛɪᴏɴ (ʜʀs)** : `{config.get('duration', 24)}`"
+            "💠 **Bᴀɴᴅᴡɪᴅᴛʜ Sᴇᴛᴛɪɴɢꜱ** 💠\n\n"
+            f"⚡ **Mᴏᴅᴇ**   : {'🟢 ᴀᴄᴛɪᴠᴇ' if bw_toggle else '🔴 ɪɴᴀᴄᴛɪᴠᴇ'}\n"
+            f"📊 **Lɪᴍɪᴛ** : `{format_size(max_bw)}`"
         )
         buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("⚡ ᴛᴏɢɢʟᴇ", callback_data="toggle_token")],
-            [
-                InlineKeyboardButton("🌐 Aᴘɪ Uʀʟ", callback_data="set_api_url"),
-                InlineKeyboardButton("🔑 Aᴘɪ Kᴇʏ", callback_data="set_api_key"),
-            ],
-            [InlineKeyboardButton("⏱ ᴅᴜʀᴀᴛɪᴏɴ", callback_data="set_duration")],
+            [InlineKeyboardButton("⚡ ᴛᴏɢɢʟᴇ", callback_data="toggle_bandwidth")],
+            [InlineKeyboardButton("✏️ ꜱᴇᴛ ʟɪᴍɪᴛ", callback_data="set_bandwidth_limit")],
             [InlineKeyboardButton("⬅️ ʙᴀᴄᴋ", callback_data="settings_back")],
         ])
 
-    # ── Auth-group panel ─────────────────────────────────────────────────
-    elif panel_type == "auth_panel":
-        group_id = config.get("auth_chat_id", 0)
-        group_name = "Nᴏᴛ Sᴇᴛ"
-        if group_id:
-            try:
-                group_name = (await client.get_chat(group_id)).title
-            except Exception:
-                group_name = "❓ Uɴᴋɴᴏᴡɴ"
-
+    # ── Sudo users panel ─────────────────────────────────────────────────
+    elif panel_type == "sudo_panel":
+        sudo_users = await db.get_sudo_users()
+        count = len(sudo_users)
+        lines = "\n".join(f"  • `{u['user_id']}`" for u in sudo_users) if sudo_users else "  ɴᴏɴᴇ"
         text = (
-            "💠 **Aᴜᴛʜ Gʀᴏᴜᴘ Sᴇᴛᴛɪɴɢꜱ** 💠\n\n"
-            f"⚡ **Mᴏᴅᴇ**        : {'🟢 ᴀᴄᴛɪᴠᴇ' if config.get('auth_mode') else '🔴 ɪɴᴀᴄᴛɪᴠᴇ'}\n"
-            f"🆔 **Gʀᴏᴜᴘ Iᴅ**   : `{group_id or 'Nᴏᴛ Sᴇᴛ'}`\n"
-            f"📛 **Gʀᴏᴜᴘ Nᴀᴍᴇ** : `{group_name}`\n"
-            f"🔗 **Iɴᴠɪᴛᴇ Lɪɴᴋ** : `{config.get('auth_inv_link') or 'Nᴏᴛ Sᴇᴛ'}`"
+            "💠 **Sᴜᴅᴏ Uꜱᴇʀꜱ** 💠\n\n"
+            f"👥 **Cᴏᴜɴᴛ** : `{count}`\n\n"
+            f"**Lɪꜱᴛ:**\n{lines}"
         )
         buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("⚡ ᴛᴏɢɢʟᴇ", callback_data="toggle_auth")],
             [
-                InlineKeyboardButton("🆔 Gʀᴏᴜᴘ Iᴅ", callback_data="set_auth_id"),
-                InlineKeyboardButton("🔗 Iɴᴠɪᴛᴇ",   callback_data="set_auth_link"),
+                InlineKeyboardButton("➕ ᴀᴅᴅ",    callback_data="sudo_add"),
+                InlineKeyboardButton("➖ ʀᴇᴍᴏᴠᴇ", callback_data="sudo_remove"),
             ],
+            [InlineKeyboardButton("⬅️ ʙᴀᴄᴋ", callback_data="settings_back")],
+        ])
+
+    # ── Bot mode panel ───────────────────────────────────────────────────
+    elif panel_type == "botmode_panel":
+        public = config.get("public_bot", False)
+        text = (
+            "💠 **Bᴏᴛ Mᴏᴅᴇ Sᴇᴛᴛɪɴɢꜱ** 💠\n\n"
+            f"⚡ **Cᴜʀʀᴇɴᴛ Mᴏᴅᴇ** : {'🌍 ᴘᴜʙʟɪᴄ' if public else '🔒 ᴘʀɪᴠᴀᴛᴇ'}\n\n"
+            "🌍 **Pᴜʙʟɪᴄ** — ᴀɴʏᴏɴᴇ ᴄᴀɴ ᴜꜱᴇ ᴛʜᴇ ʙᴏᴛ\n"
+            "🔒 **Pʀɪᴠᴀᴛᴇ** — ᴏɴʟʏ ꜱᴜᴅᴏ/ᴏᴡɴᴇʀ ᴄᴀɴ ᴜꜱᴇ"
+        )
+        buttons = InlineKeyboardMarkup([
+            [InlineKeyboardButton(
+                "🔓 ꜱᴇᴛ ᴘᴜʙʟɪᴄ" if not public else "🔒 ꜱᴇᴛ ᴘʀɪᴠᴀᴛᴇ",
+                callback_data="toggle_botmode",
+            )],
             [InlineKeyboardButton("⬅️ ʙᴀᴄᴋ", callback_data="settings_back")],
         ])
 
     # ── Force-sub panel ──────────────────────────────────────────────────
     elif panel_type == "fsub_panel":
-        fsub_id = config.get("fsub_chat_id", 0)
+        fsub_id   = config.get("fsub_chat_id", 0)
         fsub_name = "Nᴏᴛ Sᴇᴛ"
         if fsub_id:
             try:
@@ -160,7 +203,7 @@ async def show_panel(client: Client, source, panel_type: str):
         ])
 
     else:
-        return  # Unknown panel — silently ignore
+        return
 
     # ── Send or edit ─────────────────────────────────────────────────────
     if isinstance(source, CallbackQuery):
@@ -191,30 +234,22 @@ async def show_panel(client: Client, source, panel_type: str):
 #  Ask-input helper                                                           #
 # ═══════════════════════════════════════════════════════════════════════════ #
 
-# Global pending-input registry: user_id -> asyncio.Future
 _pending: dict[int, asyncio.Future] = {}
 
 
 @Client.on_message(filters.text & filters.private, group=99)
 async def _catch_pending(client: Client, message: Message):
-    """Intercept text replies while an ask_input is waiting."""
     uid = message.from_user.id
     if uid in _pending and not _pending[uid].done():
         _pending[uid].set_result(message)
-        raise StopPropagation  # prevent other handlers processing it
+        raise StopPropagation
 
 
 async def ask_input(
     client: Client, user_id: int, prompt: str, timeout: int = 60
 ) -> str | None:
-    """
-    Send *prompt* to *user_id* and wait for their next private text message.
-    Deletes both the prompt and the reply afterwards.
-    Returns the stripped text, or None on timeout / error.
-    Works without pyromod — uses a global asyncio.Future registry.
-    """
-    loop    = asyncio.get_event_loop()
-    future  = loop.create_future()
+    loop   = asyncio.get_event_loop()
+    future = loop.create_future()
     _pending[user_id] = future
 
     ask_msg = None
@@ -255,7 +290,7 @@ async def open_settings(client: Client, message: Message):
 # ═══════════════════════════════════════════════════════════════════════════ #
 
 @Client.on_callback_query(
-    filters.regex(r"^(settings_|toggle_|set_).+"),
+    filters.regex(r"^(settings_|toggle_|set_|sudo_).+"),
     group=2,
 )
 async def settings_callback(client: Client, callback: CallbackQuery):
@@ -269,10 +304,11 @@ async def settings_callback(client: Client, callback: CallbackQuery):
 
     # ── Panel navigation ────────────────────────────────────────────────
     panel_nav = {
-        "settings_token":     ("token_panel", "🎟️ ᴍᴀɴᴀɢᴇ ᴛᴏᴋᴇɴ ꜱᴇᴛᴛɪɴɢꜱ"),
-        "settings_authgroup": ("auth_panel",  "👥 ᴄᴏɴᴛʀᴏʟ & ᴍᴀɴᴀɢᴇ ᴀᴜᴛʜ ɢʀᴏᴜᴘ ⚡"),
-        "settings_fsub":      ("fsub_panel",  "📌 ᴇɴꜰᴏʀᴄᴇ & ᴍᴀɴᴀɢᴇ ꜰꜱᴜʙ 🔥"),
-        "settings_back":      ("main_panel",  "⬅️ Bᴀᴄᴋ Tᴏ Mᴀɪɴ Mᴇɴᴜ"),
+        "settings_bandwidth": ("bandwidth_panel", "📡 ʙᴀɴᴅᴡɪᴅᴛʜ ꜱᴇᴛᴛɪɴɢꜱ"),
+        "settings_sudo":      ("sudo_panel",      "👥 ꜱᴜᴅᴏ ᴜꜱᴇʀꜱ"),
+        "settings_botmode":   ("botmode_panel",   "🤖 ʙᴏᴛ ᴍᴏᴅᴇ ꜱᴇᴛᴛɪɴɢꜱ"),
+        "settings_fsub":      ("fsub_panel",      "📌 ꜰᴏʀᴄᴇ ꜱᴜʙ ꜱᴇᴛᴛɪɴɢꜱ"),
+        "settings_back":      ("main_panel",      "⬅️ ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴍᴇɴᴜ"),
     }
     if data in panel_nav:
         panel, toast = panel_nav[data]
@@ -288,123 +324,78 @@ async def settings_callback(client: Client, callback: CallbackQuery):
         return
 
     # ── Toggles ─────────────────────────────────────────────────────────
-    toggle_map = {
-        "toggle_token": ("token_mode", "token_panel", "✅ Tᴏᴋᴇɴ ᴍᴏᴅᴇ ᴛᴏɢɢʟᴇᴅ!"),
-        "toggle_auth":  ("auth_mode",  "auth_panel",  "✅ Aᴜᴛʜ ɢʀᴏᴜᴘ ᴍᴏᴅᴇ ᴛᴏɢɢʟᴇᴅ!"),
-        "toggle_fsub":  ("fsub_mode",  "fsub_panel",  "✅ Fᴏʀᴄᴇ ꜱᴜʙ ᴍᴏᴅᴇ ᴛᴏɢɢʟᴇᴅ!"),
-    }
-    if data in toggle_map:
-        key, panel, toast = toggle_map[data]
-        await Config.update(db.db, {key: not config.get(key, False)})
-        await callback.answer(toast, show_alert=True)
-        return await show_panel(client, callback, panel)
+    if data == "toggle_bandwidth":
+        new_val = not config.get("bandwidth_mode", True)
+        await Config.update(db.db, {"bandwidth_mode": new_val})
+        await callback.answer("✅ Bᴀɴᴅᴡɪᴅᴛʜ ᴍᴏᴅᴇ ᴛᴏɢɢʟᴇᴅ!", show_alert=True)
+        return await show_panel(client, callback, "bandwidth_panel")
 
-    # ── Token settings ───────────────────────────────────────────────────
-    if data == "set_api_url":
+    if data == "toggle_botmode":
+        new_val = not config.get("public_bot", False)
+        await Config.update(db.db, {"public_bot": new_val})
+        mode = "ᴘᴜʙʟɪᴄ" if new_val else "ᴘʀɪᴠᴀᴛᴇ"
+        await callback.answer(f"✅ Bᴏᴛ ꜱᴇᴛ ᴛᴏ {mode}!", show_alert=True)
+        return await show_panel(client, callback, "botmode_panel")
+
+    if data == "toggle_fsub":
+        new_val = not config.get("fsub_mode", False)
+        await Config.update(db.db, {"fsub_mode": new_val})
+        await callback.answer("✅ Fᴏʀᴄᴇ ꜱᴜʙ ᴛᴏɢɢʟᴇᴅ!", show_alert=True)
+        return await show_panel(client, callback, "fsub_panel")
+
+    # ── Bandwidth limit ──────────────────────────────────────────────────
+    if data == "set_bandwidth_limit":
         text = await ask_input(
             client, callback.from_user.id,
-            "🌐 **Sᴇɴᴅ ɴᴇᴡ Aᴘɪ Uʀʟ**\n\nSend `0` to unset.",
-        )
-        if text is not None:
-            await Config.update(db.db, {"api_url": "" if text == "0" else text})
-            await callback.answer("✅ Aᴘɪ Uʀʟ ᴜᴘᴅᴀᴛᴇᴅ!", show_alert=True)
-            return await show_panel(client, callback, "token_panel")
-        return
-
-    if data == "set_api_key":
-        text = await ask_input(
-            client, callback.from_user.id,
-            "🔑 **Sᴇɴᴅ ɴᴇᴡ Aᴘɪ Kᴇʏ**\n\nSend `0` to unset.",
-        )
-        if text is not None:
-            await Config.update(db.db, {"api_key": "" if text == "0" else text})
-            await callback.answer("✅ Aᴘɪ Kᴇʏ ᴜᴘᴅᴀᴛᴇᴅ!", show_alert=True)
-            return await show_panel(client, callback, "token_panel")
-        return
-
-    if data == "set_duration":
-        text = await ask_input(
-            client, callback.from_user.id,
-            "⏱ **Sᴇɴᴅ Dᴜʀᴀᴛɪᴏɴ ɪɴ Hᴏᴜʀꜱ (1–168)**\n\nSend `0` to reset to 24h.",
-        )
-        if text and text.isdigit() and 0 <= int(text) <= 168:
-            await Config.update(db.db, {"duration": int(text) or 24})
-            await callback.answer("✅ Dᴜʀᴀᴛɪᴏɴ ᴜᴘᴅᴀᴛᴇᴅ!", show_alert=True)
-            return await show_panel(client, callback, "token_panel")
-        elif text:
-            await callback.answer("❌ Iɴᴠᴀʟɪᴅ ᴅᴜʀᴀᴛɪᴏɴ! (1–168)", show_alert=True)
-        return
-
-    # ── Auth-group settings ──────────────────────────────────────────────
-    if data == "set_auth_id":
-        text = await ask_input(
-            client, callback.from_user.id,
-            "👥 **Sᴇɴᴅ ᴛʜᴇ Gʀᴏᴜᴘ ID**\n\n"
-            "📌 Fᴏʀᴍᴀᴛ: `-100xxxxxxxxxx`\n"
-            "➡️ Sᴇɴᴅ `0` ᴛᴏ ᴜɴꜱᴇᴛ.",
+            "📡 **Sᴇɴᴅ ʙᴀɴᴅᴡɪᴅᴛʜ ʟɪᴍɪᴛ ɪɴ ʙʏᴛᴇꜱ**\n\n"
+            "ᴇxᴀᴍᴘʟᴇꜱ:\n"
+            "`107374182400` — 100 GB\n"
+            "`53687091200`  — 50 GB\n"
+            "`10737418240`  — 10 GB\n\n"
+            "Sᴇɴᴅ `0` ᴛᴏ ʀᴇꜱᴇᴛ ᴛᴏ 100 GB.",
         )
         if text is None:
             return
+        if not text.isdigit():
+            await callback.answer("❌ Iɴᴠᴀʟɪᴅ ɴᴜᴍʙᴇʀ!", show_alert=True)
+            return
+        new_limit = int(text) or 107374182400
+        await Config.update(db.db, {"max_bandwidth": new_limit})
+        await callback.answer(
+            f"✅ Lɪᴍɪᴛ ꜱᴇᴛ ᴛᴏ {format_size(new_limit)}!",
+            show_alert=True,
+        )
+        return await show_panel(client, callback, "bandwidth_panel")
 
-        value = int(text) if text != "0" and text.lstrip("-").isdigit() else 0
-
-        if value == 0:
-            await Config.update(db.db, {"auth_chat_id": 0, "auth_inv_link": ""})
-            await callback.answer("✅ Aᴜᴛʜ Gʀᴏᴜᴘ ᴜɴꜱᴇᴛ!", show_alert=True)
-            return await show_panel(client, callback, "auth_panel")
-
-        if not str(value).startswith("-100"):
-            return await callback.answer(
-                "❌ Iɴᴠᴀʟɪᴅ ID!\n\n📌 Gʀᴏᴜᴘ ID ᴍᴜꜱᴛ ꜱᴛᴀʀᴛ ᴡɪᴛʜ `-100`",
-                show_alert=True,
-            )
-
-        try:
-            me     = await client.get_me()
-            member = await client.get_chat_member(value, me.id)
-
-            if member.status not in (
-                ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER
-            ):
-                return await callback.answer(
-                    "❌ Nᴏ Aᴅᴍɪɴ Rɪɢʜᴛꜱ!\n\n⚡ I ᴍᴜꜱᴛ ʙᴇ Aᴅᴍɪɴ ɪɴ ᴛʜᴀᴛ Gʀᴏᴜᴘ.",
-                    show_alert=True,
-                )
-
-            rights = getattr(member, "privileges", None)
-            if rights and not rights.can_invite_users:
-                return await callback.answer(
-                    "❌ Mɪꜱꜱɪɴɢ Pᴇʀᴍɪꜱꜱɪᴏɴ!\n\n"
-                    "👥 Pʟᴇᴀꜱᴇ ɢʀᴀɴᴛ: 🔑 `Aᴅᴅ Sᴜʙꜱᴄʀɪʙᴇʀꜱ` ʀɪɢʜᴛ",
-                    show_alert=True,
-                )
-
-            try:
-                inv = await client.export_chat_invite_link(value)
-            except Exception:
-                inv = ""
-
-            await Config.update(db.db, {"auth_chat_id": value, "auth_inv_link": inv})
-            await callback.answer(
-                "✅ Aᴜᴛʜ Gʀᴏᴜᴘ Sᴀᴠᴇᴅ!\n\n🆔 ID + 🔗 Iɴᴠɪᴛᴇ Lɪɴᴋ ᴀᴅᴅᴇᴅ.",
-                show_alert=True,
-            )
-
-        except Exception as exc:
-            return await callback.answer(f"❌ Eʀʀᴏʀ:\n`{exc}`", show_alert=True)
-
-        return await show_panel(client, callback, "auth_panel")
-
-    if data == "set_auth_link":
+    # ── Sudo add ─────────────────────────────────────────────────────────
+    if data == "sudo_add":
         text = await ask_input(
             client, callback.from_user.id,
-            "🔗 **Sᴇɴᴅ Iɴᴠɪᴛᴇ Lɪɴᴋ**\n\nSend `0` to unset.",
+            "👥 **Sᴇɴᴅ ᴜꜱᴇʀ ID ᴛᴏ ᴀᴅᴅ ᴀꜱ ꜱᴜᴅᴏ**",
         )
-        if text is not None:
-            await Config.update(db.db, {"auth_inv_link": "" if text == "0" else text})
-            await callback.answer("✅ Aᴜᴛʜ ɪɴᴠɪᴛᴇ ʟɪɴᴋ ᴜᴘᴅᴀᴛᴇᴅ!", show_alert=True)
-            return await show_panel(client, callback, "auth_panel")
-        return
+        if text is None:
+            return
+        if not text.lstrip("-").isdigit():
+            await callback.answer("❌ Iɴᴠᴀʟɪᴅ ᴜꜱᴇʀ ID!", show_alert=True)
+            return
+        await db.add_sudo_user(text, str(callback.from_user.id))
+        await callback.answer(f"✅ `{text}` ᴀᴅᴅᴇᴅ ᴀꜱ ꜱᴜᴅᴏ!", show_alert=True)
+        return await show_panel(client, callback, "sudo_panel")
+
+    # ── Sudo remove ──────────────────────────────────────────────────────
+    if data == "sudo_remove":
+        text = await ask_input(
+            client, callback.from_user.id,
+            "👥 **Sᴇɴᴅ ᴜꜱᴇʀ ID ᴛᴏ ʀᴇᴍᴏᴠᴇ ꜰʀᴏᴍ ꜱᴜᴅᴏ**",
+        )
+        if text is None:
+            return
+        result = await db.remove_sudo_user(text)
+        if result:
+            await callback.answer(f"✅ `{text}` ʀᴇᴍᴏᴠᴇᴅ ꜰʀᴏᴍ ꜱᴜᴅᴏ!", show_alert=True)
+        else:
+            await callback.answer(f"❌ `{text}` ɴᴏᴛ ꜰᴏᴜɴᴅ ɪɴ ꜱᴜᴅᴏ ʟɪꜱᴛ.", show_alert=True)
+        return await show_panel(client, callback, "sudo_panel")
 
     # ── Force-sub settings ───────────────────────────────────────────────
     if data == "set_fsub_id":
@@ -479,7 +470,7 @@ async def settings_callback(client: Client, callback: CallbackQuery):
 
 
 # ═══════════════════════════════════════════════════════════════════════════ #
-#  Legacy admin commands (unchanged)                                          #
+#  Legacy admin commands                                                      #
 # ═══════════════════════════════════════════════════════════════════════════ #
 
 @Client.on_message(filters.command("setpublic") & filters.private & owner, group=2)
@@ -863,7 +854,6 @@ async def cb_view_file(client: Client, callback: CallbackQuery):
         f"📂 *{small_caps('name')}:* `{safe_name}`\n"
         f"💾 *{small_caps('size')}:* `{formatted_size}`\n"
         f"📊 *{small_caps('type')}:* `{file_data['file_type']}`\n"
-        f"📥 *{small_caps('downloads')}:* `{file_data.get('downloads', 0)}`\n"
         f"📅 *{small_caps('uploaded')}:* `{file_data['created_at'].strftime('%Y-%m-%d')}`"
     )
     await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons))
