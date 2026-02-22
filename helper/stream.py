@@ -32,10 +32,6 @@ MIME_TYPE_MAP = {
 # ---------------------------------------------------------------------------
 
 async def get_file_ids(client: Client, message_id: str) -> FileId:
-    """
-    Fetches the Pyrogram Message for *message_id* from DUMP_CHAT_ID and
-    returns the unpacked FileId for the attached media.
-    """
     msg = await client.get_messages(Config.DUMP_CHAT_ID, int(message_id))
     if not msg or msg.empty:
         raise ValueError(f"message {message_id} not found in dump chat")
@@ -61,19 +57,6 @@ async def get_file_ids(client: Client, message_id: str) -> FileId:
 # ---------------------------------------------------------------------------
 
 class ByteStreamer:
-    """
-    Low-level Telegram media streamer.
-
-    Mirrors the classic megadlbot / FileStreamBot ByteStreamer pattern:
-    - caches decoded FileId objects to avoid repeat API calls
-    - manages per-DC media sessions with proper auth export/import
-    - yields raw bytes via the MTProto upload.GetFile RPC
-
-    Large-file fix (>1 GB):
-    - offset is always a multiple of CHUNK_SIZE (aligned correctly)
-    - part_count is recomputed using integer arithmetic only
-    - FloodWait errors are handled gracefully
-    """
 
     def __init__(self, client: Client):
         self.client: Client = client
@@ -222,16 +205,6 @@ class ByteStreamer:
         part_count: int,
         chunk_size: int,
     ):
-        """
-        Async generator that yields the requested byte range of a
-        Telegram media file directly via MTProto upload.GetFile.
-
-        Key fixes for >1 GB files:
-        - offset must be a multiple of chunk_size (guaranteed by caller)
-        - uses integer loop counter; never skips or double-counts parts
-        - handles FloodWait by sleeping and retrying
-        - handles upload.FileCdnRedirect gracefully (logs and stops)
-        """
         client = self.client
         media_session = await self.generate_media_session(client, file_id)
         location = await self.get_location(file_id)
@@ -317,10 +290,6 @@ class ByteStreamer:
 # ---------------------------------------------------------------------------
 
 def _parse_range(range_header: str, file_size: int):
-    """
-    Parse HTTP Range header.  Returns (from_bytes, until_bytes).
-    Handles multi-range by taking the first range only.
-    """
     if range_header:
         try:
             # Strip "bytes=" prefix and take only the first range
@@ -346,10 +315,6 @@ def _parse_range(range_header: str, file_size: int):
 # ---------------------------------------------------------------------------
 
 class StreamingService:
-    """
-    aiohttp request handler that sits on top of ByteStreamer.
-    One ByteStreamer instance is kept for the lifetime of the service.
-    """
 
     def __init__(self, bot_client: Client, db: Database):
         self.bot      = bot_client

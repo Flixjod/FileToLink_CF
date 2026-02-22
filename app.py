@@ -85,12 +85,6 @@ def build_app(bot: Bot, database) -> web.Application:
 
     @aiohttp_jinja2.template("stream.html")
     async def stream_page(request: web.Request):
-        """
-        Serve the HTML player page for /stream/<file_hash>.
-
-        If the client is asking for bytes (Range request or non-HTML Accept),
-        forward straight to streaming_service.stream_file().
-        """
         file_hash = request.match_info["file_hash"]
         accept    = request.headers.get("Accept", "")
         range_h   = request.headers.get("Range", "")
@@ -132,9 +126,6 @@ def build_app(bot: Bot, database) -> web.Application:
         }
 
     async def download_file(request: web.Request):
-        """
-        /dl/<file_hash> — force-attachment download.
-        """
         file_hash = request.match_info["file_hash"]
         return await streaming_service.stream_file(request, file_hash, is_download=True)
 
