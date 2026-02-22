@@ -3,13 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{{ file_name }} | FLiX Stream</title>
+<title>{{ file_name }} | Video Player</title>
 <link rel="icon" href="https://i.ibb.co/KzqHfL05/photo-2026-02-07-13-38-13.jpg">
 <meta property="og:title" content="{{ file_name }}">
 <meta property="og:image" content="https://i.ibb.co/KzqHfL05/photo-2026-02-07-13-38-13.jpg">
 <meta property="og:description" content="Watch {{ file_name }} — stream or download instantly.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.plyr.io/3.6.9/plyr.css" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
 <style>
@@ -35,32 +36,13 @@ body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-he
 .bp-h{background:rgba(59,130,246,.15);color:#60a5fa;border:1px solid rgba(59,130,246,.3)}
 .bp-k{background:rgba(34,197,94,.12);color:#4ade80;border:1px solid rgba(34,197,94,.3)}
 .bp-sz{background:rgba(167,139,250,.12);color:#a78bfa;border:1px solid rgba(167,139,250,.3)}
-.player-card{background:var(--card);border:1px solid var(--border);border-radius:18px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.5),0 0 40px rgba(240,180,41,.12);margin-bottom:20px;transition:box-shadow .3s;position:relative}
+.player-card{background:var(--card);border:1px solid var(--border);border-radius:18px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.5),0 0 40px rgba(240,180,41,.12);margin-bottom:20px;transition:box-shadow .3s}
 .player-card:hover{box-shadow:0 28px 70px rgba(0,0,0,.6),0 0 60px rgba(240,180,41,.16)}
 .plyr{border-radius:0}
 .plyr--video .plyr__controls{background:linear-gradient(transparent,rgba(0,0,0,.85))}
 .plyr__control--overlaid{background:var(--gold)!important}
 .plyr__control--overlaid:hover{background:var(--gold2)!important}
 .plyr--full-ui input[type=range]{color:var(--gold)}
-
-/* ── Buffering overlay (shown by default, hidden once media is ready) ─ */
-.buffer-overlay{
-  position:absolute;inset:0;
-  background:rgba(8,11,16,.85);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:16px;z-index:10;border-radius:18px;
-  transition:opacity .4s ease;
-}
-.buffer-overlay.hidden{opacity:0;pointer-events:none}
-.spinner{
-  width:52px;height:52px;border:4px solid rgba(240,180,41,.2);
-  border-top-color:var(--gold);border-radius:50%;
-  animation:spin .9s linear infinite;
-}
-@keyframes spin{to{transform:rotate(360deg)}}
-.buf-text{font-size:.82rem;color:var(--muted);font-family:'JetBrains Mono',monospace;letter-spacing:.06em}
-.buf-size{font-size:1rem;font-weight:600;color:var(--gold);font-family:'JetBrains Mono',monospace}
-
 /* non-video file card */
 .doc-card{padding:40px 24px;text-align:center;color:var(--muted)}
 .doc-card i{font-size:3rem;margin-bottom:16px;color:var(--gold);opacity:.7}
@@ -72,7 +54,7 @@ body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-he
 .pip-btn{margin-left:auto;display:flex;align-items:center;gap:5px}
 .pip-btn:hover{background:rgba(59,130,246,.12);color:#60a5fa;border-color:rgba(59,130,246,.35)}
 .actions-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:20px}
-.ab{display:flex;align-items:center;justify-content:center;gap:9px;padding:13px 10px;border-radius:var(--r);font-size:.82rem;font-weight:600;cursor:pointer;border:1px solid transparent;transition:transform .18s,box-shadow .18s,background .18s;text-decoration:none;position:relative;overflow:hidden}
+.ab{display:flex;align-items:center;justify-content:center;gap:9px;padding:13px 10px;border-radius:var(--r);font-size:.82rem;font-weight:600;cursor:pointer;border:1px solid transparent;transition:transform .18s,box-shadow .18s,background .18s;position:relative;overflow:hidden}
 .ab::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.08),transparent 60%);pointer-events:none}
 .ab:hover{transform:translateY(-2px)}.ab:active{transform:translateY(0)}
 .b-vlc{background:#1d2230;border-color:rgba(255,106,0,.35);color:#ff6a00}.b-vlc:hover{background:rgba(255,106,0,.15);box-shadow:0 8px 24px rgba(255,106,0,.2)}
@@ -80,7 +62,6 @@ body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-he
 .b-pl{background:#211c10;border-color:rgba(251,191,36,.3);color:#fbbf24}.b-pl:hover{background:rgba(251,191,36,.12);box-shadow:0 8px 24px rgba(251,191,36,.15)}
 .b-km{background:#12182a;border-color:rgba(96,165,250,.3);color:#60a5fa}.b-km:hover{background:rgba(96,165,250,.1);box-shadow:0 8px 24px rgba(96,165,250,.15)}
 .b-sp{background:#1e1528;border-color:rgba(167,139,250,.3);color:#a78bfa}.b-sp:hover{background:rgba(167,139,250,.1);box-shadow:0 8px 24px rgba(167,139,250,.15)}
-.b-tg{background:#12243a;border-color:rgba(38,164,218,.3);color:#3db0f5}.b-tg:hover{background:rgba(38,164,218,.1);box-shadow:0 8px 24px rgba(38,164,218,.18)}
 .b-dl{background:linear-gradient(135deg,#f0b429,#e09000);border-color:transparent;color:#080b10;font-weight:700}.b-dl:hover{box-shadow:0 8px 30px rgba(240,180,41,.4);filter:brightness(1.08)}
 .info-panel{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px 22px;margin-bottom:20px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
 .ii{display:flex;flex-direction:column;gap:2px}
@@ -116,7 +97,7 @@ body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-he
 
   <div class="file-title">{{ file_name }}</div>
   <div class="meta-row">
-    <span class="bp bp-s" id="stream-status-badge"><i class="fa-solid fa-circle-notch fa-spin" style="margin-right:4px"></i>Buffering…</span>
+    <span class="bp bp-s"><i class="fa-solid fa-circle-play" style="margin-right:4px"></i>Stream Ready</span>
     {% if file_type == 'video' %}<span class="bp bp-h">HD</span>{% endif %}
     <span class="bp bp-k"><i class="fa-solid fa-shield-halved" style="margin-right:4px"></i>Secure</span>
     <span class="bp bp-sz"><i class="fa-solid fa-database" style="margin-right:4px"></i>{{ file_size }}</span>
@@ -124,12 +105,6 @@ body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-he
 
   <div class="player-card">
     {% if file_type == 'video' %}
-    <!-- Buffering overlay — shown by default, hidden once canplay fires -->
-    <div class="buffer-overlay" id="buf-overlay">
-      <div class="spinner"></div>
-      <div class="buf-size">{{ file_size }}</div>
-      <div class="buf-text">BUFFERING — PLEASE WAIT</div>
-    </div>
     <video id="player" playsinline controls preload="metadata">
       <source src="{{ stream_url }}" type="video/mp4">
     </video>
@@ -143,11 +118,6 @@ body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-he
       <button class="pip-btn" onclick="togglePiP()"><i class="fa-solid fa-window-restore"></i> PiP</button>
     </div>
     {% elif file_type == 'audio' %}
-    <div class="buffer-overlay" id="buf-overlay">
-      <div class="spinner"></div>
-      <div class="buf-size">{{ file_size }}</div>
-      <div class="buf-text">LOADING AUDIO…</div>
-    </div>
     <audio id="player" controls preload="metadata" style="width:100%;padding:24px 18px;display:block;background:transparent;">
       <source src="{{ stream_url }}" type="audio/mpeg">
     </audio>
@@ -174,7 +144,7 @@ body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-he
     <div class="idiv"></div>
     <div class="ii"><span class="lbl">Downloads</span><span class="val">{{ downloads }}</span></div>
     <div class="idiv"></div>
-    <div class="ii"><span class="lbl">Status</span><span class="val" id="status-val" style="color:#60a5fa">Buffering…</span></div>
+    <div class="ii"><span class="lbl">Status</span><span class="val" id="status-val" style="color:#4ade80">Ready</span></div>
     <div class="clr"><button class="clbtn" onclick="copyVideoUrl()"><i class="fa-solid fa-copy"></i> Copy Stream URL</button></div>
   </div>
 
@@ -186,7 +156,6 @@ body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-he
     <button class="ab b-km"  onclick="km_player()"><i class="fa-solid fa-film"></i> KM Player</button>
     <button class="ab b-sp"  onclick="s_player()"><i class="fa-solid fa-play"></i> Simple Player</button>
     {% endif %}
-    <a class="ab b-tg" href="{{ telegram_url }}" target="_blank"><i class="fa-brands fa-telegram"></i> Telegram</a>
     <button class="ab b-dl" onclick="lazyDownload()"><i class="fa-solid fa-cloud-arrow-down"></i> Download</button>
   </div>
 
@@ -211,6 +180,7 @@ body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-he
 
 <div class="toast-wrap"><div class="tp" id="toast"><i class="fa-solid fa-check ti" id="ti"></i><span id="tm">Copied!</span></div></div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.plyr.io/3.6.9/plyr.polyfilled.js"></script>
 <script>
 /* ── Template variables injected server-side ───────────────────────── */
@@ -230,28 +200,9 @@ if (mediaEl && (FILE_TYPE === 'video' || FILE_TYPE === 'audio')) {
   });
 }
 
-/* ── Buffering overlay logic ────────────────────────────────────────── */
-const bufOverlay   = document.getElementById('buf-overlay');
-const sv           = document.getElementById('status-val');
-const streamBadge  = document.getElementById('stream-status-badge');
-
-function hideBuffering() {
-  if (bufOverlay) bufOverlay.classList.add('hidden');
-  if (streamBadge) {
-    streamBadge.innerHTML = '<i class="fa-solid fa-circle-play" style="margin-right:4px"></i>Stream Ready';
-  }
-}
-
-function showBuffering() {
-  if (bufOverlay) bufOverlay.classList.remove('hidden');
-  if (sv) { sv.textContent = 'Buffering…'; sv.style.color = '#60a5fa'; }
-  if (streamBadge) {
-    streamBadge.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin" style="margin-right:4px"></i>Buffering…';
-  }
-}
-
+/* ── Status / metadata events ───────────────────────────────────────── */
+const sv = document.getElementById('status-val');
 if (mediaEl) {
-  // Show buffering overlay by default until media can play
   mediaEl.addEventListener('loadedmetadata', () => {
     const s = Math.floor(mediaEl.duration);
     const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sc = s % 60;
@@ -260,22 +211,10 @@ if (mediaEl) {
     const resEl = document.getElementById('res-val');
     if (resEl && mediaEl.videoWidth) resEl.textContent = mediaEl.videoWidth + '×' + mediaEl.videoHeight;
   });
-  mediaEl.addEventListener('canplay', () => {
-    hideBuffering();
-    if (sv) { sv.textContent = 'Ready'; sv.style.color = '#4ade80'; }
-  });
-  mediaEl.addEventListener('playing', () => {
-    hideBuffering();
-    if (sv) { sv.textContent = '● Playing'; sv.style.color = '#4ade80'; }
-  });
-  mediaEl.addEventListener('pause',   () => { if (sv) { sv.textContent = 'Paused';     sv.style.color = '#fbbf24'; } });
-  mediaEl.addEventListener('waiting', () => { showBuffering(); });
-  mediaEl.addEventListener('stalled', () => { showBuffering(); });
-  mediaEl.addEventListener('error',   () => {
-    hideBuffering();
-    if (sv) { sv.textContent = 'Error';   sv.style.color = '#f87171'; }
-    if (streamBadge) streamBadge.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="margin-right:4px"></i>Error';
-  });
+  mediaEl.addEventListener('playing', () => { if (sv) { sv.textContent = '● Playing'; sv.style.color = '#4ade80'; } });
+  mediaEl.addEventListener('pause',   () => { if (sv) { sv.textContent = 'Paused';   sv.style.color = '#fbbf24'; } });
+  mediaEl.addEventListener('waiting', () => { if (sv) { sv.textContent = 'Buffering…'; sv.style.color = '#60a5fa'; } });
+  mediaEl.addEventListener('error',   () => { if (sv) { sv.textContent = 'Error';    sv.style.color = '#f87171'; } });
 }
 
 /* ── Speed buttons ──────────────────────────────────────────────────── */
@@ -306,10 +245,15 @@ function playit_player() { go('intent:' + STREAM_URL + '#Intent;package=com.play
 function km_player()     { go('intent:' + STREAM_URL + '#Intent;package=com.kmplayer;end'); }
 function s_player()      { go('intent:' + STREAM_URL + '#Intent;package=com.simplemobiletools.videoplayer;end'); }
 
-/* ── Download — use window.open to avoid anchor-tag redirect issues ── */
+/* ── Download ───────────────────────────────────────────────────────── */
 function lazyDownload() {
-  showToast('Download starting…', 'fa-cloud-arrow-down');
-  window.open(DOWNLOAD_URL, '_blank');
+  showToast('Download started…', 'fa-cloud-arrow-down');
+  const a = document.createElement('a');
+  a.href = DOWNLOAD_URL;
+  a.download = FILE_NAME;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 /* ── Copy helpers ───────────────────────────────────────────────────── */
