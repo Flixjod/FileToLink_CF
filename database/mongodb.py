@@ -29,10 +29,10 @@ class Database:
             await self.files.create_index("message_id", unique=True)
             await self.files.create_index("user_id")
             await self.files.create_index("created_at")
-            await self.users.create_index("user_id",        unique=True)
+            await self.users.create_index("user_id",      unique=True)
             await self.users.create_index("last_activity")
             await self.bandwidth.create_index("date")
-            await self.sudo_users.create_index("user_id",   unique=True)
+            await self.sudo_users.create_index("user_id", unique=True)
             logger.info("database indexes created")
             return True
         except Exception as e:
@@ -52,7 +52,6 @@ class Database:
                 "file_type":        file_data["file_type"],
                 "mime_type":        file_data.get("mime_type", ""),
                 "created_at":       datetime.utcnow(),
-                "downloads":        0,
                 "bandwidth_used":   0,
             }
             await self.files.insert_one(doc)
@@ -99,71 +98,6 @@ class Database:
             logger.error("get user files error: %s", e)
             return []
 
-    async def increment_downloads(self, message_id: str, size: int = 0) -> bool:
-        try:
-            await self.files.update_one(
-                {"message_id": message_id},
-                {"$inc": {"downloads": 1, "bandwidth_used": size}},
-            )
-            await self.update_bandwidth(size)
-            return True
-        except Exception as e:
-            logger.error("increment downloads error: %s", e)
-            return False
-
-    async def register_user(self, user_data: Dict) -> bool:
-        try:
-            await self.users.update_one(
-                {"user_id": user_data["user_id"]},
-                {
-                    "$setOnInsert": {"first_used": datetime.utcnow()},
-                    "$set": {
-                        "username":      user_data.get("username", ""),
-                        "first_name":    user_data.get("first_name", ""),
-                        "last_name":     user_data.get("last_name", ""),
-                        "last_activity": datetime.utcnow(),
-                    },
-                },
-                upsert=True,
-            )
-            return True
-        except Exception as e:
-            logger.error("register user error: %s", e)
-            return False
-
-    async def register_user_on_start(self, user_data: Dict) -> bool:
-        try:
-            existing = await self.users.find_one({"user_id": user_data["user_id"]})
-            if existing:
-                # User already registered — just update last_activity silently
-                await self.users.update_one(
-                    {"user_id": user_data["user_id"]},
-                    {"$set": {"last_activity": datetime.utcnow()}},
-                )
-                return True  # already exists, nothing to register
-
-            # New user — insert full record
-            await self.users.insert_one({
-                "user_id":       user_data["user_id"],
-                "username":      user_data.get("username", ""),
-                "first_name":    user_data.get("first_name", ""),
-                "last_name":     user_data.get("last_name", ""),
-                "first_used":    datetime.utcnow(),
-                "last_activity": datetime.utcnow(),
-            })
-            logger.info("new user registered: %s", user_data["user_id"])
-            return True
-        except Exception as e:
-            logger.error("register_user_on_start error: %s", e)
-            return False
-
-    async def get_user(self, user_id: str) -> Optional[Dict]:
-        try:
-            return await self.users.find_one({"user_id": user_id})
-        except Exception as e:
-            logger.error("get user error: %s", e)
-            return None
-
     async def update_bandwidth(self, size: int) -> bool:
         try:
             today = datetime.utcnow().date().isoformat()
@@ -179,6 +113,49 @@ class Database:
         except Exception as e:
             logger.error("update bandwidth error: %s", e)
             return False
+
+    async def track_bandwidth(self, message_id: str, size: int) -> bool:
+        try:
+            await self.files.update_one(
+                {"message_id": message_id},
+                {"$inc": {"bandwidth_used": size}},
+            )
+            await self.update_bandwidth(size)
+            return True
+        except Exception as e:
+            logger.error("track bandwidth error: %s", e)
+            return False
+
+    async def register_user_on_start(self, user_data: Dict) -> bool:
+        try:
+            existing = await self.users.find_one({"user_id": user_data["user_id"]})
+            if existing:
+                await self.users.update_one(
+                    {"user_id": user_data["user_id"]},
+                    {"$set": {"last_activity": datetime.utcnow()}},
+                )
+                return False  # not new
+
+            await self.users.insert_one({
+                "user_id":       user_data["user_id"],
+                "username":      user_data.get("username", ""),
+                "first_name":    user_data.get("first_name", ""),
+                "last_name":     user_data.get("last_name", ""),
+                "first_used":    datetime.utcnow(),
+                "last_activity": datetime.utcnow(),
+            })
+            logger.info("new user registered: %s", user_data["user_id"])
+            return True  # new user
+        except Exception as e:
+            logger.error("register_user_on_start error: %s", e)
+            return False
+
+    async def get_user(self, user_id: str) -> Optional[Dict]:
+        try:
+            return await self.users.find_one({"user_id": user_id})
+        except Exception as e:
+            logger.error("get user error: %s", e)
+            return None
 
     async def get_total_bandwidth(self) -> int:
         try:
@@ -207,14 +184,10 @@ class Database:
         try:
             total_files = await self.files.count_documents({})
             total_users = await self.users.count_documents({})
-            pipeline    = [{"$group": {"_id": None, "total": {"$sum": "$downloads"}}}]
-            dl_result   = await self.files.aggregate(pipeline).to_list(length=1)
-            total_dl    = dl_result[0]["total"] if dl_result else 0
             bw          = await self.get_bandwidth_stats()
             return {
                 "total_files":     total_files,
                 "total_users":     total_users,
-                "total_downloads": total_dl,
                 "total_bandwidth": bw["total_bandwidth"],
                 "today_bandwidth": bw["today_bandwidth"],
                 "today_downloads": bw["today_downloads"],
@@ -222,7 +195,7 @@ class Database:
         except Exception as e:
             logger.error("get stats error: %s", e)
             return {
-                "total_files": 0, "total_users": 0, "total_downloads": 0,
+                "total_files": 0, "total_users": 0,
                 "total_bandwidth": 0, "today_bandwidth": 0, "today_downloads": 0,
             }
 

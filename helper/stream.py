@@ -1,7 +1,7 @@
 import asyncio
 import logging
-import math
 import mimetypes
+import math
 from typing import Dict, Union
 
 from aiohttp import web
@@ -16,7 +16,6 @@ from database import Database
 logger = logging.getLogger(__name__)
 
 # Telegram hard-caps upload.GetFile at 1 MB per call.
-# Using exactly 1 MB keeps us within that limit for all file sizes.
 CHUNK_SIZE = 1024 * 1024  # 1 MB
 
 MIME_TYPE_MAP = {
@@ -26,10 +25,6 @@ MIME_TYPE_MAP = {
     "document": "application/octet-stream",
 }
 
-
-# ---------------------------------------------------------------------------
-# helpers
-# ---------------------------------------------------------------------------
 
 async def get_file_ids(client: Client, message_id: str) -> FileId:
     msg = await client.get_messages(Config.DUMP_CHAT_ID, int(message_id))
@@ -52,21 +47,13 @@ async def get_file_ids(client: Client, message_id: str) -> FileId:
     return FileId.decode(media.file_id)
 
 
-# ---------------------------------------------------------------------------
-# ByteStreamer
-# ---------------------------------------------------------------------------
-
 class ByteStreamer:
 
     def __init__(self, client: Client):
         self.client: Client = client
         self.cached_file_ids: Dict[str, FileId] = {}
-        self.clean_timer: int = 30 * 60           # seconds
+        self.clean_timer: int = 30 * 60
         asyncio.create_task(self.clean_cache())
-
-    # ------------------------------------------------------------------
-    # FileId cache
-    # ------------------------------------------------------------------
 
     async def get_file_properties(self, db_id: str) -> FileId:
         if db_id not in self.cached_file_ids:
@@ -79,10 +66,6 @@ class ByteStreamer:
         logger.debug("Decoded FileId for message %s  dc=%s", db_id, file_id.dc_id)
         self.cached_file_ids[db_id] = file_id
         return file_id
-
-    # ------------------------------------------------------------------
-    # DC media session management
-    # ------------------------------------------------------------------
 
     async def generate_media_session(self, client: Client, file_id: FileId) -> Session:
         media_session = client.media_sessions.get(file_id.dc_id)
@@ -139,10 +122,6 @@ class ByteStreamer:
 
         return media_session
 
-    # ------------------------------------------------------------------
-    # InputFileLocation builder
-    # ------------------------------------------------------------------
-
     @staticmethod
     async def get_location(
         file_id: FileId,
@@ -192,10 +171,6 @@ class ByteStreamer:
 
         return location
 
-    # ------------------------------------------------------------------
-    # Core byte generator  (FIXED for >1 GB files)
-    # ------------------------------------------------------------------
-
     async def yield_file(
         self,
         file_id: FileId,
@@ -205,14 +180,13 @@ class ByteStreamer:
         part_count: int,
         chunk_size: int,
     ):
-        client = self.client
+        client        = self.client
         media_session = await self.generate_media_session(client, file_id)
-        location = await self.get_location(file_id)
-        current_part = 1
+        location      = await self.get_location(file_id)
+        current_part  = 1
 
         try:
             while current_part <= part_count:
-                # Retry loop for FloodWait / transient errors
                 for attempt in range(5):
                     try:
                         r = await media_session.invoke(
@@ -235,15 +209,12 @@ class ByteStreamer:
                             return
                         await asyncio.sleep(1)
                 else:
-                    # All retries exhausted
                     logger.error("All retries failed at part %d", current_part)
                     return
 
-                # Handle CDN redirect (large files on CDN DCs)
                 if isinstance(r, raw.types.upload.FileCdnRedirect):
                     logger.warning(
-                        "FileCdnRedirect received for part %d — "
-                        "CDN streaming not supported; stopping",
+                        "FileCdnRedirect received for part %d — CDN streaming not supported; stopping",
                         current_part,
                     )
                     return
@@ -256,7 +227,6 @@ class ByteStreamer:
                 if not chunk:
                     break
 
-                # Slice the chunk to honour the requested byte range
                 if part_count == 1:
                     yield chunk[first_part_cut:last_part_cut]
                 elif current_part == 1:
@@ -274,10 +244,6 @@ class ByteStreamer:
         finally:
             logger.debug("yield_file finished after %d part(s)", current_part - 1)
 
-    # ------------------------------------------------------------------
-    # Cache janitor
-    # ------------------------------------------------------------------
-
     async def clean_cache(self) -> None:
         while True:
             await asyncio.sleep(self.clean_timer)
@@ -285,15 +251,10 @@ class ByteStreamer:
             logger.debug("ByteStreamer cache cleared")
 
 
-# ---------------------------------------------------------------------------
-# Range-request helper  (FIXED for >1 GB files)
-# ---------------------------------------------------------------------------
-
 def _parse_range(range_header: str, file_size: int):
     if range_header:
         try:
-            # Strip "bytes=" prefix and take only the first range
-            raw_range = range_header.replace("bytes=", "").split(",")[0].strip()
+            raw_range   = range_header.replace("bytes=", "").split(",")[0].strip()
             start_str, end_str = raw_range.split("-")
             from_bytes  = int(start_str) if start_str else 0
             until_bytes = int(end_str)   if end_str   else file_size - 1
@@ -304,15 +265,10 @@ def _parse_range(range_header: str, file_size: int):
         from_bytes  = 0
         until_bytes = file_size - 1
 
-    # Clamp
     from_bytes  = max(0, from_bytes)
     until_bytes = min(until_bytes, file_size - 1)
     return from_bytes, until_bytes
 
-
-# ---------------------------------------------------------------------------
-# High-level aiohttp streaming service  (FIXED for >1 GB)
-# ---------------------------------------------------------------------------
 
 class StreamingService:
 
@@ -328,22 +284,19 @@ class StreamingService:
         is_download: bool = False,
     ) -> web.StreamResponse:
 
-        # ── Resolve file record ──────────────────────────────────────
         file_data = await self.db.get_file_by_hash(file_hash)
         if not file_data:
             raise web.HTTPNotFound(reason="file not found")
 
-        # ── Bandwidth guard ──────────────────────────────────────────
         stats  = await self.db.get_bandwidth_stats()
         max_bw = Config.get("max_bandwidth", 107374182400)
         if stats["total_bandwidth"] >= max_bw:
             raise web.HTTPServiceUnavailable(reason="bandwidth limit exceeded")
 
-        file_size   = int(file_data["file_size"])
-        file_name   = file_data["file_name"]
-        message_id  = str(file_data["message_id"])
+        file_size  = int(file_data["file_size"])
+        file_name  = file_data["file_name"]
+        message_id = str(file_data["message_id"])
 
-        # ── Range parsing ─────────────────────────────────────────────
         range_header            = request.headers.get("Range", "")
         from_bytes, until_bytes = _parse_range(range_header, file_size)
 
@@ -357,21 +310,16 @@ class StreamingService:
         until_bytes = min(until_bytes, file_size - 1)
         req_length  = until_bytes - from_bytes + 1
 
-        # ── Chunk arithmetic (aligned to CHUNK_SIZE, works for >1 GB) ──
-        # offset must be a multiple of CHUNK_SIZE so Telegram accepts it
         offset         = from_bytes - (from_bytes % CHUNK_SIZE)
-        first_part_cut = from_bytes - offset          # bytes to skip at start
-        last_part_cut  = (until_bytes % CHUNK_SIZE) + 1  # bytes to keep at end
-
-        # Number of 1-MB chunks that span [offset, until_bytes]
-        part_count = math.ceil((until_bytes + 1) / CHUNK_SIZE) - (offset // CHUNK_SIZE)
+        first_part_cut = from_bytes - offset
+        last_part_cut  = (until_bytes % CHUNK_SIZE) + 1
+        part_count     = math.ceil((until_bytes + 1) / CHUNK_SIZE) - (offset // CHUNK_SIZE)
 
         logger.debug(
             "stream  msg=%s  size=%d  range=%d-%d  offset=%d  parts=%d",
             message_id, file_size, from_bytes, until_bytes, offset, part_count,
         )
 
-        # ── MIME / headers ───────────────────────────────────────────
         mime = (
             file_data.get("mime_type")
             or mimetypes.guess_type(file_name)[0]
@@ -384,20 +332,19 @@ class StreamingService:
         response = web.StreamResponse(
             status=status,
             headers={
-                "Content-Type":        mime,
-                "Content-Range":       f"bytes {from_bytes}-{until_bytes}/{file_size}",
-                "Content-Length":      str(req_length),
-                "Content-Disposition": f'{disposition}; filename="{file_name}"',
-                "Accept-Ranges":       "bytes",
-                "Cache-Control":       "public, max-age=3600",
+                "Content-Type":              mime,
+                "Content-Range":             f"bytes {from_bytes}-{until_bytes}/{file_size}",
+                "Content-Length":            str(req_length),
+                "Content-Disposition":       f'{disposition}; filename="{file_name}"',
+                "Accept-Ranges":             "bytes",
+                "Cache-Control":             "public, max-age=3600",
                 "Access-Control-Allow-Origin": "*",
-                "Connection":          "keep-alive",
+                "Connection":                "keep-alive",
             },
         )
 
         await response.prepare(request)
 
-        # ── Fetch FileId (cached) and stream bytes ───────────────────
         try:
             file_id = await self.streamer.get_file_properties(message_id)
         except Exception as exc:
@@ -416,9 +363,6 @@ class StreamingService:
 
         await response.write_eof()
 
-        # ── Track stats asynchronously ───────────────────────────────
-        asyncio.create_task(
-            self.db.increment_downloads(message_id, req_length)
-        )
+        asyncio.create_task(self.db.track_bandwidth(message_id, req_length))
 
         return response

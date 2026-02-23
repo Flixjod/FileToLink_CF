@@ -1,31 +1,86 @@
 import os
 import logging
+import sys
 from dotenv import load_dotenv
 
 load_dotenv()
 
+
+# ═══════════════════════════════════════════════════════════════════════════ #
+#  Logging  (same coloured formatter as main.py)                              #
+# ═══════════════════════════════════════════════════════════════════════════ #
+
+class LoggingFormatter(logging.Formatter):
+    RESET  = "\033[0m"
+    BOLD   = "\033[1m"
+    GREY   = "\033[38;5;245m"
+    CYAN   = "\033[38;5;51m"
+    GREEN  = "\033[38;5;82m"
+    YELLOW = "\033[38;5;220m"
+    RED    = "\033[38;5;196m"
+    PURPLE = "\033[38;5;135m"
+
+    LEVEL_STYLES = {
+        logging.DEBUG:    (GREY,   "ᴅᴇʙᴜɢ  "),
+        logging.INFO:     (CYAN,   "ɪɴꜰᴏ   "),
+        logging.WARNING:  (YELLOW, "ᴡᴀʀɴ   "),
+        logging.ERROR:    (RED,    "ᴇʀʀᴏʀ  "),
+        logging.CRITICAL: (RED,    "ᴄʀɪᴛɪᴄ "),
+    }
+
+    def format(self, record: logging.LogRecord) -> str:
+        color, label = self.LEVEL_STYLES.get(record.levelno, (self.GREY, "?      "))
+        ts   = self.formatTime(record, "%H:%M:%S")
+        name = record.name.split(".")[-1][:16].ljust(16)
+        msg  = record.getMessage()
+        return (
+            f"{self.GREY}{ts}{self.RESET} "
+            f"{self.BOLD}{color}{label}{self.RESET} "
+            f"{self.PURPLE}{name}{self.RESET}  "
+            f"{msg}"
+        )
+
+
+def setup_logging() -> None:
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG)
+
+    console = logging.StreamHandler(sys.stdout)
+    console.setLevel(logging.INFO)
+    console.setFormatter(LoggingFormatter())
+    root.addHandler(console)
+
+    file_h = logging.FileHandler("bot.log", encoding="utf-8")
+    file_h.setLevel(logging.DEBUG)
+    file_h.setFormatter(
+        logging.Formatter("%(asctime)s | %(levelname)-8s | %(name)s | %(message)s")
+    )
+    root.addHandler(file_h)
+
+    for noisy in ("pyrogram", "aiohttp", "aiohttp.access", "aiohttp.server", "motor", "pymongo"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
+
+
+setup_logging()
 logger = logging.getLogger(__name__)
 
+
+# ═══════════════════════════════════════════════════════════════════════════ #
+#  Config                                                                     #
+# ═══════════════════════════════════════════════════════════════════════════ #
 
 class Config:
     _data = {}
 
-    BOT_TOKEN  = os.environ.get("BOT_TOKEN", "")
-    API_ID     = int(os.environ.get("API_ID", "0"))
-    API_HASH   = os.environ.get("API_HASH", "")
+    BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
+    API_ID    = int(os.environ.get("API_ID", "0"))
+    API_HASH  = os.environ.get("API_HASH", "")
 
-    # File-type constants (kept here so both app.py and stream.py can import them)
+    # File-type constants used by app.py / stream.py
     FILE_TYPE_VIDEO    = "video"
     FILE_TYPE_AUDIO    = "audio"
     FILE_TYPE_IMAGE    = "image"
     FILE_TYPE_DOCUMENT = "document"
-
-    MIME_TYPE_MAP = {
-        "video":    "video/mp4",
-        "audio":    "audio/mpeg",
-        "image":    "image/jpeg",
-        "document": "application/octet-stream",
-    }
 
     BOT_USERNAME = None
 
@@ -34,8 +89,8 @@ class Config:
         if os.environ.get("OWNER_ID") else {1008848605}
     )
 
-    DB_URI         = os.environ.get("DB_URI", "mongodb://localhost:27017/")
-    DATABASE_NAME  = os.environ.get("DATABASE_NAME", "FileStream_New_bot")
+    DB_URI        = os.environ.get("DB_URI", "mongodb://localhost:27017/")
+    DATABASE_NAME = os.environ.get("DATABASE_NAME", "FileStream_New_bot")
 
     LOGS_CHAT_ID = int(os.environ.get("LOGS_CHAT_ID", "0"))
     DUMP_CHAT_ID = int(os.environ.get("DUMP_CHAT_ID", "0"))
@@ -49,7 +104,7 @@ class Config:
 
     BIND_ADDRESS = os.environ.get("BIND_ADDRESS", "0.0.0.0")
     PORT         = int(os.environ.get("PORT", 8080))
-    URL          = os.environ.get("URL", os.environ.get("BASE_URL", os.environ.get("WEBHOOK_URL", "")))
+    URL          = os.environ.get("URL", os.environ.get("BASE_URL", ""))
 
     @classmethod
     async def load(cls, db):
@@ -57,15 +112,12 @@ class Config:
         if not doc:
             doc = {
                 "key":               "Settings",
-                # Force-sub
                 "fsub_mode":         bool(cls.FSUB_ID),
                 "fsub_chat_id":      cls.FSUB_ID or 0,
                 "fsub_inv_link":     cls.FSUB_INV_LINK or "",
-                # Bandwidth
                 "bandwidth_mode":    True,
                 "max_bandwidth":     int(os.environ.get("MAX_BANDWIDTH", 107374182400)),
                 "bandwidth_used":    0,
-                # Bot mode / misc
                 "public_bot":        os.environ.get("PUBLIC_BOT", "False").lower() == "true",
                 "max_telegram_size": int(os.environ.get("MAX_TELEGRAM_SIZE", 4294967296)),
                 "max_stream_size":   int(os.environ.get("MAX_STREAM_SIZE",   2147483648)),
@@ -73,7 +125,6 @@ class Config:
             await db.config.insert_one(doc)
             logger.info("config created in db")
         else:
-            # Ensure new fields exist on old documents (migration)
             defaults = {
                 "bandwidth_mode": True,
                 "fsub_mode":      doc.get("fsub_mode", False),
