@@ -193,7 +193,7 @@ async def help_command(client: Client, message: Message):
 async def about_command(client: Client, message: Message):
     about_text = (
         f"ℹ️ **{small_caps('about filestream bot')}**\n\n"
-        f"🤖 **{small_caps('bot name')}:** FileStream Bot\n"
+        f"🤖 **{small_caps('bot name')}:** {Config.BOT_NAME}\n"
         f"👤 **{small_caps('username')}:** @{Config.BOT_USERNAME}\n\n"
         f"**{small_caps('features')}:**\n"
         "⚡ ʜɪɢʜ-ᴘᴇʀꜰᴏʀᴍᴀɴᴄᴇ ꜱᴛʀᴇᴀᴍɪɴɢ\n"
