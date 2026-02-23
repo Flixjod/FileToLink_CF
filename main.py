@@ -10,7 +10,6 @@ from config import Config
 from database import Database, db_instance
 
 
-# Logging
 class LoggingFormatter(logging.Formatter):
     RESET  = "\033[0m"
     BOLD   = "\033[1m"
@@ -30,12 +29,10 @@ class LoggingFormatter(logging.Formatter):
     }
 
     def format(self, record: logging.LogRecord) -> str:
-        color, label = self.LEVEL_STYLES.get(
-            record.levelno, (self.GREY, "?      ")
-        )
-        ts    = self.formatTime(record, "%H:%M:%S")
-        name  = record.name.split(".")[-1][:16].ljust(16)
-        msg   = record.getMessage()
+        color, label = self.LEVEL_STYLES.get(record.levelno, (self.GREY, "?      "))
+        ts   = self.formatTime(record, "%H:%M:%S")
+        name = record.name.split(".")[-1][:16].ljust(16)
+        msg  = record.getMessage()
         return (
             f"{self.GREY}{ts}{self.RESET} "
             f"{self.BOLD}{color}{label}{self.RESET} "
@@ -48,31 +45,19 @@ def setup_logging() -> None:
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
 
-    # ── Console (coloured) ─────────────────────────────────────────────
     console = logging.StreamHandler(sys.stdout)
     console.setLevel(logging.INFO)
     console.setFormatter(LoggingFormatter())
     root.addHandler(console)
 
-    # ── File (plain, full debug) ───────────────────────────────────────
     file_h = logging.FileHandler("bot.log", encoding="utf-8")
     file_h.setLevel(logging.DEBUG)
     file_h.setFormatter(
-        logging.Formatter(
-            "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
-        )
+        logging.Formatter("%(asctime)s | %(levelname)-8s | %(name)s | %(message)s")
     )
     root.addHandler(file_h)
 
-    # ── Silence noisy third-party loggers ──────────────────────────────
-    for noisy in (
-        "pyrogram",
-        "aiohttp",
-        "aiohttp.access",
-        "aiohttp.server",
-        "motor",
-        "pymongo",
-    ):
+    for noisy in ("pyrogram", "aiohttp", "aiohttp.access", "aiohttp.server", "motor", "pymongo"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
 
 
@@ -103,11 +88,11 @@ async def main() -> None:
     logger.info("🤖  ᴄᴏɴɴᴇᴄᴛɪɴɢ ʙᴏᴛ ᴛᴏ ᴛᴇʟᴇɢʀᴀᴍ…")
     bot = Bot()
     await bot.start()
-    bot_info = await bot.get_me()
-    Config.BOT_USERNAME = bot_info.username
+    bot_info = bot.me
     logger.info(
-        "✅  ʙᴏᴛ ᴄᴏɴɴᴇᴄᴛᴇᴅ  │  @%s  │  ɪᴅ: %s  │  ᴅᴄ: %s",
+        "✅  ʙᴏᴛ ᴄᴏɴɴᴇᴄᴛᴇᴅ  │  @%s  │  ɴᴀᴍᴇ: %s  │  ɪᴅ: %s  │  ᴅᴄ: %s",
         bot_info.username,
+        bot_info.first_name,
         bot_info.id,
         bot_info.dc_id,
     )
@@ -124,11 +109,11 @@ async def main() -> None:
     logger.info("✅  ᴡᴇʙ ꜱᴇʀᴠᴇʀ ʟɪᴠᴇ")
     logger.info("🔗  %s", public_url)
     logger.info(
-        "🚀  ᴀʟʟ ꜱᴇʀᴠɪᴄᴇꜱ ʀᴇᴀᴅʏ  │  ʙᴏᴛ: @%s",
+        "🚀  ᴀʟʟ ꜱᴇʀᴠɪᴄᴇꜱ ʀᴇᴀᴅʏ  │  ʙᴏᴛ: %s (@%s)",
+        bot_info.first_name,
         bot_info.username,
     )
 
-    # ── Run until interrupted ──────────────────────────────────────────
     try:
         await asyncio.Event().wait()
     finally:

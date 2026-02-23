@@ -19,16 +19,6 @@ TEMPLATES_DIR = Path(__file__).parent / "templates"
 def build_app(bot: Bot, database) -> web.Application:
     streaming_service = StreamingService(bot, database)
 
-    app = web.Application()
-
-    aiohttp_jinja2.setup(
-        app,
-        loader=jinja2.FileSystemLoader(str(TEMPLATES_DIR)),
-    )
-
-    # ------------------------------------------------------------------ #
-    #  Custom 404 middleware — renders not_found.html for any 404         #
-    # ------------------------------------------------------------------ #
     @web.middleware
     async def not_found_middleware(request: web.Request, handler):
         try:
@@ -36,51 +26,29 @@ def build_app(bot: Bot, database) -> web.Application:
         except web.HTTPNotFound:
             return await _render_not_found(request)
         except web.HTTPServiceUnavailable as exc:
-            # Bandwidth exceeded — render the bandwidth page
             raise exc
 
     async def _render_not_found(request: web.Request) -> web.Response:
         try:
-            text = aiohttp_jinja2.render_template(
+            return aiohttp_jinja2.render_template(
                 "not_found.html",
                 request,
-                {
-                    "bot_username": Config.BOT_USERNAME or "filestream_bot",
-                },
+                {"bot_username": Config.BOT_USERNAME or "filestream_bot"},
             )
-            return text
         except Exception as exc:
             logger.error("not_found template error: %s", exc)
-            return web.Response(
-                status=404,
-                text="404 — File not found",
-                content_type="text/plain",
-            )
+            return web.Response(status=404, text="404 — File not found", content_type="text/plain")
 
     app = web.Application(middlewares=[not_found_middleware])
-    aiohttp_jinja2.setup(
-        app,
-        loader=jinja2.FileSystemLoader(str(TEMPLATES_DIR)),
-    )
-
-    # ------------------------------------------------------------------ #
-    #  Route handlers                                                      #
-    # ------------------------------------------------------------------ #
+    aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader(str(TEMPLATES_DIR)))
 
     @aiohttp_jinja2.template("home.html")
     async def home(request: web.Request):
-        try:
-            stats = await database.get_stats()
-            return {
-                "bot_name":       "FileStream Bot",
-                "bot_username":   Config.BOT_USERNAME or "filestream_bot",
-                "owner_username": "FLiX_LY",
-                "total_files":    stats["total_files"],
-                "total_users":    stats["total_users"],
-            }
-        except Exception as exc:
-            logger.error("home page error: %s", exc)
-            raise web.HTTPInternalServerError(reason=str(exc))
+        return {
+            "bot_name":       "FileStream Bot",
+            "bot_username":   Config.BOT_USERNAME or "filestream_bot",
+            "owner_username": "FLiX_LY",
+        }
 
     @aiohttp_jinja2.template("stream.html")
     async def stream_page(request: web.Request):
@@ -88,26 +56,21 @@ def build_app(bot: Bot, database) -> web.Application:
         accept    = request.headers.get("Accept", "")
         range_h   = request.headers.get("Range", "")
 
-        # Byte range request or non-HTML client → stream directly
         if range_h or "text/html" not in accept:
             return await streaming_service.stream_file(request, file_hash, is_download=False)
 
-        # ── Look up in database ──────────────────────────────────────
         file_data = await database.get_file_by_hash(file_hash)
         if not file_data:
             raise web.HTTPNotFound(reason="File not found")
 
-        # ── Bandwidth check ──────────────────────────────────────────
         allowed, _ = await check_bandwidth_limit(database)
         if not allowed:
             raise web.HTTPServiceUnavailable(reason="bandwidth limit exceeded")
 
-        # ── Build template context ───────────────────────────────────
-        base = str(request.url.origin())
-
+        base      = str(request.url.origin())
         file_type = (
-            "video"    if file_data["file_type"] == Config.FILE_TYPE_VIDEO
-            else "audio"  if file_data["file_type"] == Config.FILE_TYPE_AUDIO
+            "video"   if file_data["file_type"] == Config.FILE_TYPE_VIDEO
+            else "audio" if file_data["file_type"] == Config.FILE_TYPE_AUDIO
             else "document"
         )
 
@@ -141,9 +104,9 @@ def build_app(bot: Bot, database) -> web.Application:
 
     async def bandwidth_endpoint(request: web.Request):
         try:
-            stats   = await database.get_bandwidth_stats()
-            max_bw  = Config.get("max_bandwidth", 107374182400)
-            used    = stats["total_bandwidth"]
+            stats  = await database.get_bandwidth_stats()
+            max_bw = Config.get("max_bandwidth", 107374182400)
+            used   = stats["total_bandwidth"]
             stats["limit"]      = max_bw
             stats["remaining"]  = max_bw - used
             stats["percentage"] = (used / max_bw * 100) if max_bw else 0

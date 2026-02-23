@@ -37,18 +37,11 @@ class Bot(Client):
             BotCommand("help",      "📚 ɢᴇᴛ ʜᴇʟᴘ ɪɴꜰᴏ"),
             BotCommand("about",     "ℹ️ ᴀʙᴏᴜᴛ ᴛʜɪꜱ ʙᴏᴛ"),
             BotCommand("files",     "📂 ᴠɪᴇᴡ ʏᴏᴜʀ ꜰɪʟᴇꜱ"),
-            BotCommand("stats",     "📊 ʙᴏᴛ ꜱᴛᴀᴛɪꜱᴛɪᴄꜱ"),
-            BotCommand("bandwidth", "📡 ᴄʜᴇᴄᴋ ʙᴀɴᴅᴡɪᴅᴛʜ ᴜꜱᴀɢᴇ"),
         ]
 
         owner_commands = user_commands + [
+            BotCommand("stats",        "📊 ʙᴏᴛ ꜱᴛᴀᴛɪꜱᴛɪᴄꜱ"),
             BotCommand("bot_settings", "⚙️ ʙᴏᴛ ꜱᴇᴛᴛɪɴɢꜱ ᴘᴀɴᴇʟ"),
-            BotCommand("setpublic",    "🔓 ᴛᴏɢɢʟᴇ ᴘᴜʙʟɪᴄ/ᴘʀɪᴠᴀᴛᴇ ᴍᴏᴅᴇ"),
-            BotCommand("addsudo",      "➕ ᴀᴅᴅ ꜱᴜᴅᴏ ᴜꜱᴇʀ"),
-            BotCommand("rmsudo",       "➖ ʀᴇᴍᴏᴠᴇ ꜱᴜᴅᴏ ᴜꜱᴇʀ"),
-            BotCommand("sudolist",     "📋 ʟɪꜱᴛ ꜱᴜᴅᴏ ᴜꜱᴇʀꜱ"),
-            BotCommand("setbandwidth", "⚙️ ꜱᴇᴛ ʙᴀɴᴅᴡɪᴅᴛʜ ʟɪᴍɪᴛ"),
-            BotCommand("setfsub",      "🔔 ᴛᴏɢɢʟᴇ ꜰᴏʀᴄᴇ ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ"),
             BotCommand("broadcast",    "📢 ʙʀᴏᴀᴅᴄᴀꜱᴛ ᴍᴇꜱꜱᴀɢᴇ"),
             BotCommand("revokeall",    "🗑️ ᴅᴇʟᴇᴛᴇ ᴀʟʟ ꜰɪʟᴇꜱ"),
             BotCommand("logs",         "📄 ɢᴇᴛ ʙᴏᴛ ʟᴏɢꜱ"),
