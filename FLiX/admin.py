@@ -387,6 +387,59 @@ async def settings_callback(client: Client, callback: CallbackQuery):
 
 
 
+@Client.on_message(filters.command("revoke") & filters.private, group=0)
+async def revoke_command(client: Client, message: Message):
+    from database import db
+
+    user_id = message.from_user.id
+
+    if not await check_owner(client, message):
+        return
+
+    if len(message.command) < 2:
+        await client.send_message(
+            chat_id=message.chat.id,
+            text=(
+                f"❌ **{small_caps('invalid command')}**\n\n"
+                "ᴜꜱᴀɢᴇ: `/revoke <file_hash>`"
+            ),
+            reply_to_message_id=message.id,
+        )
+        return
+
+    file_hash = message.command[1]
+    file_data = await db.get_file_by_hash(file_hash)
+
+    if not file_data:
+        await client.send_message(
+            chat_id=message.chat.id,
+            text=(
+                f"❌ **{small_caps('file not found')}**\n\n"
+                "ᴛʜᴇ ꜰɪʟᴇ ᴅᴏᴇꜱɴ'ᴛ ᴇxɪꜱᴛ ᴏʀ ʜᴀꜱ ᴀʟʀᴇᴀᴅʏ ʙᴇᴇɴ ᴅᴇʟᴇᴛᴇᴅ."
+            ),
+            reply_to_message_id=message.id,
+        )
+        return
+
+    try:
+        await client.delete_messages(Config.DUMP_CHAT_ID, int(file_data["message_id"]))
+    except Exception as exc:
+        logger.error("revoke delete dump message: msg=%s err=%s", file_data["message_id"], exc)
+
+    await db.delete_file(file_data["message_id"])
+
+    await client.send_message(
+        chat_id=message.chat.id,
+        text=(
+            f"🗑️ **{small_caps('file revoked successfully')}!**\n\n"
+            f"📂 **{small_caps('file')}:** `{escape_markdown(file_data['file_name'])}`\n\n"
+            "ᴀʟʟ ʟɪɴᴋꜱ ʜᴀᴠᴇ ʙᴇᴇɴ ᴅᴇʟᴇᴛᴇᴅ."
+        ),
+        reply_to_message_id=message.id,
+    )
+
+
+
 @Client.on_message(filters.command("revokeall") & filters.private, group=2)
 async def revokeall_command(client: Client, message: Message):
     from database import db
