@@ -152,21 +152,6 @@ async def file_handler(client: Client, message: Message):
         disable_web_page_preview=True,
     )
 
-    if Config.LOGS_CHAT_ID:
-        try:
-            await client.send_message(
-                chat_id=Config.LOGS_CHAT_ID,
-                text=(
-                    "#NewFile\n\n"
-                    f"👤 **User:** {user.mention}\n"
-                    f"🆔 **ID:** `{user_id}`\n"
-                    f"📁 **File:** `{file_name}`\n"
-                    f"💾 **Size:** `{format_size(file_size)}`\n"
-                    f"📊 **Type:** `{file_type}`"
-                ),
-            )
-        except Exception as exc:
-            logger.error("log channel send failed: %s", exc)
 
     base_url      = Config.URL or f"http://localhost:{Config.PORT}"
     stream_link   = f"{base_url}/stream/{file_hash}"
@@ -245,25 +230,25 @@ async def files_command(client: Client, message: Message):
     files = await db.get_user_files(str(user_id), limit=50)
 
     if not files:
-        files_empty_text = (
+        empty_text = (
             f"📂 **{small_caps('your files')}**\n\n"
             "ʏᴏᴜ ᴅᴏɴ'ᴛ ʜᴀᴠᴇ ᴀɴʏ ꜰɪʟᴇꜱ ʏᴇᴛ. "
             "ꜱᴇɴᴅ ᴍᴇ ᴀ ꜰɪʟᴇ ᴛᴏ ɢᴇᴛ ꜱᴛᴀʀᴛᴇᴅ!"
         )
-        if Config.Start_IMG:
+        if Config.Files_IMG:
             try:
                 await client.send_photo(
                     chat_id=message.chat.id,
-                    photo=Config.Start_IMG,
-                    caption=files_empty_text,
+                    photo=Config.Files_IMG,
+                    caption=empty_text,
                     reply_to_message_id=message.id,
                 )
                 return
             except Exception as exc:
-                logger.warning("files empty photo send failed: user=%s err=%s", user_id, exc)
+
         await client.send_message(
             chat_id=message.chat.id,
-            text=files_empty_text,
+            text=empty_text,
             reply_to_message_id=message.id,
         )
         return
@@ -277,7 +262,7 @@ async def files_command(client: Client, message: Message):
             InlineKeyboardButton(f"📄 {name}", callback_data=f"view_{f['message_id']}")
         ])
 
-    files_text = (
+    final_text = (
         f"📂 **{small_caps('your files')}** (`{len(files)}` ᴛᴏᴛᴀʟ)\n\n"
         "ᴄʟɪᴄᴋ ᴏɴ ᴀɴʏ ꜰɪʟᴇ ᴛᴏ ᴠɪᴇᴡ ᴅᴇᴛᴀɪʟꜱ:"
     )
@@ -286,74 +271,120 @@ async def files_command(client: Client, message: Message):
         try:
             await client.send_photo(
                 chat_id=message.chat.id,
-                photo=Config.Start_IMG,
+                photo=final.Start_IMG,
                 caption=files_text,
                 reply_to_message_id=message.id,
                 reply_markup=InlineKeyboardMarkup(buttons),
             )
             return
         except Exception as exc:
-            logger.warning("files photo send failed: user=%s err=%s", user_id, exc)
 
     await client.send_message(
         chat_id=message.chat.id,
-        text=files_text,
+        text=final_text,
         reply_to_message_id=message.id,
         reply_markup=InlineKeyboardMarkup(buttons),
     )
 
 
-@Client.on_message(filters.command("revoke") & filters.private, group=0)
-async def revoke_command(client: Client, message: Message):
+@Client.on_callback_query(filters.regex(r"^view_"), group=0)
+async def cb_view_file(client: Client, callback: CallbackQuery):
     from database import db
-    from FLiX.admin import check_owner
 
-    user_id = message.from_user.id
-
-    if not await check_owner(client, message):
-        return
-
-    if len(message.command) < 2:
-        await client.send_message(
-            chat_id=message.chat.id,
-            text=(
-                f"❌ **{small_caps('invalid command')}**\n\n"
-                "ᴜꜱᴀɢᴇ: `/revoke <file_hash>`"
-            ),
-            reply_to_message_id=message.id,
-        )
-        return
-
-    file_hash = message.command[1]
-    file_data = await db.get_file_by_hash(file_hash)
-
+    message_id = callback.data.replace("view_", "", 1)
+    file_data  = await db.get_file(message_id)
     if not file_data:
-        await client.send_message(
-            chat_id=message.chat.id,
-            text=(
-                f"❌ **{small_caps('file not found')}**\n\n"
-                "ᴛʜᴇ ꜰɪʟᴇ ᴅᴏᴇꜱɴ'ᴛ ᴇxɪꜱᴛ ᴏʀ ʜᴀꜱ ᴀʟʀᴇᴀᴅʏ ʙᴇᴇɴ ᴅᴇʟᴇᴛᴇᴅ."
-            ),
-            reply_to_message_id=message.id,
-        )
+        await callback.answer("❌ ꜰɪʟᴇ ɴᴏᴛ ꜰᴏᴜɴᴅ", show_alert=True)
         return
 
-    try:
-        await client.delete_messages(Config.DUMP_CHAT_ID, int(file_data["message_id"]))
-    except Exception as exc:
-        logger.error("revoke delete dump message: msg=%s err=%s", file_data["message_id"], exc)
+    file_hash     = file_data["file_id"]
+    base_url      = Config.URL or f"http://localhost:{Config.PORT}"
+    stream_link   = f"{base_url}/stream/{file_hash}"
+    download_link = f"{base_url}/dl/{file_hash}"
+    telegram_link = f"https://t.me/{Config.BOT_USERNAME}?start={file_hash}"
+
+    safe_name      = escape_markdown(file_data["file_name"])
+    formatted_size = format_size(file_data["file_size"])
+
+    buttons = [
+        [
+            InlineKeyboardButton(f"🎬 {small_caps('stream')}",   url=stream_link),
+            InlineKeyboardButton(f"📥 {small_caps('download')}", url=download_link),
+        ],
+        [
+            InlineKeyboardButton(f"💬 {small_caps('telegram')}", url=telegram_link),
+            InlineKeyboardButton(f"🔁 {small_caps('share')}", switch_inline_query=file_hash),
+        ],
+        [InlineKeyboardButton(f"🗑️ {small_caps('revoke')}",  callback_data=f"revoke_{file_hash}")],
+        [InlineKeyboardButton(f"⬅️ {small_caps('back')}",    callback_data="back_to_files")],
+    ]
+    text = (
+        f"✅ **{small_caps('file details')}**\n\n"
+        f"📂 **{small_caps('name')}:** `{safe_name}`\n"
+        f"💾 **{small_caps('size')}:** `{formatted_size}`\n"
+        f"📊 **{small_caps('type')}:** `{file_data['file_type']}`\n"
+        f"📅 **{small_caps('uploaded')}:** `{file_data['created_at'].strftime('%Y-%m-%d')}`"
+    )
+    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons))
+    await callback.answer()
+
+
+@Client.on_callback_query(filters.regex(r"^revoke_"), group=0)
+async def cb_revoke(client: Client, callback: CallbackQuery):
+    from database import db
+
+
+    file_hash = callback.data.replace("revoke_", "", 1)
+
+    file_data = await db.get_file_by_hash(file_hash)
+    if not file_data:
+        await callback.answer("❌ ꜰɪʟᴇ ɴᴏᴛ ꜰᴏᴜɴᴅ ᴏʀ ᴀʟʀᴇᴀᴅʏ ᴅᴇʟᴇᴛᴇᴅ", show_alert=True)
+        return
 
     await db.delete_file(file_data["message_id"])
 
-    await client.send_message(
-        chat_id=message.chat.id,
-        text=(
-            f"🗑️ **{small_caps('file revoked successfully')}!**\n\n"
-            f"📂 **{small_caps('file')}:** `{escape_markdown(file_data['file_name'])}`\n\n"
-            "ᴀʟʟ ʟɪɴᴋꜱ ʜᴀᴠᴇ ʙᴇᴇɴ ᴅᴇʟᴇᴛᴇᴅ."
-        ),
-        reply_to_message_id=message.id,
+    safe_name = escape_markdown(file_data["file_name"])
+    await callback.message.edit_text(
+        f"🗑️ **{small_caps('file revoked successfully')}!**\n\n"
+        f"📂 **{small_caps('file')}:** `{safe_name}`\n\n"
+        "ᴀʟʟ ʟɪɴᴋꜱ ʜᴀᴠᴇ ʙᴇᴇɴ ɪɴᴠᴀʟɪᴅᴀᴛᴇᴅ.",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton(f"⬅️ {small_caps('back to files')}", callback_data="back_to_files")],
+        ]),
     )
+    await callback.answer("✅ ꜰɪʟᴇ ʀᴇᴠᴏᴋᴇᴅ!", show_alert=False)
+
+
+
+@Client.on_callback_query(filters.regex(r"^back_to_files$"), group=0)
+async def cb_back_to_files(client: Client, callback: CallbackQuery):
+    from database import db
+
+    user_id = str(callback.from_user.id)
+    files   = await db.get_user_files(user_id, limit=50)
+
+    if not files:
+        await callback.message.edit_text(
+            f"📂 **{small_caps('your files')}**\n\nʏᴏᴜ ᴅᴏɴ'ᴛ ʜᴀᴠᴇ ᴀɴʏ ꜰɪʟᴇꜱ ʏᴇᴛ."
+        )
+        await callback.answer()
+        return
+
+    buttons = []
+    for f in files[:10]:
+        name = f["file_name"]
+        if len(name) > 30:
+            name = name[:27] + "..."
+        buttons.append([
+            InlineKeyboardButton(f"📄 {name}", callback_data=f"view_{f['message_id']}")
+        ])
+
+    await callback.message.edit_text(
+        f"📂 **{small_caps('your files')}** (`{len(files)}` ᴛᴏᴛᴀʟ)\n\nᴄʟɪᴄᴋ ᴏɴ ᴀɴʏ ꜰɪʟᴇ:",
+        reply_markup=InlineKeyboardMarkup(buttons),
+    )
+    await callback.answer()
+
 
 
 @Client.on_message(filters.command("stats") & filters.private, group=0)
