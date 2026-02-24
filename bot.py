@@ -41,10 +41,10 @@ class Bot(Client):
         ]
 
         owner_commands = user_commands + [
-            BotCommand("stats",        "📊 ʙᴏᴛ ꜱᴛᴀᴛɪꜱᴛɪᴄꜱ"),
+            BotCommand("adminstats",   "📊 ᴀᴅᴍɪɴ ꜱᴛᴀᴛɪꜱᴛɪᴄꜱ (ᴜᴘᴛɪᴍᴇ, ʙᴡ, ᴜꜱᴇʀꜱ, ꜰɪʟᴇꜱ)"),
             BotCommand("bot_settings", "⚙️ ʙᴏᴛ ꜱᴇᴛᴛɪɴɢꜱ ᴘᴀɴᴇʟ"),
             BotCommand("broadcast",    "📢 ʙʀᴏᴀᴅᴄᴀꜱᴛ ᴍᴇꜱꜱᴀɢᴇ"),
-            BotCommand("revokeall",    "🗑️ ᴅᴇʟᴇᴛᴇ ᴀʟʟ ꜰɪʟᴇꜱ"),
+            BotCommand("revokeall",    "🗑️ ʀᴇᴠᴏᴋᴇ ᴀʟʟ ꜰɪʟᴇꜱ (ᴏʀ ʙʏ ᴜꜱᴇʀ ɪᴅ)"),
             BotCommand("logs",         "📄 ɢᴇᴛ ʙᴏᴛ ʟᴏɢꜱ"),
         ]
 

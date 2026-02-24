@@ -37,6 +37,7 @@ class Config:
     DUMP_CHAT_ID = int(os.environ.get("DUMP_CHAT_ID", "0"))
 
     Start_IMG = os.environ.get("Start_IMG", "")
+    Files_IMG = os.environ.get("Files_IMG", "")
 
     FSUB_ID       = int(os.environ.get("FSUB_ID", "") or 0)
     FSUB_INV_LINK = os.environ.get("FSUB_INV_LINK", "")

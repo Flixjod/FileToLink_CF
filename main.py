@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import sys
+import time
 
 from aiohttp import web
 
@@ -89,6 +90,10 @@ async def main() -> None:
     bot = Bot()
     await bot.start()
     bot_info = bot.me
+
+    # Record bot start time for /adminstats uptime display
+    from FLiX.admin import set_start_time
+    set_start_time(time.time())
     # Persist bot name to database config
     await Config.update(database.db, {"bot_name": Config.BOT_NAME})
     logger.info(

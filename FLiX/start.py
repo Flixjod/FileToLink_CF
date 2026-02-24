@@ -1,18 +1,137 @@
+"""
+start.py — /start, /help, /about commands + their callback counterparts.
+
+All imports are at the top of the file (no deferred imports inside functions).
+Navigation flow:
+    /start  → [Help] [About]
+    /help   → [Home] [About]
+    /about  → [Home] [Help]
+"""
+
 import logging
 
 from pyrogram import Client, filters
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import (
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+)
 
 from config import Config
+from database import db
 from helper import small_caps, format_size, escape_markdown, check_fsub
 
 logger = logging.getLogger(__name__)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+#  Text builders  (keep all UI text in one place)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _build_start_text(user) -> str:
+    user_id = user.id
+    text = (
+        f"👋 **Hello {user.first_name}**,\n\n"
+        f"ɪ ᴀᴍ ᴀ **{small_caps('premium file stream bot')}**.\n\n"
+        f"📂 **{small_caps('send me any file')}** (ᴠɪᴅᴇᴏ, ᴀᴜᴅɪᴏ, ᴅᴏᴄᴜᴍᴇɴᴛ) "
+        "ᴀɴᴅ ɪ ᴡɪʟʟ ɢᴇɴᴇʀᴀᴛᴇ ᴀ ᴅɪʀᴇᴄᴛ ᴅᴏᴡɴʟᴏᴀᴅ ᴀɴᴅ ꜱᴛʀᴇᴀᴍɪɴɢ ʟɪɴᴋ ꜰᴏʀ ʏᴏᴜ.\n\n"
+        f"**{small_caps('features')}:**\n"
+        "⚡ ꜰᴀꜱᴛ ꜱᴛʀᴇᴀᴍɪɴɢ ᴡɪᴛʜ ʀᴀɴɢᴇ ꜱᴜᴘᴘᴏʀᴛ\n"
+        "🎬 ᴠɪᴅᴇᴏ ꜱᴇᴇᴋɪɴɢ ᴄᴀᴘᴀʙɪʟɪᴛʏ\n"
+        "📥 ʀᴇꜱᴜᴍᴀʙʟᴇ ᴅᴏᴡɴʟᴏᴀᴅꜱ\n"
+        "🔐 ꜱᴇᴄᴜʀᴇ ꜰɪʟᴇ ʟɪɴᴋꜱ\n\n"
+        f"**{small_caps('commands')}:**\n"
+        "`/help`  — ɢᴇᴛ ʜᴇʟᴘ\n"
+        "`/about` — ᴀʙᴏᴜᴛ ᴛʜɪꜱ ʙᴏᴛ\n"
+        "`/files` — ᴠɪᴇᴡ ʏᴏᴜʀ ꜰɪʟᴇꜱ"
+    )
+
+    if user_id in Config.OWNER_ID:
+        text += (
+            f"\n\n**{small_caps('owner commands')}:**\n"
+            "`/adminstats`   — 📊 ᴀᴅᴍɪɴ ꜱᴛᴀᴛɪꜱᴛɪᴄꜱ\n"
+            "`/bot_settings` — ⚙️ ꜰᴜʟʟ ꜱᴇᴛᴛɪɴɢꜱ ᴘᴀɴᴇʟ\n"
+            "`/revokeall`    — 🗑️ ʀᴇᴠᴏᴋᴇ ᴀʟʟ ꜰɪʟᴇꜱ\n"
+            "`/logs`         — 📋 ᴠɪᴇᴡ ʙᴏᴛ ʟᴏɢꜱ"
+        )
+    return text
+
+
+def _build_help_text() -> str:
+    return (
+        f"📚 **{small_caps('help & guide')}**\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"**{small_caps('how to use')}:**\n"
+        "1️⃣ ꜱᴇɴᴅ ᴀɴʏ ꜰɪʟᴇ ᴛᴏ ᴛʜᴇ ʙᴏᴛ\n"
+        "2️⃣ ɢᴇᴛ ɪɴꜱᴛᴀɴᴛ ꜱᴛʀᴇᴀᴍ & ᴅᴏᴡɴʟᴏᴀᴅ ʟɪɴᴋꜱ\n"
+        "3️⃣ ꜱʜᴀʀᴇ ʟɪɴᴋꜱ ᴀɴʏᴡʜᴇʀᴇ!\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"**{small_caps('supported files')}:**\n"
+        "🎬 ᴠɪᴅᴇᴏꜱ (ᴍᴘ4, ᴍᴋᴠ, ᴀᴠɪ, …)\n"
+        "🎵 ᴀᴜᴅɪᴏ (ᴍᴘ3, ᴍ4ᴀ, ꜰʟᴀᴄ, …)\n"
+        "📄 ᴅᴏᴄᴜᴍᴇɴᴛꜱ (ᴘᴅꜰ, ᴢɪᴘ, …)\n"
+        "🖼️ ɪᴍᴀɢᴇꜱ (ᴊᴘɢ, ᴘɴɢ, …)\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"**{small_caps('commands')}:**\n"
+        "`/start`  — ꜱᴛᴀʀᴛ ᴛʜᴇ ʙᴏᴛ\n"
+        "`/files`  — ᴠɪᴇᴡ ʏᴏᴜʀ ꜰɪʟᴇꜱ\n"
+        "`/about`  — ᴀʙᴏᴜᴛ ᴛʜɪꜱ ʙᴏᴛ\n\n"
+        f"💡 **{small_caps('tip')}:** ᴜꜱᴇ `/revoke <file_hash>` ᴛᴏ ᴅᴇʟᴇᴛᴇ ᴀ ꜰɪʟᴇ"
+    )
+
+
+def _build_about_text() -> str:
+    return (
+        f"ℹ️ **{small_caps('about filestream bot')}**\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"🤖 **{small_caps('bot name')}:** {Config.BOT_NAME}\n"
+        f"👤 **{small_caps('username')}:** @{Config.BOT_USERNAME}\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"**{small_caps('features')}:**\n"
+        "⚡ ʜɪɢʜ-ᴘᴇʀꜰᴏʀᴍᴀɴᴄᴇ ꜱᴛʀᴇᴀᴍɪɴɢ\n"
+        "🎯 ʀᴀɴɢᴇ ʀᴇQᴜᴇꜱᴛ ꜱᴜᴘᴘᴏʀᴛ\n"
+        "🔐 ꜱᴇᴄᴜʀᴇ ꜰɪʟᴇ ʟɪɴᴋꜱ\n"
+        "💾 ᴍᴏɴɢᴏᴅʙ ꜱᴛᴏʀᴀɢᴇ\n"
+        "📊 ʙᴀɴᴅᴡɪᴅᴛʜ ᴄᴏɴᴛʀᴏʟ\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"💻 **{small_caps('developer')}:** @FLiX_LY\n"
+        f"🐍 **{small_caps('framework')}:** Pyrogram + aiohttp\n"
+        f"⚡ **{small_caps('version')}:** 2.1"
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Keyboard builders
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _start_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton(f"📚 {small_caps('help')}",  callback_data="help"),
+        InlineKeyboardButton(f"ℹ️ {small_caps('about')}", callback_data="about"),
+    ]])
+
+
+def _help_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton(f"🏠 {small_caps('home')}",  callback_data="start"),
+        InlineKeyboardButton(f"ℹ️ {small_caps('about')}", callback_data="about"),
+    ]])
+
+
+def _about_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton(f"🏠 {small_caps('home')}",  callback_data="start"),
+        InlineKeyboardButton(f"📚 {small_caps('help')}",  callback_data="help"),
+    ]])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  /start
+# ─────────────────────────────────────────────────────────────────────────────
+
 @Client.on_message(filters.command("start") & filters.private, group=1)
 async def start_command(client: Client, message: Message):
-    from database import db
-
     user    = message.from_user
     user_id = user.id
 
@@ -23,7 +142,7 @@ async def start_command(client: Client, message: Message):
         "last_name":  user.last_name  or "",
     })
 
-    # ── Log new user to log channel ──────────────────────────────────────
+    # ── Log new users to log channel ─────────────────────────────────────────
     if is_new and Config.LOGS_CHAT_ID:
         try:
             full_name = f"{user.first_name or ''} {user.last_name or ''}".strip()
@@ -40,7 +159,7 @@ async def start_command(client: Client, message: Message):
         except Exception as exc:
             logger.error("failed to log new user: %s", exc)
 
-    # ── Deep-link (file hash in /start arg) ─────────────────────────────
+    # ── Deep-link (file hash in /start arg) ─────────────────────────────────
     if len(message.command) > 1:
         file_hash = message.command[1]
 
@@ -51,20 +170,15 @@ async def start_command(client: Client, message: Message):
         try:
             file_data = await db.get_file_by_hash(file_hash)
             if not file_data:
-                await client.send_message(
-                    chat_id=message.chat.id,
-                    text=(
-                        f"❌ **{small_caps('file not found')}**\n\n"
-                        "ᴛʜᴇ ꜰɪʟᴇ ʟɪɴᴋ ɪꜱ ɪɴᴠᴀʟɪᴅ ᴏʀ ʜᴀꜱ ʙᴇᴇɴ ᴅᴇʟᴇᴛᴇᴅ."
-                    ),
-                    reply_to_message_id=message.id,
+                await message.reply(
+                    f"❌ **{small_caps('file not found')}**\n\n"
+                    "ᴛʜᴇ ꜰɪʟᴇ ʟɪɴᴋ ɪꜱ ɪɴᴠᴀʟɪᴅ ᴏʀ ʜᴀꜱ ʙᴇᴇɴ ᴅᴇʟᴇᴛᴇᴅ."
                 )
                 return
 
             base_url      = Config.URL or f"http://localhost:{Config.PORT}"
             stream_link   = f"{base_url}/stream/{file_hash}"
             download_link = f"{base_url}/dl/{file_hash}"
-
             file_type     = file_data.get("file_type", "document")
             is_streamable = file_type in ("video", "audio")
             safe_name     = escape_markdown(file_data["file_name"])
@@ -90,181 +204,105 @@ async def start_command(client: Client, message: Message):
                     InlineKeyboardButton(f"📥 {small_caps('download')}", url=download_link),
                 ])
 
-            await client.send_message(
-                chat_id=message.chat.id,
-                text=text,
-                reply_to_message_id=message.id,
-                reply_markup=InlineKeyboardMarkup(btn_rows),
-            )
+            await message.reply(text, reply_markup=InlineKeyboardMarkup(btn_rows))
 
         except Exception as exc:
             logger.error("deep-link error: user=%s hash=%s err=%s", user_id, file_hash, exc)
-            await client.send_message(
-                chat_id=message.chat.id,
-                text=f"❌ `{small_caps('error')}`: ɪɴᴠᴀʟɪᴅ ᴏʀ ᴇxᴘɪʀᴇᴅ ʟɪɴᴋ",
-                reply_to_message_id=message.id,
-            )
+            await message.reply(f"❌ `{small_caps('error')}`: ɪɴᴠᴀʟɪᴅ ᴏʀ ᴇxᴘɪʀᴇᴅ ʟɪɴᴋ")
         return
 
-    # ── Welcome message ──────────────────────────────────────────────────
-    start_text = (
-        f"👋 **Hello {user.first_name}**,\n\n"
-        f"ɪ ᴀᴍ ᴀ **{small_caps('premium file stream bot')}**.\n\n"
-        f"📂 **{small_caps('send me any file')}** (ᴠɪᴅᴇᴏ, ᴀᴜᴅɪᴏ, ᴅᴏᴄᴜᴍᴇɴᴛ) "
-        "ᴀɴᴅ ɪ ᴡɪʟʟ ɢᴇɴᴇʀᴀᴛᴇ ᴀ ᴅɪʀᴇᴄᴛ ᴅᴏᴡɴʟᴏᴀᴅ ᴀɴᴅ ꜱᴛʀᴇᴀᴍɪɴɢ ʟɪɴᴋ ꜰᴏʀ ʏᴏᴜ.\n\n"
-        f"**{small_caps('features')}:**\n"
-        "⚡ ꜰᴀꜱᴛ ꜱᴛʀᴇᴀᴍɪɴɢ ᴡɪᴛʜ ʀᴀɴɢᴇ ꜱᴜᴘᴘᴏʀᴛ\n"
-        "🎬 ᴠɪᴅᴇᴏ ꜱᴇᴇᴋɪɴɢ ᴄᴀᴘᴀʙɪʟɪᴛʏ\n"
-        "📥 ʀᴇꜱᴜᴍᴀʙʟᴇ ᴅᴏᴡɴʟᴏᴀᴅꜱ\n"
-        "🔐 ꜱᴇᴄᴜʀᴇ ꜰɪʟᴇ ʟɪɴᴋꜱ\n\n"
-        f"**{small_caps('commands')}:**\n"
-        "`/help`  — ɢᴇᴛ ʜᴇʟᴘ\n"
-        "`/about` — ᴀʙᴏᴜᴛ ᴛʜɪꜱ ʙᴏᴛ\n"
-        "`/files` — ᴠɪᴇᴡ ʏᴏᴜʀ ꜰɪʟᴇꜱ\n"
-        "`/stats` — ᴠɪᴇᴡ ꜱᴛᴀᴛɪꜱᴛɪᴄꜱ"
-    )
-
-    if user_id in Config.OWNER_ID:
-        start_text += (
-            f"\n\n**{small_caps('owner commands')}:**\n"
-            "`/bot_settings` — ⚙️ ꜰᴜʟʟ ꜱᴇᴛᴛɪɴɢꜱ ᴘᴀɴᴇʟ\n"
-            "`/revokeall`    — 🗑️ ᴅᴇʟᴇᴛᴇ ᴀʟʟ ꜰɪʟᴇꜱ\n"
-            "`/logs`         — 📋 ᴠɪᴇᴡ ʙᴏᴛ ʟᴏɢꜱ"
-        )
-
-    buttons = [[
-        InlineKeyboardButton(f"📚 {small_caps('help')}",  callback_data="help"),
-        InlineKeyboardButton(f"ℹ️ {small_caps('about')}", callback_data="about"),
-    ]]
+    # ── Welcome message ──────────────────────────────────────────────────────
+    text    = _build_start_text(user)
+    buttons = _start_keyboard()
 
     if Config.Start_IMG:
         try:
             await client.send_photo(
                 chat_id=message.chat.id,
                 photo=Config.Start_IMG,
-                caption=start_text,
+                caption=text,
                 reply_to_message_id=message.id,
-                reply_markup=InlineKeyboardMarkup(buttons),
+                reply_markup=buttons,
             )
             return
         except Exception as exc:
             logger.warning("failed to send start photo: user=%s err=%s", user_id, exc)
 
-    await client.send_message(
-        chat_id=message.chat.id,
-        text=start_text,
-        reply_to_message_id=message.id,
-        reply_markup=InlineKeyboardMarkup(buttons),
-    )
+    await message.reply(text, reply_markup=buttons)
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  /help
+# ─────────────────────────────────────────────────────────────────────────────
 
 @Client.on_message(filters.command("help") & filters.private, group=1)
 async def help_command(client: Client, message: Message):
-    help_text = (
-        f"📚 **{small_caps('help & guide')}**\n\n"
-        f"**{small_caps('how to use')}:**\n"
-        "1️⃣ ꜱᴇɴᴅ ᴀɴʏ ꜰɪʟᴇ ᴛᴏ ᴛʜᴇ ʙᴏᴛ\n"
-        "2️⃣ ɢᴇᴛ ɪɴꜱᴛᴀɴᴛ ꜱᴛʀᴇᴀᴍ & ᴅᴏᴡɴʟᴏᴀᴅ ʟɪɴᴋꜱ\n"
-        "3️⃣ ꜱʜᴀʀᴇ ʟɪɴᴋꜱ ᴀɴʏᴡʜᴇʀᴇ!\n\n"
-        f"**{small_caps('supported files')}:**\n"
-        "🎬 ᴠɪᴅᴇᴏꜱ (ᴍᴘ4, ᴍᴋᴠ, ᴀᴠɪ, …)\n"
-        "🎵 ᴀᴜᴅɪᴏ (ᴍᴘ3, ᴍ4ᴀ, ꜰʟᴀᴄ, …)\n"
-        "📄 ᴅᴏᴄᴜᴍᴇɴᴛꜱ (ᴘᴅꜰ, ᴢɪᴘ, …)\n"
-        "🖼️ ɪᴍᴀɢᴇꜱ (ᴊᴘɢ, ᴘɴɢ, …)\n\n"
-        f"**{small_caps('commands')}:**\n"
-        "`/start`  — ꜱᴛᴀʀᴛ ᴛʜᴇ ʙᴏᴛ\n"
-        "`/files`  — ᴠɪᴇᴡ ʏᴏᴜʀ ꜰɪʟᴇꜱ\n"
-        "`/stats`  — ʙᴏᴛ ꜱᴛᴀᴛɪꜱᴛɪᴄꜱ\n"
-        "`/about`  — ᴀʙᴏᴜᴛ ᴛʜɪꜱ ʙᴏᴛ\n\n"
-        f"💡 **{small_caps('tip')}:** ᴜꜱᴇ `/revoke <file_hash>` ᴛᴏ ᴅᴇʟᴇᴛᴇ ʏᴏᴜʀ ꜰɪʟᴇꜱ"
+    await message.reply(
+        _build_help_text(),
+        reply_markup=_help_keyboard(),
     )
 
-    await client.send_message(
-        chat_id=message.chat.id,
-        text=help_text,
-        reply_to_message_id=message.id,
-        reply_markup=InlineKeyboardMarkup([[
-            InlineKeyboardButton(f"🏠 {small_caps('home')}", callback_data="start"),
-        ]]),
-    )
 
+# ─────────────────────────────────────────────────────────────────────────────
+#  /about
+# ─────────────────────────────────────────────────────────────────────────────
 
 @Client.on_message(filters.command("about") & filters.private, group=1)
 async def about_command(client: Client, message: Message):
-    about_text = (
-        f"ℹ️ **{small_caps('about filestream bot')}**\n\n"
-        f"🤖 **{small_caps('bot name')}:** {Config.BOT_NAME}\n"
-        f"👤 **{small_caps('username')}:** @{Config.BOT_USERNAME}\n\n"
-        f"**{small_caps('features')}:**\n"
-        "⚡ ʜɪɢʜ-ᴘᴇʀꜰᴏʀᴍᴀɴᴄᴇ ꜱᴛʀᴇᴀᴍɪɴɢ\n"
-        "🎯 ʀᴀɴɢᴇ ʀᴇQᴜᴇꜱᴛ ꜱᴜᴘᴘᴏʀᴛ\n"
-        "🔐 ꜱᴇᴄᴜʀᴇ ꜰɪʟᴇ ʟɪɴᴋꜱ\n"
-        "💾 ᴍᴏɴɢᴏᴅʙ ꜱᴛᴏʀᴀɢᴇ\n"
-        "📊 ʙᴀɴᴅᴡɪᴅᴛʜ ᴄᴏɴᴛʀᴏʟ\n\n"
-        f"💻 **{small_caps('developer')}:** @FLiX_LY\n"
-        f"🐍 **{small_caps('framework')}:** Pyrogram + aiohttp\n"
-        f"⚡ **{small_caps('version')}:** 2.1"
+    await message.reply(
+        _build_about_text(),
+        reply_markup=_about_keyboard(),
     )
 
-    await client.send_message(
-        chat_id=message.chat.id,
-        text=about_text,
-        reply_to_message_id=message.id,
-        reply_markup=InlineKeyboardMarkup([[
-            InlineKeyboardButton(f"🏠 {small_caps('home')}", callback_data="start"),
-        ]]),
-    )
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Callback — Home (start)
+# ─────────────────────────────────────────────────────────────────────────────
 
 @Client.on_callback_query(filters.regex(r"^start$"), group=2)
 async def cb_start(client: Client, callback: CallbackQuery):
-    text = (
-        f"👋 **Hello {callback.from_user.first_name}**,\n\n"
-        f"ɪ ᴀᴍ ᴀ **{small_caps('premium file stream bot')}**.\n\n"
-        f"📂 **{small_caps('send me any file')}** (ᴠɪᴅᴇᴏ, ᴀᴜᴅɪᴏ, ᴅᴏᴄᴜᴍᴇɴᴛ) "
-        "ᴀɴᴅ ɪ ᴡɪʟʟ ɢᴇɴᴇʀᴀᴛᴇ ᴀ ᴅɪʀᴇᴄᴛ ᴅᴏᴡɴʟᴏᴀᴅ ᴀɴᴅ ꜱᴛʀᴇᴀᴍɪɴɢ ʟɪɴᴋ ꜰᴏʀ ʏᴏᴜ."
-    )
-    buttons = [[
-        InlineKeyboardButton(f"📚 {small_caps('help')}",  callback_data="help"),
-        InlineKeyboardButton(f"ℹ️ {small_caps('about')}", callback_data="about"),
-    ]]
-    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons))
+    user = callback.from_user
+    text = _build_start_text(user)
+    try:
+        await callback.message.edit_text(text, reply_markup=_start_keyboard())
+    except Exception:
+        await callback.message.reply(text, reply_markup=_start_keyboard())
     await callback.answer()
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Callback — Help
+# ─────────────────────────────────────────────────────────────────────────────
 
 @Client.on_callback_query(filters.regex(r"^help$"), group=1)
 async def cb_help(client: Client, callback: CallbackQuery):
-    text = (
-        f"📚 **{small_caps('help & guide')}**\n\n"
-        f"**{small_caps('how to use')}:**\n"
-        "1️⃣ ꜱᴇɴᴅ ᴀɴʏ ꜰɪʟᴇ ᴛᴏ ᴛʜᴇ ʙᴏᴛ\n"
-        "2️⃣ ɢᴇᴛ ɪɴꜱᴛᴀɴᴛ ꜱᴛʀᴇᴀᴍ & ᴅᴏᴡɴʟᴏᴀᴅ ʟɪɴᴋꜱ\n"
-        "3️⃣ ꜱʜᴀʀᴇ ʟɪɴᴋꜱ ᴀɴʏᴡʜᴇʀᴇ!\n\n"
-        f"**{small_caps('supported files')}:**\n"
-        "🎬 ᴠɪᴅᴇᴏꜱ\n🎵 ᴀᴜᴅɪᴏ\n📄 ᴅᴏᴄᴜᴍᴇɴᴛꜱ\n🖼️ ɪᴍᴀɢᴇꜱ"
-    )
-    await callback.message.edit_text(
-        text,
-        reply_markup=InlineKeyboardMarkup([[
-            InlineKeyboardButton(f"🏠 {small_caps('home')}", callback_data="start"),
-        ]]),
-    )
+    try:
+        await callback.message.edit_text(
+            _build_help_text(),
+            reply_markup=_help_keyboard(),
+        )
+    except Exception:
+        await callback.message.reply(
+            _build_help_text(),
+            reply_markup=_help_keyboard(),
+        )
     await callback.answer()
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Callback — About
+# ─────────────────────────────────────────────────────────────────────────────
 
 @Client.on_callback_query(filters.regex(r"^about$"), group=1)
 async def cb_about(client: Client, callback: CallbackQuery):
-    text = (
-        f"ℹ️ **{small_caps('about filestream bot')}**\n\n"
-        f"🤖 **{small_caps('bot')}:** @{Config.BOT_USERNAME}\n\n"
-        f"💻 **{small_caps('developer')}:** @FLiX_LY\n"
-        f"⚡ **{small_caps('version')}:** 2.1"
-    )
-    await callback.message.edit_text(
-        text,
-        reply_markup=InlineKeyboardMarkup([[
-            InlineKeyboardButton(f"🏠 {small_caps('home')}", callback_data="start"),
-        ]]),
-    )
+    try:
+        await callback.message.edit_text(
+            _build_about_text(),
+            reply_markup=_about_keyboard(),
+        )
+    except Exception:
+        await callback.message.reply(
+            _build_about_text(),
+            reply_markup=_about_keyboard(),
+        )
     await callback.answer()
-
-

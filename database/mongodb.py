@@ -90,6 +90,15 @@ class Database:
             logger.error("delete all files error: %s", e)
             return 0
 
+    async def delete_user_files(self, user_id: str) -> int:
+        """Delete all files belonging to a specific user. Returns count deleted."""
+        try:
+            result = await self.files.delete_many({"user_id": user_id})
+            return result.deleted_count
+        except Exception as e:
+            logger.error("delete user files error: %s", e)
+            return 0
+
     async def get_user_files(self, user_id: str, limit: int = 50) -> List[Dict]:
         try:
             cursor = self.files.find({"user_id": user_id}).sort("created_at", -1).limit(limit)
