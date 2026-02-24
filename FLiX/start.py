@@ -214,3 +214,57 @@ async def about_command(client: Client, message: Message):
             InlineKeyboardButton(f"🏠 {small_caps('home')}", callback_data="start"),
         ]]),
     )
+
+@Client.on_callback_query(filters.regex(r"^start$"), group=2)
+async def cb_start(client: Client, callback: CallbackQuery):
+    text = (
+        f"👋 **Hello {callback.from_user.first_name}**,\n\n"
+        f"ɪ ᴀᴍ ᴀ **{small_caps('premium file stream bot')}**.\n\n"
+        f"📂 **{small_caps('send me any file')}** (ᴠɪᴅᴇᴏ, ᴀᴜᴅɪᴏ, ᴅᴏᴄᴜᴍᴇɴᴛ) "
+        "ᴀɴᴅ ɪ ᴡɪʟʟ ɢᴇɴᴇʀᴀᴛᴇ ᴀ ᴅɪʀᴇᴄᴛ ᴅᴏᴡɴʟᴏᴀᴅ ᴀɴᴅ ꜱᴛʀᴇᴀᴍɪɴɢ ʟɪɴᴋ ꜰᴏʀ ʏᴏᴜ."
+    )
+    buttons = [[
+        InlineKeyboardButton(f"📚 {small_caps('help')}",  callback_data="help"),
+        InlineKeyboardButton(f"ℹ️ {small_caps('about')}", callback_data="about"),
+    ]]
+    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons))
+    await callback.answer()
+
+
+@Client.on_callback_query(filters.regex(r"^help$"), group=1)
+async def cb_help(client: Client, callback: CallbackQuery):
+    text = (
+        f"📚 **{small_caps('help & guide')}**\n\n"
+        f"**{small_caps('how to use')}:**\n"
+        "1️⃣ ꜱᴇɴᴅ ᴀɴʏ ꜰɪʟᴇ ᴛᴏ ᴛʜᴇ ʙᴏᴛ\n"
+        "2️⃣ ɢᴇᴛ ɪɴꜱᴛᴀɴᴛ ꜱᴛʀᴇᴀᴍ & ᴅᴏᴡɴʟᴏᴀᴅ ʟɪɴᴋꜱ\n"
+        "3️⃣ ꜱʜᴀʀᴇ ʟɪɴᴋꜱ ᴀɴʏᴡʜᴇʀᴇ!\n\n"
+        f"**{small_caps('supported files')}:**\n"
+        "🎬 ᴠɪᴅᴇᴏꜱ\n🎵 ᴀᴜᴅɪᴏ\n📄 ᴅᴏᴄᴜᴍᴇɴᴛꜱ\n🖼️ ɪᴍᴀɢᴇꜱ"
+    )
+    await callback.message.edit_text(
+        text,
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton(f"🏠 {small_caps('home')}", callback_data="start"),
+        ]]),
+    )
+    await callback.answer()
+
+
+@Client.on_callback_query(filters.regex(r"^about$"), group=1)
+async def cb_about(client: Client, callback: CallbackQuery):
+    text = (
+        f"ℹ️ **{small_caps('about filestream bot')}**\n\n"
+        f"🤖 **{small_caps('bot')}:** @{Config.BOT_USERNAME}\n\n"
+        f"💻 **{small_caps('developer')}:** @FLiX_LY\n"
+        f"⚡ **{small_caps('version')}:** 2.1"
+    )
+    await callback.message.edit_text(
+        text,
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton(f"🏠 {small_caps('home')}", callback_data="start"),
+        ]]),
+    )
+    await callback.answer()
+
+
