@@ -23,6 +23,7 @@ class Config:
     FILE_TYPE_DOCUMENT = "document"
 
     BOT_USERNAME = None
+    BOT_NAME      = None
 
     OWNER_ID = list(
         {1008848605} | set(map(int, os.environ.get("OWNER_ID", "").split(",")))
@@ -60,7 +61,6 @@ class Config:
                 "bandwidth_used":    0,
                 "public_bot":        os.environ.get("PUBLIC_BOT", "False").lower() == "true",
                 "max_telegram_size": int(os.environ.get("MAX_TELEGRAM_SIZE", 4294967296)),
-                "max_stream_size":   int(os.environ.get("MAX_STREAM_SIZE",   2147483648)),
             }
             await db.config.insert_one(doc)
             logger.info("config created in db")

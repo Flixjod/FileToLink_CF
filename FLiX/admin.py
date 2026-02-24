@@ -599,16 +599,14 @@ async def cb_about(client: Client, callback: CallbackQuery):
 async def cb_revoke(client: Client, callback: CallbackQuery):
     from database import db
 
-    user_id   = str(callback.from_user.id)
+    if not await check_owner(client, callback):
+        return
+
     file_hash = callback.data.replace("revoke_", "", 1)
 
     file_data = await db.get_file_by_hash(file_hash)
     if not file_data:
         await callback.answer("❌ ꜰɪʟᴇ ɴᴏᴛ ꜰᴏᴜɴᴅ ᴏʀ ᴀʟʀᴇᴀᴅʏ ᴅᴇʟᴇᴛᴇᴅ", show_alert=True)
-        return
-
-    if file_data["user_id"] != user_id and callback.from_user.id not in Config.OWNER_ID:
-        await callback.answer("❌ ʏᴏᴜ ᴅᴏɴ'ᴛ ʜᴀᴠᴇ ᴘᴇʀᴍɪꜱꜱɪᴏɴ", show_alert=True)
         return
 
     try:
@@ -617,8 +615,15 @@ async def cb_revoke(client: Client, callback: CallbackQuery):
         logger.error("cb_revoke dump delete: msg=%s err=%s", file_data["message_id"], exc)
 
     await db.delete_file(file_data["message_id"])
+
+    safe_name = escape_markdown(file_data["file_name"])
     await callback.message.edit_text(
-        f"🗑️ **{small_caps('file revoked successfully')}!**\n\nᴀʟʟ ʟɪɴᴋꜱ ʜᴀᴠᴇ ʙᴇᴇɴ ᴅᴇʟᴇᴛᴇᴅ."
+        f"🗑️ **{small_caps('file revoked successfully')}!**\n\n"
+        f"📂 **{small_caps('file')}:** `{safe_name}`\n\n"
+        "ᴀʟʟ ʟɪɴᴋꜱ ʜᴀᴠᴇ ʙᴇᴇɴ ɪɴᴠᴀʟɪᴅᴀᴛᴇᴅ.",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton(f"⬅️ {small_caps('back to files')}", callback_data="back_to_files")],
+        ]),
     )
     await callback.answer("✅ ꜰɪʟᴇ ʀᴇᴠᴏᴋᴇᴅ!", show_alert=False)
 

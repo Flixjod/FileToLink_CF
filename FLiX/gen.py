@@ -203,7 +203,6 @@ async def file_handler(client: Client, message: Message):
             InlineKeyboardButton(f"💬 {small_caps('telegram')}", url=telegram_link),
             InlineKeyboardButton(f"🔁 {small_caps('share')}", switch_inline_query=file_hash),
         ],
-        [InlineKeyboardButton(f"🗑️ {small_caps('revoke')}", callback_data=f"revoke_{file_hash}")],
     ])
 
     safe_name = escape_markdown(file_name)
@@ -222,8 +221,6 @@ async def file_handler(client: Client, message: Message):
         )
     else:
         text += f"\n🔗 **{small_caps('download link')}:**\n`{download_link}`"
-
-    text += f"\n\n💡 **{small_caps('tip')}:** ᴜꜱᴇ `/revoke {file_hash}` ᴛᴏ ᴅᴇʟᴇᴛᴇ ᴛʜɪꜱ ꜰɪʟᴇ ᴀɴʏᴛɪᴍᴇ."
 
     await processing_msg.edit_text(
         text,
@@ -248,13 +245,25 @@ async def files_command(client: Client, message: Message):
     files = await db.get_user_files(str(user_id), limit=50)
 
     if not files:
+        files_empty_text = (
+            f"📂 **{small_caps('your files')}**\n\n"
+            "ʏᴏᴜ ᴅᴏɴ'ᴛ ʜᴀᴠᴇ ᴀɴʏ ꜰɪʟᴇꜱ ʏᴇᴛ. "
+            "ꜱᴇɴᴅ ᴍᴇ ᴀ ꜰɪʟᴇ ᴛᴏ ɢᴇᴛ ꜱᴛᴀʀᴛᴇᴅ!"
+        )
+        if Config.Start_IMG:
+            try:
+                await client.send_photo(
+                    chat_id=message.chat.id,
+                    photo=Config.Start_IMG,
+                    caption=files_empty_text,
+                    reply_to_message_id=message.id,
+                )
+                return
+            except Exception as exc:
+                logger.warning("files empty photo send failed: user=%s err=%s", user_id, exc)
         await client.send_message(
             chat_id=message.chat.id,
-            text=(
-                f"📂 **{small_caps('your files')}**\n\n"
-                "ʏᴏᴜ ᴅᴏɴ'ᴛ ʜᴀᴠᴇ ᴀɴʏ ꜰɪʟᴇꜱ ʏᴇᴛ. "
-                "ꜱᴇɴᴅ ᴍᴇ ᴀ ꜰɪʟᴇ ᴛᴏ ɢᴇᴛ ꜱᴛᴀʀᴛᴇᴅ!"
-            ),
+            text=files_empty_text,
             reply_to_message_id=message.id,
         )
         return
@@ -268,12 +277,27 @@ async def files_command(client: Client, message: Message):
             InlineKeyboardButton(f"📄 {name}", callback_data=f"view_{f['message_id']}")
         ])
 
+    files_text = (
+        f"📂 **{small_caps('your files')}** (`{len(files)}` ᴛᴏᴛᴀʟ)\n\n"
+        "ᴄʟɪᴄᴋ ᴏɴ ᴀɴʏ ꜰɪʟᴇ ᴛᴏ ᴠɪᴇᴡ ᴅᴇᴛᴀɪʟꜱ:"
+    )
+
+    if Config.Start_IMG:
+        try:
+            await client.send_photo(
+                chat_id=message.chat.id,
+                photo=Config.Start_IMG,
+                caption=files_text,
+                reply_to_message_id=message.id,
+                reply_markup=InlineKeyboardMarkup(buttons),
+            )
+            return
+        except Exception as exc:
+            logger.warning("files photo send failed: user=%s err=%s", user_id, exc)
+
     await client.send_message(
         chat_id=message.chat.id,
-        text=(
-            f"📂 **{small_caps('your files')}** (`{len(files)}` ᴛᴏᴛᴀʟ)\n\n"
-            "ᴄʟɪᴄᴋ ᴏɴ ᴀɴʏ ꜰɪʟᴇ ᴛᴏ ᴠɪᴇᴡ ᴅᴇᴛᴀɪʟꜱ:"
-        ),
+        text=files_text,
         reply_to_message_id=message.id,
         reply_markup=InlineKeyboardMarkup(buttons),
     )
@@ -282,8 +306,12 @@ async def files_command(client: Client, message: Message):
 @Client.on_message(filters.command("revoke") & filters.private, group=0)
 async def revoke_command(client: Client, message: Message):
     from database import db
+    from FLiX.admin import check_owner
 
     user_id = message.from_user.id
+
+    if not await check_owner(client, message):
+        return
 
     if len(message.command) < 2:
         await client.send_message(
@@ -305,17 +333,6 @@ async def revoke_command(client: Client, message: Message):
             text=(
                 f"❌ **{small_caps('file not found')}**\n\n"
                 "ᴛʜᴇ ꜰɪʟᴇ ᴅᴏᴇꜱɴ'ᴛ ᴇxɪꜱᴛ ᴏʀ ʜᴀꜱ ᴀʟʀᴇᴀᴅʏ ʙᴇᴇɴ ᴅᴇʟᴇᴛᴇᴅ."
-            ),
-            reply_to_message_id=message.id,
-        )
-        return
-
-    if file_data["user_id"] != str(user_id) and user_id not in Config.OWNER_ID:
-        await client.send_message(
-            chat_id=message.chat.id,
-            text=(
-                f"❌ **{small_caps('permission denied')}**\n\n"
-                "ʏᴏᴜ ᴅᴏɴ'ᴛ ʜᴀᴠᴇ ᴘᴇʀᴍɪꜱꜱɪᴏɴ ᴛᴏ ʀᴇᴠᴏᴋᴇ ᴛʜɪꜱ ꜰɪʟᴇ."
             ),
             reply_to_message_id=message.id,
         )
@@ -359,7 +376,6 @@ async def stats_command(client: Client, message: Message):
         text=(
             f"📊 **{small_caps('bot statistics')}**\n\n"
             f"📂 **{small_caps('total files')}:** `{stats['total_files']}`\n"
-            f"👥 **{small_caps('total users')}:** `{stats['total_users']}`\n"
             f"📡 **{small_caps('total bandwidth')}:** `{format_size(stats['total_bandwidth'])}`\n"
             f"📅 **{small_caps('today bandwidth')}:** `{format_size(stats['today_bandwidth'])}`"
         ),
