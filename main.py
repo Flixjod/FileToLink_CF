@@ -89,6 +89,8 @@ async def main() -> None:
     bot = Bot()
     await bot.start()
     bot_info = bot.me
+    # Persist bot name to database config
+    await Config.update(database.db, {"bot_name": Config.BOT_NAME})
     logger.info(
         "✅  ʙᴏᴛ ᴄᴏɴɴᴇᴄᴛᴇᴅ  │  @%s  │  ɴᴀᴍᴇ: %s  │  ɪᴅ: %s  │  ᴅᴄ: %s",
         bot_info.username,
