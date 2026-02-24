@@ -33,7 +33,7 @@ def build_app(bot: Bot, database) -> web.Application:
             return aiohttp_jinja2.render_template(
                 "not_found.html",
                 request,
-                {"bot_username": Config.BOT_USERNAME or "filestream_bot"},
+                {"bot_name": Config.BOT_NAME or "FileStream Bot", "bot_username": Config.BOT_USERNAME or "filestream_bot"},
             )
         except Exception as exc:
             logger.error("not_found template error: %s", exc)
