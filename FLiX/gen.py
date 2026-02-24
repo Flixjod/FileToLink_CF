@@ -147,9 +147,9 @@ async def file_handler(client: Client, message: Message):
     await client.send_message(
         chat_id=Config.DUMP_CHAT_ID,
         text=(
-            f"RᴇQᴜᴇꜱᴛᴇᴅ ʙʏ : {user.first_name}\n"
-            f"Uꜱᴇʀ ɪᴅ : {user_id}\n"
-            f"Fɪʟᴇ ɪᴅ : {file_hash}"
+            f"**RᴇQᴜᴇꜱᴛᴇᴅ ʙʏ** : [{user.first_name}](tg://user?id={user.id})\n"
+            f"**Uꜱᴇʀ ɪᴅ** : `{user_id}`\n"
+            f"**Fɪʟᴇ ɪᴅ** : `{file_hash}`"
         ),
         reply_to_message_id=file_info.id,
         disable_web_page_preview=True,
@@ -177,7 +177,7 @@ async def file_handler(client: Client, message: Message):
 
     if is_streamable:
         buttons.append([
-            InlineKeyboardButton(f"🎬 {small_caps('stream')}",   url=stream_link),
+            InlineKeyboardButton(f"🌐 {small_caps('stream')}",   url=stream_link),
             InlineKeyboardButton(f"📥 {small_caps('download')}", url=download_link),
         ])
     else:
@@ -203,7 +203,7 @@ async def file_handler(client: Client, message: Message):
     )
     if is_streamable:
         text += (
-            f"🎬 **{small_caps('streaming')}:** `Available`\n\n"
+            f"🌐 **{small_caps('streaming')}:** `Available`\n\n"
             f"🔗 **{small_caps('stream link')}:**\n`{stream_link}`"
         )
     else:
@@ -406,7 +406,7 @@ async def cb_owner_view_file(client: Client, callback: CallbackQuery):
 
     buttons = [
         [
-            InlineKeyboardButton(f"🎬 {small_caps('stream')}",   url=stream_link),
+            InlineKeyboardButton(f"🌐 {small_caps('stream')}",   url=stream_link),
             InlineKeyboardButton(f"📥 {small_caps('download')}", url=download_link),
         ],
         [
@@ -531,7 +531,7 @@ async def cb_view_file(client: Client, callback: CallbackQuery):
 
     buttons = [
         [
-            InlineKeyboardButton(f"🎬 {small_caps('stream')}",   url=stream_link),
+            InlineKeyboardButton(f"🌐 {small_caps('stream')}",   url=stream_link),
             InlineKeyboardButton(f"📥 {small_caps('download')}", url=download_link),
         ],
         [
@@ -604,28 +604,3 @@ async def cb_back_to_files(client: Client, callback: CallbackQuery):
     )
     await callback.answer()
 
-
-# ── Public stats (/stats — accessible by allowed users) ──────────────────────
-@Client.on_message(filters.command("stats") & filters.private, group=0)
-async def stats_command(client: Client, message: Message):
-    user_id = message.from_user.id
-
-    if not await check_access(user_id):
-        await client.send_message(
-            chat_id=message.chat.id,
-            text=f"❌ **{small_caps('access forbidden')}**",
-            reply_to_message_id=message.id,
-        )
-        return
-
-    stats = await db.get_stats()
-    await client.send_message(
-        chat_id=message.chat.id,
-        text=(
-            f"📊 **{small_caps('bot statistics')}**\n\n"
-            f"📂 **{small_caps('total files')}:** `{stats['total_files']}`\n"
-            f"📡 **{small_caps('total bandwidth')}:** `{format_size(stats['total_bandwidth'])}`\n"
-            f"📅 **{small_caps('today bandwidth')}:** `{format_size(stats['today_bandwidth'])}`"
-        ),
-        reply_to_message_id=message.id,
-    )

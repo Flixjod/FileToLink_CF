@@ -45,7 +45,7 @@ def build_app(bot: Bot, database) -> web.Application:
     @aiohttp_jinja2.template("home.html")
     async def home(request: web.Request):
         return {
-            "bot_name":       "FileStream Bot",
+            "bot_name":       Config.BOT_NAME or "FileStream Bot",
             "bot_username":   Config.BOT_USERNAME or "filestream_bot",
             "owner_username": "FLiX_LY",
         }
@@ -75,7 +75,7 @@ def build_app(bot: Bot, database) -> web.Application:
         )
 
         return {
-            "bot_name":       "FileStream Bot",
+            "bot_name":       Config.BOT_NAME or "FileStream Bot",
             "bot_username":   Config.BOT_USERNAME or "filestream_bot",
             "owner_username": "FLiX_LY",
             "file_name":      file_data["file_name"],

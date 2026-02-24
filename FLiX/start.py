@@ -112,33 +112,11 @@ async def start_command(client: Client, message: Message):
 
     # ── Welcome message ──────────────────────────────────────────────────
     start_text = (
-        f"👋 **Hello {user.first_name}**,\n\n"
+        f"👋 **Hello {message.from_user.first_name}**,\n\n"
         f"ɪ ᴀᴍ ᴀ **{small_caps('premium file stream bot')}**.\n\n"
         f"📂 **{small_caps('send me any file')}** (ᴠɪᴅᴇᴏ, ᴀᴜᴅɪᴏ, ᴅᴏᴄᴜᴍᴇɴᴛ) "
-        "ᴀɴᴅ ɪ ᴡɪʟʟ ɢᴇɴᴇʀᴀᴛᴇ ᴀ ᴅɪʀᴇᴄᴛ ᴅᴏᴡɴʟᴏᴀᴅ ᴀɴᴅ ꜱᴛʀᴇᴀᴍɪɴɢ ʟɪɴᴋ ꜰᴏʀ ʏᴏᴜ.\n\n"
-        f"**{small_caps('features')}:**\n"
-        "⚡ ꜰᴀꜱᴛ ꜱᴛʀᴇᴀᴍɪɴɢ ᴡɪᴛʜ ʀᴀɴɢᴇ ꜱᴜᴘᴘᴏʀᴛ\n"
-        "🎬 ᴠɪᴅᴇᴏ ꜱᴇᴇᴋɪɴɢ ᴄᴀᴘᴀʙɪʟɪᴛʏ\n"
-        "📥 ʀᴇꜱᴜᴍᴀʙʟᴇ ᴅᴏᴡɴʟᴏᴀᴅꜱ\n"
-        "🔐 ꜱᴇᴄᴜʀᴇ ꜰɪʟᴇ ʟɪɴᴋꜱ\n\n"
-        f"**{small_caps('commands')}:**\n"
-        "`/help`  — ɢᴇᴛ ʜᴇʟᴘ\n"
-        "`/about` — ᴀʙᴏᴜᴛ ᴛʜɪꜱ ʙᴏᴛ\n"
-        "`/files` — ᴠɪᴇᴡ ʏᴏᴜʀ ꜰɪʟᴇꜱ\n"
-        "`/stats` — ᴠɪᴇᴡ ꜱᴛᴀᴛɪꜱᴛɪᴄꜱ"
+        "ᴀɴᴅ ɪ ᴡɪʟʟ ɢᴇɴᴇʀᴀᴛᴇ ᴀ ᴅɪʀᴇᴄᴛ ᴅᴏᴡɴʟᴏᴀᴅ ᴀɴᴅ ꜱᴛʀᴇᴀᴍɪɴɢ ʟɪɴᴋ ꜰᴏʀ ʏᴏᴜ."
     )
-
-    if user_id in Config.OWNER_ID:
-        start_text += (
-            f"\n\n**{small_caps('owner commands')}:**\n"
-            "`/adminstats`   — 🔐 ꜰᴜʟʟ ᴀᴅᴍɪɴ ꜱᴛᴀᴛꜱ\n"
-            "`/bot_settings` — ⚙️ ꜰᴜʟʟ ꜱᴇᴛᴛɪɴɢꜱ ᴘᴀɴᴇʟ\n"
-            "`/files <id>`   — 📂 ᴠɪᴇᴡ ᴀɴʏ ᴜꜱᴇʀ'ꜱ ꜰɪʟᴇꜱ\n"
-            "`/revoke <hash>` — 🗑️ ʀᴇᴠᴏᴋᴇ ꜰɪʟᴇ ʙʏ ʜᴀꜱʜ\n"
-            "`/revokeall <id>` — 🗑️ ʀᴇᴠᴏᴋᴇ ᴀʟʟ ꜰɪʟᴇꜱ ᴏꜰ ᴜꜱᴇʀ\n"
-            "`/revokeall`    — 🗑️ ᴅᴇʟᴇᴛᴇ ᴀʟʟ ꜰɪʟᴇꜱ\n"
-            "`/logs`         — 📋 ᴠɪᴇᴡ ʙᴏᴛ ʟᴏɢꜱ"
-        )
 
     buttons = [[
         InlineKeyboardButton(f"📚 {small_caps('help')}",  callback_data="help"),
@@ -175,16 +153,7 @@ async def help_command(client: Client, message: Message):
         "2️⃣ ɢᴇᴛ ɪɴꜱᴛᴀɴᴛ ꜱᴛʀᴇᴀᴍ & ᴅᴏᴡɴʟᴏᴀᴅ ʟɪɴᴋꜱ\n"
         "3️⃣ ꜱʜᴀʀᴇ ʟɪɴᴋꜱ ᴀɴʏᴡʜᴇʀᴇ!\n\n"
         f"**{small_caps('supported files')}:**\n"
-        "🎬 ᴠɪᴅᴇᴏꜱ (ᴍᴘ4, ᴍᴋᴠ, ᴀᴠɪ, …)\n"
-        "🎵 ᴀᴜᴅɪᴏ (ᴍᴘ3, ᴍ4ᴀ, ꜰʟᴀᴄ, …)\n"
-        "📄 ᴅᴏᴄᴜᴍᴇɴᴛꜱ (ᴘᴅꜰ, ᴢɪᴘ, …)\n"
-        "🖼️ ɪᴍᴀɢᴇꜱ (ᴊᴘɢ, ᴘɴɢ, …)\n\n"
-        f"**{small_caps('commands')}:**\n"
-        "`/start`  — ꜱᴛᴀʀᴛ ᴛʜᴇ ʙᴏᴛ\n"
-        "`/files`  — ᴠɪᴇᴡ ʏᴏᴜʀ ꜰɪʟᴇꜱ\n"
-        "`/stats`  — ʙᴏᴛ ꜱᴛᴀᴛɪꜱᴛɪᴄꜱ\n"
-        "`/about`  — ᴀʙᴏᴜᴛ ᴛʜɪꜱ ʙᴏᴛ\n\n"
-        f"💡 **{small_caps('tip')}:** ᴜꜱᴇ `/revoke <file_hash>` ᴛᴏ ᴅᴇʟᴇᴛᴇ ʏᴏᴜʀ ꜰɪʟᴇꜱ"
+        "🎬 ᴠɪᴅᴇᴏꜱ\n🎵 ᴀᴜᴅɪᴏ\n📄 ᴅᴏᴄᴜᴍᴇɴᴛꜱ\n🖼️ ɪᴍᴀɢᴇꜱ"
     )
 
     await client.send_message(
@@ -201,16 +170,8 @@ async def help_command(client: Client, message: Message):
 async def about_command(client: Client, message: Message):
     about_text = (
         f"ℹ️ **{small_caps('about filestream bot')}**\n\n"
-        f"🤖 **{small_caps('bot name')}:** {Config.BOT_NAME}\n"
-        f"👤 **{small_caps('username')}:** @{Config.BOT_USERNAME}\n\n"
-        f"**{small_caps('features')}:**\n"
-        "⚡ ʜɪɢʜ-ᴘᴇʀꜰᴏʀᴍᴀɴᴄᴇ ꜱᴛʀᴇᴀᴍɪɴɢ\n"
-        "🎯 ʀᴀɴɢᴇ ʀᴇQᴜᴇꜱᴛ ꜱᴜᴘᴘᴏʀᴛ\n"
-        "🔐 ꜱᴇᴄᴜʀᴇ ꜰɪʟᴇ ʟɪɴᴋꜱ\n"
-        "💾 ᴍᴏɴɢᴏᴅʙ ꜱᴛᴏʀᴀɢᴇ\n"
-        "📊 ʙᴀɴᴅᴡɪᴅᴛʜ ᴄᴏɴᴛʀᴏʟ\n\n"
+        f"🤖 **{small_caps('bot')}:** @{Config.BOT_USERNAME}\n\n"
         f"💻 **{small_caps('developer')}:** @FLiX_LY\n"
-        f"🐍 **{small_caps('framework')}:** Pyrogram + aiohttp\n"
         f"⚡ **{small_caps('version')}:** 2.1"
     )
 

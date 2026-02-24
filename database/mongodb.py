@@ -117,7 +117,7 @@ class Database:
             await self.bandwidth.update_one(
                 {"date": today},
                 {
-                    "$inc": {"total_bytes": size, "total_downloads": 1},
+                    "$inc": {"total_bytes": size},
                     "$set": {"last_updated": datetime.utcnow()},
                 },
                 upsert=True,
@@ -186,12 +186,11 @@ class Database:
             today_stats = await self.bandwidth.find_one({"date": today})
             return {
                 "total_bandwidth": total,
-                "today_bandwidth": today_stats.get("total_bytes", 0)    if today_stats else 0,
-                "today_downloads": today_stats.get("total_downloads", 0) if today_stats else 0,
+                "today_bandwidth": today_stats.get("total_bytes", 0) if today_stats else 0,
             }
         except Exception as e:
             logger.error("get bandwidth stats error: %s", e)
-            return {"total_bandwidth": 0, "today_bandwidth": 0, "today_downloads": 0}
+            return {"total_bandwidth": 0, "today_bandwidth": 0}
 
     async def get_stats(self) -> Dict:
         try:
@@ -203,13 +202,12 @@ class Database:
                 "total_users":     total_users,
                 "total_bandwidth": bw["total_bandwidth"],
                 "today_bandwidth": bw["today_bandwidth"],
-                "today_downloads": bw["today_downloads"],
             }
         except Exception as e:
             logger.error("get stats error: %s", e)
             return {
                 "total_files": 0, "total_users": 0,
-                "total_bandwidth": 0, "today_bandwidth": 0, "today_downloads": 0,
+                "total_bandwidth": 0, "today_bandwidth": 0,
             }
 
     async def add_sudo_user(self, user_id: str, added_by: str) -> bool:

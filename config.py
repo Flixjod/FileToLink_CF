@@ -1,4 +1,5 @@
 import os
+import time
 import logging
 import sys
 from dotenv import load_dotenv
@@ -23,7 +24,8 @@ class Config:
     FILE_TYPE_DOCUMENT = "document"
 
     BOT_USERNAME = None
-    BOT_NAME      = None
+    BOT_NAME     = None          # set once at startup from bot.get_me()
+    UPTIME: float = 0.0          # set once at startup (epoch seconds)
 
     OWNER_ID = list(
         {1008848605} | set(map(int, os.environ.get("OWNER_ID", "").split(",")))

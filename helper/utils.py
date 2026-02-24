@@ -32,6 +32,53 @@ def small_caps(text: str) -> str:
     return "".join(result)
 
 
+def format_uptime(seconds: float) -> str:
+    """Convert seconds into a human-readable uptime string."""
+    seconds = int(seconds)
+    days,    seconds = divmod(seconds, 86400)
+    hours,   seconds = divmod(seconds, 3600)
+    minutes, seconds = divmod(seconds, 60)
+    parts = []
+    if days:
+        parts.append(f"{days}d")
+    if hours:
+        parts.append(f"{hours}h")
+    if minutes:
+        parts.append(f"{minutes}m")
+    parts.append(f"{seconds}s")
+    return " ".join(parts)
+
+
+def human_size(n: int) -> str:
+    """Return a short human-readable file size (used for log display)."""
+    for unit in ("B", "KB", "MB", "GB"):
+        if n < 1024:
+            return f"{n:.1f} {unit}"
+        n /= 1024
+    return f"{n:.1f} TB"
+
+
+async def check_owner(client, event) -> bool:
+    """Return True if the event sender is a bot owner; send denial otherwise."""
+    from pyrogram.types import Message, CallbackQuery
+
+    user_id = event.from_user.id
+    if user_id not in Config.OWNER_ID:
+        if isinstance(event, Message):
+            await client.send_message(
+                chat_id=event.chat.id,
+                text="🚫 **Access Denied!**\n\n🔒 This command is restricted to bot owners.",
+                reply_to_message_id=event.id,
+            )
+        elif isinstance(event, CallbackQuery):
+            await event.answer(
+                "🚫 Access Denied!\n\n🔒 This action is restricted to bot owners.",
+                show_alert=True,
+            )
+        return False
+    return True
+
+
 async def check_fsub(client, message_or_user_id, target_id: int = None) -> bool:
     from pyrogram.errors import UserNotParticipant, ChatAdminRequired
     from pyrogram.enums import ChatMemberStatus

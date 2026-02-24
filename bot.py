@@ -1,3 +1,4 @@
+import time
 from pyrogram import Client
 from pyrogram.types import BotCommand, BotCommandScopeChat
 from config import Config
@@ -23,6 +24,7 @@ class Bot(Client):
         me = await self.get_me()
         Config.BOT_USERNAME = me.username
         Config.BOT_NAME     = me.first_name
+        Config.UPTIME       = time.time()
         logger.info("⚡  ʙᴏᴛ: @%s  │  ɴᴀᴍᴇ: %s  │  ɪᴅ: %s  │  ᴡᴏʀᴋᴇʀs: %s",
                     me.username, me.first_name, me.id, "50")
         await self._set_commands()
@@ -41,7 +43,6 @@ class Bot(Client):
         ]
 
         owner_commands = user_commands + [
-            BotCommand("stats",        "📊 ʙᴏᴛ ꜱᴛᴀᴛɪꜱᴛɪᴄꜱ"),
             BotCommand("adminstats",   "🔐 ᴀᴅᴍɪɴ ꜱᴛᴀᴛꜱ (ᴜᴘᴛɪᴍᴇ, ʙᴡ, ᴜꜱᴇʀꜱ, ꜰɪʟᴇꜱ)"),
             BotCommand("bot_settings", "⚙️ ʙᴏᴛ ꜱᴇᴛᴛɪɴɢꜱ ᴘᴀɴᴇʟ"),
             BotCommand("broadcast",    "📢 ʙʀᴏᴀᴅᴄᴀꜱᴛ ᴍᴇꜱꜱᴀɢᴇ"),

@@ -14,61 +14,14 @@ from pyrogram.types import (
 
 from config import Config
 from database import db
-from helper import small_caps, format_size, escape_markdown
+from helper import small_caps, format_size, escape_markdown, format_uptime, human_size, check_owner
 
 logger = logging.getLogger(__name__)
 
-# ── Bot start time (module load = bot start) ──────────────────────────────────
-_BOT_START_TIME: float = time.time()
-
 
 # ════════════════════════════════════════════════════════════════════════════ #
-#  Helpers                                                                     #
+#  Settings panel helper                                                       #
 # ════════════════════════════════════════════════════════════════════════════ #
-
-def _format_uptime(seconds: float) -> str:
-    """Convert seconds into a human-readable uptime string."""
-    seconds = int(seconds)
-    days,    seconds = divmod(seconds, 86400)
-    hours,   seconds = divmod(seconds, 3600)
-    minutes, seconds = divmod(seconds, 60)
-    parts = []
-    if days:
-        parts.append(f"{days}d")
-    if hours:
-        parts.append(f"{hours}h")
-    if minutes:
-        parts.append(f"{minutes}m")
-    parts.append(f"{seconds}s")
-    return " ".join(parts)
-
-
-def _human_size(n: int) -> str:
-    for unit in ("B", "KB", "MB", "GB"):
-        if n < 1024:
-            return f"{n:.1f} {unit}"
-        n /= 1024
-    return f"{n:.1f} TB"
-
-
-async def check_owner(client: Client, event) -> bool:
-    user_id = event.from_user.id
-
-    if user_id not in Config.OWNER_ID:
-        if isinstance(event, Message):
-            await client.send_message(
-                chat_id=event.chat.id,
-                text="🚫 **Access Denied!**\n\n🔒 This command is restricted to bot owners.",
-                reply_to_message_id=event.id,
-            )
-        elif isinstance(event, CallbackQuery):
-            await event.answer(
-                "🚫 Access Denied!\n\n🔒 This action is restricted to bot owners.",
-                show_alert=True,
-            )
-        return False
-    return True
-
 
 async def show_panel(client: Client, source, panel_type: str):
     config = Config.all()
@@ -429,15 +382,14 @@ async def adminstats_command(client: Client, message: Message):
     if not await check_owner(client, message):
         return
 
-    uptime_str = _format_uptime(time.time() - _BOT_START_TIME)
+    uptime_str = format_uptime(time.time() - Config.UPTIME)
     stats      = await db.get_stats()
     bw_stats   = await db.get_bandwidth_stats()
 
-    max_bw      = Config.get("max_bandwidth", 107374182400)
-    bw_used     = bw_stats["total_bandwidth"]
-    bw_today    = bw_stats["today_bandwidth"]
-    bw_pct      = (bw_used / max_bw * 100) if max_bw else 0
-    bw_mode     = "🟢 ᴀᴄᴛɪᴠᴇ" if Config.get("bandwidth_mode", True) else "🔴 ɪɴᴀᴄᴛɪᴠᴇ"
+    max_bw  = Config.get("max_bandwidth", 107374182400)
+    bw_used = bw_stats["total_bandwidth"]
+    bw_pct  = (bw_used / max_bw * 100) if max_bw else 0
+    bw_mode = "🟢 ᴀᴄᴛɪᴠᴇ" if Config.get("bandwidth_mode", True) else "🔴 ɪɴᴀᴄᴛɪᴠᴇ"
 
     text = (
         f"📊 **{small_caps('admin statistics')}**\n\n"
@@ -446,10 +398,8 @@ async def adminstats_command(client: Client, message: Message):
         f"📂 **{small_caps('total files')}:**     `{stats['total_files']}`\n\n"
         f"📡 **{small_caps('bandwidth mode')}:**  {bw_mode}\n"
         f"📶 **{small_caps('bw limit')}:**        `{format_size(max_bw)}`\n"
-        f"📤 **{small_caps('bw used total')}:**   `{format_size(bw_used)}` "
-        f"({bw_pct:.1f}%)\n"
-        f"📅 **{small_caps('bw used today')}:**   `{format_size(bw_today)}`\n"
-        f"⬇️ **{small_caps('downloads today')}:** `{bw_stats['today_downloads']}`"
+        f"📤 **{small_caps('bw used total')}:**   `{format_size(bw_used)}` ({bw_pct:.1f}%)\n"
+        f"📅 **{small_caps('bw used today')}:**   `{format_size(bw_stats['today_bandwidth'])}`"
     )
 
     await client.send_message(
@@ -465,8 +415,6 @@ async def adminstats_command(client: Client, message: Message):
 
 @Client.on_message(filters.command("revoke") & filters.private, group=0)
 async def revoke_command(client: Client, message: Message):
-    user_id = message.from_user.id
-
     if not await check_owner(client, message):
         return
 
@@ -539,7 +487,7 @@ async def revokeall_command(client: Client, message: Message):
             return
 
         target_id = raw
-        files     = await db.get_user_files(target_id, limit=0)  # 0 = all
+        files     = await db.get_user_files(target_id, limit=0)
         count     = len(files)
 
         if count == 0:
@@ -688,7 +636,7 @@ async def logs_command(client: Client, message: Message):
             caption=(
                 "📋 **Bot Logs**\n\n"
                 f"📁 **File:** `bot.log`\n"
-                f"📦 **Size:** `{_human_size(os.path.getsize(log_file))}`"
+                f"📦 **Size:** `{human_size(os.path.getsize(log_file))}`"
             ),
             reply_to_message_id=message.id,
         )
