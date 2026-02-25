@@ -27,7 +27,7 @@ MIME_TYPE_MAP = {
 
 
 async def get_file_ids(client: Client, message_id: str) -> FileId:
-    msg = await client.get_messages(Config.DUMP_CHAT_ID, int(message_id))
+    msg = await client.get_messages(Config.FLOG_CHAT_ID, int(message_id))
     if not msg or msg.empty:
         raise ValueError(f"message {message_id} not found in dump chat")
 
@@ -288,15 +288,26 @@ class StreamingService:
         if not file_data:
             raise web.HTTPNotFound(reason="file not found")
 
-        stats  = await self.db.get_bandwidth_stats()
-        max_bw = Config.get("max_bandwidth", 107374182400)
-        if stats["total_bandwidth"] >= max_bw:
-            raise web.HTTPServiceUnavailable(reason="bandwidth limit exceeded")
+        # ── Bandwidth guard ────────────────────────────────────────────────
+        if Config.get("bandwidth_mode", True):
+            stats  = await self.db.get_bandwidth_stats()
+            max_bw = Config.get("max_bandwidth", 107374182400)
+            if max_bw and stats["total_bandwidth"] >= max_bw:
+                raise web.HTTPServiceUnavailable(reason="bandwidth limit exceeded")
 
         file_size  = int(file_data["file_size"])
         file_name  = file_data["file_name"]
         message_id = str(file_data["message_id"])
 
+        # ── Resolve FileId BEFORE preparing the response so we can still
+        #    raise HTTP errors (once response.prepare() is called it's too late)
+        try:
+            file_id = await self.streamer.get_file_properties(message_id)
+        except Exception as exc:
+            logger.error("get_file_properties failed: msg=%s err=%s", message_id, exc)
+            raise web.HTTPNotFound(reason="could not resolve file on Telegram")
+
+        # ── Parse Range header ─────────────────────────────────────────────
         range_header            = request.headers.get("Range", "")
         from_bytes, until_bytes = _parse_range(range_header, file_size)
 
@@ -320,46 +331,52 @@ class StreamingService:
             message_id, file_size, from_bytes, until_bytes, offset, part_count,
         )
 
+        # ── MIME type ──────────────────────────────────────────────────────
         mime = (
             file_data.get("mime_type")
             or mimetypes.guess_type(file_name)[0]
             or MIME_TYPE_MAP.get(file_data.get("file_type"), "application/octet-stream")
         )
+        if not mime:
+            mime = "application/octet-stream"
 
         disposition = "attachment" if is_download else "inline"
-        status      = 206 if range_header else 200
 
-        response = web.StreamResponse(
-            status=status,
-            headers={
-                "Content-Type":              mime,
-                "Content-Range":             f"bytes {from_bytes}-{until_bytes}/{file_size}",
-                "Content-Length":            str(req_length),
-                "Content-Disposition":       f'{disposition}; filename="{file_name}"',
-                "Accept-Ranges":             "bytes",
-                "Cache-Control":             "public, max-age=3600",
-                "Access-Control-Allow-Origin": "*",
-                "Connection":                "keep-alive",
-            },
-        )
+        # Use 206 only when a Range was requested; 200 otherwise
+        is_range_request = bool(range_header)
+        status           = 206 if is_range_request else 200
 
+        # ── Build headers ──────────────────────────────────────────────────
+        headers = {
+            "Content-Type":                mime,
+            "Content-Length":              str(req_length),
+            "Content-Disposition":         f'{disposition}; filename="{file_name}"',
+            "Accept-Ranges":               "bytes",
+            "Cache-Control":               "public, max-age=3600",
+            "Access-Control-Allow-Origin": "*",
+            "Connection":                  "keep-alive",
+        }
+        # Only include Content-Range for 206 Partial Content responses
+        if is_range_request:
+            headers["Content-Range"] = f"bytes {from_bytes}-{until_bytes}/{file_size}"
+
+        response = web.StreamResponse(status=status, headers=headers)
         await response.prepare(request)
 
+        # ── Stream chunks ──────────────────────────────────────────────────
         try:
-            file_id = await self.streamer.get_file_properties(message_id)
+            async for chunk in self.streamer.yield_file(
+                file_id,
+                offset,
+                first_part_cut,
+                last_part_cut,
+                part_count,
+                CHUNK_SIZE,
+            ):
+                await response.write(chunk)
         except Exception as exc:
-            logger.error("get_file_properties failed: msg=%s err=%s", message_id, exc)
-            raise web.HTTPNotFound(reason="could not resolve file on Telegram")
-
-        async for chunk in self.streamer.yield_file(
-            file_id,
-            offset,
-            first_part_cut,
-            last_part_cut,
-            part_count,
-            CHUNK_SIZE,
-        ):
-            await response.write(chunk)
+            logger.error("streaming error: msg=%s err=%s", message_id, exc)
+            # Can't send HTTP error once streaming started; just close the connection
 
         await response.write_eof()
 

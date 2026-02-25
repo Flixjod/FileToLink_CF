@@ -22,8 +22,8 @@ class Bot(Client):
     async def start(self):
         await super().start()
         me = await self.get_me()
-        Config.BOT_USERNAME = me.username
-        Config.BOT_NAME     = me.first_name
+        Config.BOT_USERNAME = me.username  or Config.DEFAULT_BOT_USERNAME
+        Config.BOT_NAME     = me.first_name or Config.DEFAULT_BOT_NAME
         Config.UPTIME       = time.time()
         logger.info("⚡  ʙᴏᴛ: @%s  │  ɴᴀᴍᴇ: %s  │  ɪᴅ: %s  │  ᴡᴏʀᴋᴇʀs: %s",
                     me.username, me.first_name, me.id, "50")

@@ -102,6 +102,28 @@ class Database:
             logger.error("get user files error: %s", e)
             return []
 
+    async def find_files(self, user_id, page_range: list) -> tuple:
+        """
+        Return (cursor, total_count) for paginated file listing.
+
+        page_range = [skip, limit], e.g. [0, 10] for first page.
+        Returns an async cursor and the total document count.
+        """
+        try:
+            skip  = page_range[0] - 1 if page_range[0] > 0 else 0
+            limit = page_range[1]
+            total = await self.files.count_documents({"user_id": str(user_id)})
+            cursor = (
+                self.files.find({"user_id": str(user_id)})
+                .sort("created_at", -1)
+                .skip(skip)
+                .limit(limit)
+            )
+            return cursor, total
+        except Exception as e:
+            logger.error("find_files error: %s", e)
+            return self.files.find({"user_id": str(user_id)}).limit(0), 0
+
     async def delete_user_files(self, user_id: str) -> int:
         """Delete all files belonging to a specific user. Returns the number deleted."""
         try:
