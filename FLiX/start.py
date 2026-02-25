@@ -88,10 +88,18 @@ async def start_command(client: Client, message: Message):
                     InlineKeyboardButton(f"🎬 {small_caps('stream')}",   url=stream_link),
                     InlineKeyboardButton(f"📥 {small_caps('download')}", url=download_link),
                 ])
+                btn_rows.append([
+                    InlineKeyboardButton(f"🔗 {small_caps('share')}", switch_inline_query=file_hash),
+                    InlineKeyboardButton(f"📨 {small_caps('send file')}", callback_data=f"sendfile_{file_hash}"),
+                ])
             else:
                 text += f"🔗 **{small_caps('download link')}:**\n`{download_link}`"
                 btn_rows.append([
                     InlineKeyboardButton(f"📥 {small_caps('download')}", url=download_link),
+                ])
+                btn_rows.append([
+                    InlineKeyboardButton(f"🔗 {small_caps('share')}", switch_inline_query=file_hash),
+                    InlineKeyboardButton(f"📨 {small_caps('send file')}", callback_data=f"sendfile_{file_hash}"),
                 ])
 
             await client.send_message(
@@ -113,7 +121,7 @@ async def start_command(client: Client, message: Message):
     # ── Welcome message ──────────────────────────────────────────────────
     start_text = (
         f"👋 **Hello {message.from_user.first_name}**,\n\n"
-        f"ɪ ᴀᴍ ᴀ **{small_caps('premium file stream bot')}**.\n\n"
+        f"ɪ ᴀᴍ **Fɪʟᴇ Sᴛʀᴇᴀᴍ Bᴏᴛ**, ᴀ **{small_caps('premium file stream bot')}**.\n\n"
         f"📂 **{small_caps('send me any file')}** (ᴠɪᴅᴇᴏ, ᴀᴜᴅɪᴏ, ᴅᴏᴄᴜᴍᴇɴᴛ) "
         "ᴀɴᴅ ɪ ᴡɪʟʟ ɢᴇɴᴇʀᴀᴛᴇ ᴀ ᴅɪʀᴇᴄᴛ ᴅᴏᴡɴʟᴏᴀᴅ ᴀɴᴅ ꜱᴛʀᴇᴀᴍɪɴɢ ʟɪɴᴋ ꜰᴏʀ ʏᴏᴜ."
     )
@@ -170,7 +178,8 @@ async def help_command(client: Client, message: Message):
 async def about_command(client: Client, message: Message):
     about_text = (
         f"ℹ️ **{small_caps('about filestream bot')}**\n\n"
-        f"🤖 **{small_caps('bot')}:** @{Config.BOT_USERNAME}\n\n"
+        f"🤖 **{small_caps('bot name')}:** Fɪʟᴇ Sᴛʀᴇᴀᴍ Bᴏᴛ\n"
+        f"👤 **{small_caps('username')}:** @{Config.BOT_USERNAME or 'FileStreamRo_Bot'}\n\n"
         f"💻 **{small_caps('developer')}:** @FLiX_LY\n"
         f"⚡ **{small_caps('version')}:** 2.1"
     )
@@ -189,7 +198,7 @@ async def about_command(client: Client, message: Message):
 async def cb_start(client: Client, callback: CallbackQuery):
     text = (
         f"👋 **Hello {callback.from_user.first_name}**,\n\n"
-        f"ɪ ᴀᴍ ᴀ **{small_caps('premium file stream bot')}**.\n\n"
+        f"ɪ ᴀᴍ **Fɪʟᴇ Sᴛʀᴇᴀᴍ Bᴏᴛ**, ᴀ **{small_caps('premium file stream bot')}**.\n\n"
         f"📂 **{small_caps('send me any file')}** (ᴠɪᴅᴇᴏ, ᴀᴜᴅɪᴏ, ᴅᴏᴄᴜᴍᴇɴᴛ) "
         "ᴀɴᴅ ɪ ᴡɪʟʟ ɢᴇɴᴇʀᴀᴛᴇ ᴀ ᴅɪʀᴇᴄᴛ ᴅᴏᴡɴʟᴏᴀᴅ ᴀɴᴅ ꜱᴛʀᴇᴀᴍɪɴɢ ʟɪɴᴋ ꜰᴏʀ ʏᴏᴜ."
     )
@@ -225,7 +234,8 @@ async def cb_help(client: Client, callback: CallbackQuery):
 async def cb_about(client: Client, callback: CallbackQuery):
     text = (
         f"ℹ️ **{small_caps('about filestream bot')}**\n\n"
-        f"🤖 **{small_caps('bot')}:** @{Config.BOT_USERNAME}\n\n"
+        f"🤖 **{small_caps('bot name')}:** Fɪʟᴇ Sᴛʀᴇᴀᴍ Bᴏᴛ\n"
+        f"👤 **{small_caps('username')}:** @{Config.BOT_USERNAME or 'FileStreamRo_Bot'}\n\n"
         f"💻 **{small_caps('developer')}:** @FLiX_LY\n"
         f"⚡ **{small_caps('version')}:** 2.1"
     )

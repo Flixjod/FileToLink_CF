@@ -444,7 +444,7 @@ async def revoke_command(client: Client, message: Message):
         return
 
     try:
-        await client.delete_messages(Config.DUMP_CHAT_ID, int(file_data["message_id"]))
+        await client.delete_messages(Config.FLOG_CHAT_ID, int(file_data["message_id"]))
     except Exception as exc:
         logger.error("revoke delete dump message: msg=%s err=%s", file_data["message_id"], exc)
 

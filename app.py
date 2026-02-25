@@ -33,7 +33,7 @@ def build_app(bot: Bot, database) -> web.Application:
             return aiohttp_jinja2.render_template(
                 "not_found.html",
                 request,
-                {"bot_name": Config.BOT_NAME or "FileStream Bot", "bot_username": Config.BOT_USERNAME or "filestream_bot"},
+                {"bot_name": Config.BOT_NAME or "Fɪʟᴇ Sᴛʀᴇᴀᴍ Bᴏᴛ", "bot_username": Config.BOT_USERNAME or "FileStreamRo_Bot"},
             )
         except Exception as exc:
             logger.error("not_found template error: %s", exc)
@@ -45,8 +45,8 @@ def build_app(bot: Bot, database) -> web.Application:
     @aiohttp_jinja2.template("home.html")
     async def home(request: web.Request):
         return {
-            "bot_name":       Config.BOT_NAME or "FileStream Bot",
-            "bot_username":   Config.BOT_USERNAME or "filestream_bot",
+            "bot_name":       Config.BOT_NAME or "Fɪʟᴇ Sᴛʀᴇᴀᴍ Bᴏᴛ",
+            "bot_username":   Config.BOT_USERNAME or "FileStreamRo_Bot",
             "owner_username": "FLiX_LY",
         }
 
@@ -75,8 +75,8 @@ def build_app(bot: Bot, database) -> web.Application:
         )
 
         return {
-            "bot_name":       Config.BOT_NAME or "FileStream Bot",
-            "bot_username":   Config.BOT_USERNAME or "filestream_bot",
+            "bot_name":       Config.BOT_NAME or "Fɪʟᴇ Sᴛʀᴇᴀᴍ Bᴏᴛ",
+            "bot_username":   Config.BOT_USERNAME or "FileStreamRo_Bot",
             "owner_username": "FLiX_LY",
             "file_name":      file_data["file_name"],
             "file_size":      format_size(file_data["file_size"]),

@@ -36,7 +36,7 @@ class Config:
     DATABASE_NAME = os.environ.get("DATABASE_NAME", "FileStream_New_bot")
 
     LOGS_CHAT_ID = int(os.environ.get("LOGS_CHAT_ID", "0"))
-    DUMP_CHAT_ID = int(os.environ.get("DUMP_CHAT_ID", "0"))
+    FLOG_CHAT_ID = int(os.environ.get("FLOG_CHAT_ID", "0"))
 
     Start_IMG = os.environ.get("Start_IMG", "")
     Files_IMG = os.environ.get("Files_IMG", "")
@@ -63,7 +63,7 @@ class Config:
                 "max_bandwidth":     int(os.environ.get("MAX_BANDWIDTH", 107374182400)),
                 "bandwidth_used":    0,
                 "public_bot":        os.environ.get("PUBLIC_BOT", "False").lower() == "true",
-                "max_telegram_size": int(os.environ.get("MAX_TELEGRAM_SIZE", 4294967296)),
+                "max_file_size": int(os.environ.get("MAX_FILE_SIZE", 4294967296)),
             }
             await db.config.insert_one(doc)
             logger.info("config created in db")
@@ -111,8 +111,8 @@ class Config:
             missing.append("API_ID")
         if not Config.API_HASH:
             missing.append("API_HASH")
-        if not Config.DUMP_CHAT_ID or Config.DUMP_CHAT_ID == 0:
-            missing.append("DUMP_CHAT_ID")
+        if not Config.FLOG_CHAT_ID or Config.FLOG_CHAT_ID == 0:
+            missing.append("FLOG_CHAT_ID")
         if missing:
             raise ValueError(f"missing required configuration: {', '.join(missing)}")
         if not Config.URL:

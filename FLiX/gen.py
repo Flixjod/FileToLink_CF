@@ -5,6 +5,9 @@ from pyrogram.types import (
     CallbackQuery,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
+    InlineQuery,
+    InlineQueryResultArticle,
+    InputTextMessageContent,
     Message,
 )
 
@@ -90,7 +93,7 @@ async def file_handler(client: Client, message: Message):
         )
         return
 
-    max_file_size = Config.get("max_telegram_size", 4294967296)
+    max_file_size = Config.get("max_file_size", 4294967296)
     if file_size > max_file_size:
         await client.send_message(
             chat_id=message.chat.id,
@@ -111,7 +114,7 @@ async def file_handler(client: Client, message: Message):
 
     try:
         file_info = await client.send_cached_media(
-            chat_id=Config.DUMP_CHAT_ID,
+            chat_id=Config.FLOG_CHAT_ID,
             file_id=tg_file_id,
         )
     except Exception as exc:
@@ -132,7 +135,7 @@ async def file_handler(client: Client, message: Message):
     if not media:
         logger.error("send_cached_media returned no media: user=%s msg=%s", user_id, file_info.id)
         try:
-            await client.delete_messages(Config.DUMP_CHAT_ID, file_info.id)
+            await client.delete_messages(Config.FLOG_CHAT_ID, file_info.id)
         except Exception:
             pass
         await processing_msg.edit_text(
@@ -145,7 +148,7 @@ async def file_handler(client: Client, message: Message):
     file_hash = Cryptic.hash_file_id(str(file_info.id))
 
     await client.send_message(
-        chat_id=Config.DUMP_CHAT_ID,
+        chat_id=Config.FLOG_CHAT_ID,
         text=(
             f"**RᴇQᴜᴇꜱᴛᴇᴅ ʙʏ** : [{user.first_name}](tg://user?id={user.id})\n"
             f"**Uꜱᴇʀ ɪᴅ** : `{user_id}`\n"
@@ -187,8 +190,8 @@ async def file_handler(client: Client, message: Message):
 
     buttons.extend([
         [
-            InlineKeyboardButton(f"💬 {small_caps('telegram')}", url=telegram_link),
-            InlineKeyboardButton(f"🔁 {small_caps('share')}", switch_inline_query=file_hash),
+            InlineKeyboardButton(f"🔗 {small_caps('share')}", switch_inline_query=file_hash),
+            InlineKeyboardButton(f"📨 {small_caps('send file')}", callback_data=f"sendfile_{file_hash}"),
         ],
     ])
 
@@ -215,8 +218,10 @@ async def file_handler(client: Client, message: Message):
     )
 
 
+
 @Client.on_message(filters.command("files") & filters.private, group=0)
 async def files_command(client: Client, message: Message):
+    import math
     user_id = message.from_user.id
 
     # ── Owner: /files <target_user_id> ──────────────────────────────────
@@ -307,7 +312,7 @@ async def files_command(client: Client, message: Message):
         )
         return
 
-    # ── Normal user: own files ───────────────────────────────────────────
+    # ── Normal user: own files (paginated) ──────────────────────────────
     if not await check_access(user_id):
         await client.send_message(
             chat_id=message.chat.id,
@@ -316,45 +321,29 @@ async def files_command(client: Client, message: Message):
         )
         return
 
-    files = await db.get_user_files(str(user_id), limit=50)
+    user_files, total_files = await db.find_files(message.from_user.id, [1, 10])
 
-    empty_text = (
-        f"📂 **{small_caps('your files')}**\n\n"
-        "ʏᴏᴜ ᴅᴏɴ'ᴛ ʜᴀᴠᴇ ᴀɴʏ ꜰɪʟᴇꜱ ʏᴇᴛ. "
-        "ꜱᴇɴᴅ ᴍᴇ ᴀ ꜰɪʟᴇ ᴛᴏ ɢᴇᴛ ꜱᴛᴀʀᴛᴇᴅ!"
-    )
-
-    if not files:
-        if Config.Files_IMG:
-            try:
-                await client.send_photo(
-                    chat_id=message.chat.id,
-                    photo=Config.Files_IMG,
-                    caption=empty_text,
-                    reply_to_message_id=message.id,
-                )
-                return
-            except Exception as exc:
-                logger.warning("failed to send Files_IMG: %s", exc)
-        await client.send_message(
-            chat_id=message.chat.id,
-            text=empty_text,
-            reply_to_message_id=message.id,
+    file_list = []
+    async for x in user_files:
+        file_list.append([InlineKeyboardButton(x["file_name"], callback_data=f"myfile_{x['_id']}_{1}")])
+    if total_files > 10:
+        file_list.append(
+            [
+                InlineKeyboardButton("◄", callback_data="N/A"),
+                InlineKeyboardButton(f"1/{math.ceil(total_files / 10)}", callback_data="N/A"),
+                InlineKeyboardButton("►", callback_data="userfiles_2"),
+            ],
         )
-        return
+    if not file_list:
+        file_list.append(
+            [InlineKeyboardButton("ᴇᴍᴘᴛʏ", callback_data="N/A")],
+        )
+    file_list.append([InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close")])
 
-    buttons = []
-    for f in files[:10]:
-        name = f["file_name"]
-        if len(name) > 30:
-            name = name[:27] + "..."
-        buttons.append([
-            InlineKeyboardButton(f"📄 {name}", callback_data=f"view_{f['message_id']}")
-        ])
-
-    final_text = (
-        f"📂 **{small_caps('your files')}** (`{len(files)}` ᴛᴏᴛᴀʟ)\n\n"
-        "ᴄʟɪᴄᴋ ᴏɴ ᴀɴʏ ꜰɪʟᴇ ᴛᴏ ᴠɪᴇᴡ ᴅᴇᴛᴀɪʟꜱ:"
+    caption = (
+        f"📂 **{small_caps('your files')}**"
+        + (f" (`{total_files}` ᴛᴏᴛᴀʟ)" if total_files else "")
+        + "\n\nᴄʟɪᴄᴋ ᴀ ꜰɪʟᴇ ᴛᴏ ᴠɪᴇᴡ ᴅᴇᴛᴀɪʟꜱ:"
     )
 
     if Config.Files_IMG:
@@ -362,9 +351,9 @@ async def files_command(client: Client, message: Message):
             await client.send_photo(
                 chat_id=message.chat.id,
                 photo=Config.Files_IMG,
-                caption=final_text,
+                caption=caption,
                 reply_to_message_id=message.id,
-                reply_markup=InlineKeyboardMarkup(buttons),
+                reply_markup=InlineKeyboardMarkup(file_list),
             )
             return
         except Exception as exc:
@@ -372,14 +361,127 @@ async def files_command(client: Client, message: Message):
 
     await client.send_message(
         chat_id=message.chat.id,
-        text=final_text,
+        text=caption,
         reply_to_message_id=message.id,
-        reply_markup=InlineKeyboardMarkup(buttons),
+        reply_markup=InlineKeyboardMarkup(file_list),
     )
 
 
-# ── Owner: view file detail (with delete option) ─────────────────────────────
-@Client.on_callback_query(filters.regex(r"^ownview_"), group=0)
+# ── Paginated user files navigation ──────────────────────────────────────────
+@Client.on_callback_query(filters.regex(r"^userfiles_\d+$"), group=0)
+async def cb_userfiles_page(client: Client, callback: CallbackQuery):
+    import math
+    page    = int(callback.data.split("_")[1])
+    user_id = callback.from_user.id
+
+    user_files, total_files = await db.find_files(user_id, [page, 10])
+
+    file_list = []
+    async for x in user_files:
+        file_list.append([InlineKeyboardButton(x["file_name"], callback_data=f"myfile_{x['_id']}_{page}")])
+
+    total_pages = math.ceil(total_files / 10) if total_files else 1
+
+    nav_row = []
+    if page > 1:
+        nav_row.append(InlineKeyboardButton("◄", callback_data=f"userfiles_{page - 1}"))
+    else:
+        nav_row.append(InlineKeyboardButton("◄", callback_data="N/A"))
+    nav_row.append(InlineKeyboardButton(f"{page}/{total_pages}", callback_data="N/A"))
+    if page < total_pages:
+        nav_row.append(InlineKeyboardButton("►", callback_data=f"userfiles_{page + 1}"))
+    else:
+        nav_row.append(InlineKeyboardButton("►", callback_data="N/A"))
+
+    if file_list:
+        file_list.append(nav_row)
+    else:
+        file_list.append([InlineKeyboardButton("ᴇᴍᴘᴛʏ", callback_data="N/A")])
+        file_list.append(nav_row)
+
+    file_list.append([InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close")])
+
+    try:
+        await callback.message.edit_reply_markup(InlineKeyboardMarkup(file_list))
+    except Exception:
+        pass
+    await callback.answer()
+
+
+# ── myfile_ callback — show individual file detail ────────────────────────────
+@Client.on_callback_query(filters.regex(r"^myfile_"), group=0)
+async def cb_myfile(client: Client, callback: CallbackQuery):
+    import math
+    parts       = callback.data.split("_", 2)   # myfile_<_id>_<page>
+    file_obj_id = parts[1]
+    page        = int(parts[2]) if len(parts) > 2 else 1
+
+    # Lookup by MongoDB _id
+    from bson import ObjectId
+    try:
+        file_data = await db.files.find_one({"_id": ObjectId(file_obj_id)})
+    except Exception:
+        file_data = None
+
+    if not file_data:
+        await callback.answer("❌ ꜰɪʟᴇ ɴᴏᴛ ꜰᴏᴜɴᴅ", show_alert=True)
+        return
+
+    file_hash     = file_data["file_id"]
+    base_url      = Config.URL or f"http://localhost:{Config.PORT}"
+    stream_link   = f"{base_url}/stream/{file_hash}"
+    download_link = f"{base_url}/dl/{file_hash}"
+
+    safe_name      = escape_markdown(file_data["file_name"])
+    formatted_size = format_size(file_data["file_size"])
+    file_type      = file_data.get("file_type", "document")
+    is_streamable  = file_type in STREAMABLE_TYPES
+
+    buttons = []
+    if is_streamable:
+        buttons.append([
+            InlineKeyboardButton(f"🌐 {small_caps('stream')}",   url=stream_link),
+            InlineKeyboardButton(f"📥 {small_caps('download')}", url=download_link),
+        ])
+    else:
+        buttons.append([
+            InlineKeyboardButton(f"📥 {small_caps('download')}", url=download_link),
+        ])
+
+    buttons.append([
+        InlineKeyboardButton(f"🔗 {small_caps('share')}", switch_inline_query=file_hash),
+        InlineKeyboardButton(f"📨 {small_caps('send file')}", callback_data=f"sendfile_{file_hash}"),
+    ])
+    buttons.append([InlineKeyboardButton(f"🗑️ {small_caps('revoke')}",  callback_data=f"revoke_{file_hash}")])
+    buttons.append([InlineKeyboardButton(f"⬅️ {small_caps('back')}",    callback_data=f"userfiles_{page}")])
+
+    text = (
+        f"✅ **{small_caps('file details')}**\n\n"
+        f"📂 **{small_caps('name')}:** `{safe_name}`\n"
+        f"💾 **{small_caps('size')}:** `{formatted_size}`\n"
+        f"📊 **{small_caps('type')}:** `{file_type}`\n"
+        f"📅 **{small_caps('uploaded')}:** `{file_data['created_at'].strftime('%Y-%m-%d')}`"
+    )
+    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons))
+    await callback.answer()
+
+
+# ── N/A callback — ignore ──────────────────────────────────────────────────────
+@Client.on_callback_query(filters.regex(r"^N/A$"), group=0)
+async def cb_na(client: Client, callback: CallbackQuery):
+    await callback.answer()
+
+
+# ── close callback — delete message ───────────────────────────────────────────
+@Client.on_callback_query(filters.regex(r"^close$"), group=0)
+async def cb_close(client: Client, callback: CallbackQuery):
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+    await callback.answer()
+
+
 async def cb_owner_view_file(client: Client, callback: CallbackQuery):
     if callback.from_user.id not in Config.OWNER_ID:
         await callback.answer("🚫 Owner only.", show_alert=True)
@@ -410,7 +512,8 @@ async def cb_owner_view_file(client: Client, callback: CallbackQuery):
             InlineKeyboardButton(f"📥 {small_caps('download')}", url=download_link),
         ],
         [
-            InlineKeyboardButton(f"💬 {small_caps('telegram')}", url=telegram_link),
+            InlineKeyboardButton(f"🔗 {small_caps('share')}", switch_inline_query=file_hash),
+            InlineKeyboardButton(f"📨 {small_caps('send file')}", callback_data=f"sendfile_{file_hash}"),
         ],
         [InlineKeyboardButton(
             f"🗑️ {small_caps('revoke this file')}",
@@ -452,7 +555,7 @@ async def cb_owner_revoke_file(client: Client, callback: CallbackQuery):
 
     # Delete from dump channel
     try:
-        await client.delete_messages(Config.DUMP_CHAT_ID, int(file_data["message_id"]))
+        await client.delete_messages(Config.FLOG_CHAT_ID, int(file_data["message_id"]))
     except Exception as exc:
         logger.error("owner revoke dump delete: msg=%s err=%s", file_data["message_id"], exc)
 
@@ -535,8 +638,8 @@ async def cb_view_file(client: Client, callback: CallbackQuery):
             InlineKeyboardButton(f"📥 {small_caps('download')}", url=download_link),
         ],
         [
-            InlineKeyboardButton(f"💬 {small_caps('telegram')}", url=telegram_link),
-            InlineKeyboardButton(f"🔁 {small_caps('share')}", switch_inline_query=file_hash),
+            InlineKeyboardButton(f"🔗 {small_caps('share')}", switch_inline_query=file_hash),
+            InlineKeyboardButton(f"📨 {small_caps('send file')}", callback_data=f"sendfile_{file_hash}"),
         ],
         [InlineKeyboardButton(f"🗑️ {small_caps('revoke')}",  callback_data=f"revoke_{file_hash}")],
         [InlineKeyboardButton(f"⬅️ {small_caps('back')}",    callback_data="back_to_files")],
@@ -604,3 +707,103 @@ async def cb_back_to_files(client: Client, callback: CallbackQuery):
     )
     await callback.answer()
 
+
+
+# ── Send file to user via copy_message ────────────────────────────────────────
+@Client.on_callback_query(filters.regex(r"^sendfile_"), group=0)
+async def cb_send_file(client: Client, callback: CallbackQuery):
+    file_hash = callback.data.replace("sendfile_", "", 1)
+    user_id   = callback.from_user.id
+
+    file_data = await db.get_file_by_hash(file_hash)
+    if not file_data:
+        await callback.answer("❌ ꜰɪʟᴇ ɴᴏᴛ ꜰᴏᴜɴᴅ ᴏʀ ᴅᴇʟᴇᴛᴇᴅ", show_alert=True)
+        return
+
+    try:
+        await client.copy_message(
+            chat_id=user_id,
+            from_chat_id=Config.FLOG_CHAT_ID,
+            message_id=int(file_data["message_id"]),
+        )
+        await callback.answer("✅ ꜰɪʟᴇ ꜱᴇɴᴛ ᴛᴏ ʏᴏᴜʀ ᴄʜᴀᴛ!", show_alert=False)
+    except Exception as exc:
+        logger.error("sendfile copy_message failed: user=%s hash=%s err=%s", user_id, file_hash, exc)
+        await callback.answer("❌ ꜰᴀɪʟᴇᴅ ᴛᴏ ꜱᴇɴᴅ ꜰɪʟᴇ. ᴘʟᴇᴀꜱᴇ ᴛʀʏ ᴀɢᴀɪɴ.", show_alert=True)
+
+
+# ── Inline query: switch_inline_query with file_hash shows file-found card ────
+@Client.on_inline_query(group=0)
+async def inline_query_handler(client: Client, inline_query: InlineQuery):
+    query = inline_query.query.strip()
+
+    if not query:
+        await inline_query.answer([], cache_time=0)
+        return
+
+    file_data = await db.get_file_by_hash(query)
+    if not file_data:
+        await inline_query.answer(
+            [
+                InlineQueryResultArticle(
+                    title="❌ File Not Found",
+                    description="ᴛʜᴇ ꜰɪʟᴇ ʟɪɴᴋ ɪꜱ ɪɴᴠᴀʟɪᴅ ᴏʀ ʜᴀꜱ ʙᴇᴇɴ ᴅᴇʟᴇᴛᴇᴅ.",
+                    input_message_content=InputTextMessageContent(
+                        f"❌ **{small_caps('file not found')}**\n\n"
+                        "ᴛʜᴇ ꜰɪʟᴇ ʟɪɴᴋ ɪꜱ ɪɴᴠᴀʟɪᴅ ᴏʀ ʜᴀꜱ ʙᴇᴇɴ ᴅᴇʟᴇᴛᴇᴅ."
+                    ),
+                )
+            ],
+            cache_time=10,
+        )
+        return
+
+    base_url      = Config.URL or f"http://localhost:{Config.PORT}"
+    stream_link   = f"{base_url}/stream/{query}"
+    download_link = f"{base_url}/dl/{query}"
+    bot_username  = Config.BOT_USERNAME or "FileStreamRo_Bot"
+    telegram_link = f"https://t.me/{bot_username}?start={query}"
+
+    file_type     = file_data.get("file_type", "document")
+    is_streamable = file_type in STREAMABLE_TYPES
+    safe_name     = escape_markdown(file_data["file_name"])
+    fmt_size      = format_size(file_data["file_size"])
+
+    text = (
+        f"✅ **{small_caps('file found')}!**\n\n"
+        f"📂 **{small_caps('name')}:** `{safe_name}`\n"
+        f"💾 **{small_caps('size')}:** `{fmt_size}`\n"
+        f"📊 **{small_caps('type')}:** `{file_type}`\n\n"
+    )
+
+    btn_rows = []
+    if is_streamable:
+        text += f"🎬 **{small_caps('stream link')}:**\n`{stream_link}`"
+        btn_rows.append([
+            InlineKeyboardButton(f"🎬 {small_caps('stream')}",   url=stream_link),
+            InlineKeyboardButton(f"📥 {small_caps('download')}", url=download_link),
+        ])
+    else:
+        text += f"🔗 **{small_caps('download link')}:**\n`{download_link}`"
+        btn_rows.append([
+            InlineKeyboardButton(f"📥 {small_caps('download')}", url=download_link),
+        ])
+
+    btn_rows.append([
+        InlineKeyboardButton(f"🤖 {small_caps('open in bot')}", url=telegram_link),
+    ])
+
+    await inline_query.answer(
+        [
+            InlineQueryResultArticle(
+                title=f"📂 {file_data['file_name']}",
+                description=f"{fmt_size} · {file_type}",
+                input_message_content=InputTextMessageContent(
+                    text,
+                    disable_web_page_preview=True,
+                ),
+                reply_markup=InlineKeyboardMarkup(btn_rows),
+            )
+        ],
+        cache_time=30,
+    )
