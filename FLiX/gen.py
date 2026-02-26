@@ -23,13 +23,6 @@ STREAMABLE_TYPES = ("video", "audio")
 PAGE_SIZE = 10
 
 
-async def _schedule_delete(client, chat_id: int, message_id: int, delay: int):
-    """Delete a message after `delay` seconds."""
-    await asyncio.sleep(delay)
-    try:
-        await client.delete_messages(chat_id, message_id)
-    except Exception:
-        pass
 
 
 async def check_access(user_id: int) -> bool:
@@ -201,9 +194,7 @@ async def file_handler(client: Client, message: Message):
 
     buttons.extend([
         [
-            # "Send file" — triggers bot to copy the file directly to user via callback
             InlineKeyboardButton(f"📨 {small_caps('send file')}", callback_data=f"sendfile_{file_hash}"),
-            # "Share" — opens inline query so user can forward the file info to any chat
             InlineKeyboardButton(f"🔁 {small_caps('share')}", switch_inline_query=file_hash),
         ],
     ])
@@ -231,12 +222,6 @@ async def file_handler(client: Client, message: Message):
         disable_web_page_preview=True,
     )
 
-    # ── Auto-delete scheduling ────────────────────────────────────────────
-    if Config.get("auto_delete", False):
-        delay = Config.get("auto_delete_time", 300)
-        asyncio.create_task(
-            _schedule_delete(client, message.chat.id, processing_msg.id, delay)
-        )
 
 
 @Client.on_message(filters.command("files") & filters.private, group=0)
