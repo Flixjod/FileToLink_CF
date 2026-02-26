@@ -38,9 +38,7 @@ class Config:
 
     LOGS_CHAT_ID = int(os.environ.get("LOGS_CHAT_ID", "0"))
 
-    FLOG_CHAT_ID = int(
-        os.environ.get("FLOG_CHAT_ID"), "0")
-    )
+    FLOG_CHAT_ID = int(os.environ.get("FLOG_CHAT_ID", "0"))
 
     Start_IMG = os.environ.get("Start_IMG", "")
     Files_IMG = os.environ.get("Files_IMG", "")
