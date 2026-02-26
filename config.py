@@ -68,8 +68,6 @@ class Config:
                 "bandwidth_used": 0,
                 "public_bot":     os.environ.get("PUBLIC_BOT", "False").lower() == "true",
                 "max_file_size":  int(os.environ.get("MAX_TELEGRAM_SIZE", 4294967296)),
-                "auto_delete":     False,
-                "auto_delete_time": 300,
             }
             await db.config.insert_one(doc)
             logger.warning("⚠️ ᴄᴏɴꜰɪɢ ɴᴏᴛ ꜰᴏᴜɴᴅ ɪɴ ᴅʙ — ᴀᴘᴘʟʏɪɴɢ ꜰʀᴇꜱʜ ᴄᴏɴꜰɪɢ ᴠᴀʟᴜᴇꜱ")
@@ -80,8 +78,6 @@ class Config:
                 "fsub_mode":        doc.get("fsub_mode", False),
                 "fsub_chat_id":     doc.get("fsub_chat_id", 0),
                 "fsub_inv_link":    doc.get("fsub_inv_link", ""),
-                "auto_delete":      False,
-                "auto_delete_time": 300,
             }
             missing = {k: v for k, v in defaults.items() if k not in doc}
             if missing:
