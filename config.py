@@ -25,7 +25,7 @@ class Config:
     FILE_TYPE_DOCUMENT = "document"
 
     BOT_USERNAME = "FileStreamRo_Bot"
-    BOT_NAME     = Fɪʟᴇ Sᴛʀᴇᴀᴍ Bᴏᴛ"
+    BOT_NAME     = "Fɪʟᴇ Sᴛʀᴇᴀᴍ Bᴏᴛ"
     UPTIME: float = 0.0
 
     OWNER_ID = list(
