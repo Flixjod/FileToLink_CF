@@ -15,8 +15,8 @@ class Bot(Client):
             api_hash=Config.API_HASH,
             bot_token=Config.BOT_TOKEN,
             plugins=dict(root="FLiX"),
-            workers=50,
-            sleep_threshold=10,
+            workers=10,
+            sleep_threshold=60,
         )
 
     async def start(self):
@@ -26,7 +26,7 @@ class Bot(Client):
         Config.BOT_NAME     = me.first_name or Config.DEFAULT_BOT_NAME
         Config.UPTIME       = time.time()
         logger.info("⚡  ʙᴏᴛ: @%s  │  ɴᴀᴍᴇ: %s  │  ɪᴅ: %s  │  ᴡᴏʀᴋᴇʀs: %s",
-                    me.username, me.first_name, me.id, "50")
+                    me.username, me.first_name, me.id, "10")
         await self._set_commands()
         return me
 
