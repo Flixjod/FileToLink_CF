@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import math
 
@@ -7,6 +8,7 @@ from pyrogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     InlineQueryResultArticle,
+    InlineQueryResultPhoto,
     InputTextMessageContent,
     Message,
 )
@@ -19,6 +21,15 @@ logger = logging.getLogger(__name__)
 
 STREAMABLE_TYPES = ("video", "audio")
 PAGE_SIZE = 10
+
+
+async def _schedule_delete(client, chat_id: int, message_id: int, delay: int):
+    """Delete a message after `delay` seconds."""
+    await asyncio.sleep(delay)
+    try:
+        await client.delete_messages(chat_id, message_id)
+    except Exception:
+        pass
 
 
 async def check_access(user_id: int) -> bool:
@@ -217,7 +228,15 @@ async def file_handler(client: Client, message: Message):
     await processing_msg.edit_text(
         text,
         reply_markup=InlineKeyboardMarkup(buttons),
+        disable_web_page_preview=True,
     )
+
+    # ── Auto-delete scheduling ────────────────────────────────────────────
+    if Config.get("auto_delete", False):
+        delay = Config.get("auto_delete_time", 300)
+        asyncio.create_task(
+            _schedule_delete(client, message.chat.id, processing_msg.id, delay)
+        )
 
 
 @Client.on_message(filters.command("files") & filters.private, group=0)
@@ -478,7 +497,7 @@ async def cb_myfile(client: Client, callback: CallbackQuery):
         f"📊 **{small_caps('type')}:** `{file_data['file_type']}`\n"
         f"📅 **{small_caps('uploaded')}:** `{file_data['created_at'].strftime('%Y-%m-%d')}`"
     )
-    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons))
+    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons), disable_web_page_preview=True)
     await callback.answer()
 
 
@@ -543,7 +562,7 @@ async def cb_owner_view_file(client: Client, callback: CallbackQuery):
         f"👤 **{small_caps('owner')}:** `{file_data.get('user_id', 'N/A')}`\n"
         f"📅 **{small_caps('uploaded')}:** `{file_data['created_at'].strftime('%Y-%m-%d')}`"
     )
-    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons))
+    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons), disable_web_page_preview=True)
     await callback.answer()
 
 
@@ -642,7 +661,7 @@ async def cb_view_file(client: Client, callback: CallbackQuery):
         f"📊 **{small_caps('type')}:** `{file_data['file_type']}`\n"
         f"📅 **{small_caps('uploaded')}:** `{file_data['created_at'].strftime('%Y-%m-%d')}`"
     )
-    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons))
+    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons), disable_web_page_preview=True)
     await callback.answer()
 
 
@@ -779,16 +798,42 @@ async def inline_query_handler(client: Client, inline_query):
         InlineKeyboardButton(f"📩 {small_caps('get file via bot')}", url=telegram_link),
     ])
 
-    results = [
-        InlineQueryResultArticle(
-            title=file_data["file_name"],
-            description=f"{fmt_size} • {file_type}",
-            input_message_content=InputTextMessageContent(
-                message_text=text,
-            ),
-            reply_markup=InlineKeyboardMarkup(btn_rows),
-        )
-    ]
+    # ── Thumbnail / icon per file type ───────────────────────────────────
+    _THUMB = {
+        "video":    "https://i.imgur.com/9ZFxHe0.png",
+        "audio":    "https://i.imgur.com/cLkMsCx.png",
+        "image":    None,   # will use stream_link directly
+        "document": "https://i.imgur.com/7EtMuYs.png",
+    }
+    thumb_url = _THUMB.get(file_type, _THUMB["document"])
+
+    if file_type == "image":
+        # For images use InlineQueryResultPhoto so the real image is shown
+        results = [
+            InlineQueryResultPhoto(
+                photo_url=stream_link,
+                thumb_url=stream_link,
+                title=file_data["file_name"],
+                description=f"{fmt_size} • {file_type}",
+                caption=text,
+                reply_markup=InlineKeyboardMarkup(btn_rows),
+            )
+        ]
+    else:
+        results = [
+            InlineQueryResultArticle(
+                title=file_data["file_name"],
+                description=f"{fmt_size} • {file_type}",
+                thumb_url=thumb_url,
+                thumb_width=64,
+                thumb_height=64,
+                input_message_content=InputTextMessageContent(
+                    message_text=text,
+                    disable_web_page_preview=True,
+                ),
+                reply_markup=InlineKeyboardMarkup(btn_rows),
+            )
+        ]
 
     await inline_query.answer(results=results, cache_time=30)
 

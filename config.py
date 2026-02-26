@@ -76,15 +76,20 @@ class Config:
                 "public_bot":     os.environ.get("PUBLIC_BOT", "False").lower() == "true",
                 # Renamed: max_telegram_size → max_file_size
                 "max_file_size":  int(os.environ.get("MAX_TELEGRAM_SIZE", 4294967296)),
+                "auto_delete":     False,
+                "auto_delete_time": 300,
             }
             await db.config.insert_one(doc)
-            logger.info("config created in db")
+            logger.warning("⚠️ ᴄᴏɴꜰɪɢ ɴᴏᴛ ꜰᴏᴜɴᴅ ɪɴ ᴅʙ — ᴀᴘᴘʟʏɪɴɢ ꜰʀᴇꜱʜ ᴄᴏɴꜰɪɢ ᴠᴀʟᴜᴇꜱ")
+            logger.info("✅ ᴄᴏɴꜰɪɢ ᴄʀᴇᴀᴛᴇᴅ & ꜰᴜʟʟʏ ᴛᴜɴᴇᴅ ɪɴ ᴅʙ")
         else:
             defaults = {
-                "bandwidth_mode": True,
-                "fsub_mode":      doc.get("fsub_mode", False),
-                "fsub_chat_id":   doc.get("fsub_chat_id", 0),
-                "fsub_inv_link":  doc.get("fsub_inv_link", ""),
+                "bandwidth_mode":   True,
+                "fsub_mode":        doc.get("fsub_mode", False),
+                "fsub_chat_id":     doc.get("fsub_chat_id", 0),
+                "fsub_inv_link":    doc.get("fsub_inv_link", ""),
+                "auto_delete":      False,
+                "auto_delete_time": 300,
             }
             # Migrate old key name max_telegram_size → max_file_size
             if "max_telegram_size" in doc and "max_file_size" not in doc:
@@ -96,9 +101,10 @@ class Config:
                     {"$set": missing},
                 )
                 doc.update(missing)
-                logger.info("migrated config — added fields: %s", list(missing.keys()))
-            logger.info("config loaded from db")
+                logger.info("✨ ᴄᴏɴꜰɪɢ ᴍɪɢʀᴀᴛᴇᴅ — ᴀᴅᴅᴇᴅ ꜰɪᴇʟᴅꜱ: %s", list(missing.keys()))
+            logger.info("📥 ᴄᴏɴꜰɪɢ ꜰᴏᴜɴᴅ & ᴇɴʜᴀɴᴄᴇᴅ ꜰᴏʀ ᴜꜱᴇ")
         cls._data = doc
+        logger.info("✨ ᴄᴏɴꜰɪɢ ɪꜱ ʟɪᴠᴇ ᴀɴᴅ ᴛᴜɴᴇᴅ ᴛᴏ ᴘᴇʀꜰᴇᴄᴛɪᴏɴ")
 
     @classmethod
     async def update(cls, db, updates: dict):

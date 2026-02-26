@@ -19,6 +19,15 @@ from helper import small_caps, format_size, escape_markdown, format_uptime, huma
 logger = logging.getLogger(__name__)
 
 
+def _fmt_delete_time(seconds: int) -> str:
+    """Return a human-readable auto-delete time string."""
+    if seconds < 60:
+        return f"{seconds}s"
+    if seconds < 3600:
+        return f"{seconds // 60}m"
+    return f"{seconds // 3600}h"
+
+
 # ════════════════════════════════════════════════════════════════════════════ #
 #  Settings panel helper                                                       #
 # ════════════════════════════════════════════════════════════════════════════ #
@@ -28,26 +37,48 @@ async def show_panel(client: Client, source, panel_type: str):
     msg    = source.message if isinstance(source, CallbackQuery) else source
 
     if panel_type == "main_panel":
-        max_bw    = Config.get("max_bandwidth", 107374182400)
-        bw_toggle = Config.get("bandwidth_mode", True)
+        max_bw       = Config.get("max_bandwidth", 107374182400)
+        bw_toggle    = Config.get("bandwidth_mode", True)
+        ad_toggle    = Config.get("auto_delete", False)
+        ad_time      = Config.get("auto_delete_time", 300)
         text = (
             "✨ **Bᴏᴛ Sᴇᴛᴛɪɴɢꜱ Pᴀɴᴇʟ** ✨\n\n"
-            f"📡 **Bᴀɴᴅᴡɪᴅᴛʜ**  : {'🟢 ᴀᴄᴛɪᴠᴇ' if bw_toggle else '🔴 ɪɴᴀᴄᴛɪᴠᴇ'} | `{format_size(max_bw)}`\n"
-            f"👥 **Sᴜᴅᴏ Uꜱᴇʀꜱ** : ᴍᴀɴᴀɢᴇ ᴀᴄᴄᴇꜱꜱ\n"
-            f"🤖 **Bᴏᴛ Mᴏᴅᴇ**  : {'🟢 ᴘᴜʙʟɪᴄ' if config.get('public_bot') else '🔴 ᴘʀɪᴠᴀᴛᴇ'}\n"
-            f"📢 **Fᴏʀᴄᴇ Sᴜʙ** : {'🟢 ᴀᴄᴛɪᴠᴇ' if config.get('fsub_mode') else '🔴 ɪɴᴀᴄᴛɪᴠᴇ'}\n\n"
+            f"📡 **Bᴀɴᴅᴡɪᴅᴛʜ**    : {'🟢 ᴀᴄᴛɪᴠᴇ' if bw_toggle else '🔴 ɪɴᴀᴄᴛɪᴠᴇ'} | `{format_size(max_bw)}`\n"
+            f"🗑️ **Aᴜᴛᴏ Dᴇʟᴇᴛᴇ**  : {'🟢 ᴀᴄᴛɪᴠᴇ' if ad_toggle else '🔴 ɪɴᴀᴄᴛɪᴠᴇ'} | `{_fmt_delete_time(ad_time)}`\n"
+            f"👥 **Sᴜᴅᴏ Uꜱᴇʀꜱ**   : ᴍᴀɴᴀɢᴇ ᴀᴄᴄᴇꜱꜱ\n"
+            f"🤖 **Bᴏᴛ Mᴏᴅᴇ**    : {'🟢 ᴘᴜʙʟɪᴄ' if config.get('public_bot') else '🔴 ᴘʀɪᴠᴀᴛᴇ'}\n"
+            f"📢 **Fᴏʀᴄᴇ Sᴜʙ**   : {'🟢 ᴀᴄᴛɪᴠᴇ' if config.get('fsub_mode') else '🔴 ɪɴᴀᴄᴛɪᴠᴇ'}\n\n"
             "👇 ᴄʜᴏᴏꜱᴇ ᴀ ᴄᴀᴛᴇɢᴏʀʏ ᴛᴏ ᴄᴏɴꜰɪɢᴜʀᴇ."
         )
         buttons = InlineKeyboardMarkup([
             [
-                InlineKeyboardButton("📡 ʙᴀɴᴅᴡɪᴅᴛʜ",  callback_data="settings_bandwidth"),
-                InlineKeyboardButton("👥 ꜱᴜᴅᴏ ᴜꜱᴇʀꜱ", callback_data="settings_sudo"),
+                InlineKeyboardButton("📡 ʙᴀɴᴅᴡɪᴅᴛʜ",    callback_data="settings_bandwidth"),
+                InlineKeyboardButton("🗑️ ᴀᴜᴛᴏ ᴅᴇʟᴇᴛᴇ",  callback_data="settings_autodelete"),
             ],
             [
-                InlineKeyboardButton("🤖 ʙᴏᴛ ᴍᴏᴅᴇ",   callback_data="settings_botmode"),
-                InlineKeyboardButton("📢 ꜰᴏʀᴄᴇ ꜱᴜʙ",  callback_data="settings_fsub"),
+                InlineKeyboardButton("👥 ꜱᴜᴅᴏ ᴜꜱᴇʀꜱ",   callback_data="settings_sudo"),
+                InlineKeyboardButton("🤖 ʙᴏᴛ ᴍᴏᴅᴇ",    callback_data="settings_botmode"),
+            ],
+            [
+                InlineKeyboardButton("📢 ꜰᴏʀᴄᴇ ꜱᴜʙ",   callback_data="settings_fsub"),
             ],
             [InlineKeyboardButton("❌ ᴄʟᴏꜱᴇ", callback_data="settings_close")],
+        ])
+
+    elif panel_type == "autodelete_panel":
+        ad_toggle = Config.get("auto_delete", False)
+        ad_time   = Config.get("auto_delete_time", 300)
+        text = (
+            "🗑️ **Aᴜᴛᴏ Dᴇʟᴇᴛᴇ Sᴇᴛᴛɪɴɢꜱ** 🗑️\n\n"
+            f"⚡ **Mᴏᴅᴇ**   : {'🟢 ᴀᴄᴛɪᴠᴇ' if ad_toggle else '🔴 ɪɴᴀᴄᴛɪᴠᴇ'}\n"
+            f"⏱️ **Tɪᴍᴇʀ**  : `{_fmt_delete_time(ad_time)}`\n\n"
+            "ᴡʜᴇɴ ᴇɴᴀʙʟᴇᴅ, ʙᴏᴛ ʀᴇꜱᴘᴏɴꜱᴇ ᴍᴇꜱꜱᴀɢᴇꜱ \n"
+            "ᴀʀᴇ ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ ᴅᴇʟᴇᴛᴇᴅ ᴀꜰᴛᴇʀ ᴛʜᴇ ᴛɪᴍᴇʀ."
+        )
+        buttons = InlineKeyboardMarkup([
+            [InlineKeyboardButton("⚡ ᴛᴏɢɢʟᴇ",         callback_data="toggle_autodelete")],
+            [InlineKeyboardButton("⏱️ ꜱᴇᴛ ᴛɪᴍᴇʀ",      callback_data="set_autodelete_time")],
+            [InlineKeyboardButton("⬅️ ʙᴀᴄᴋ",           callback_data="settings_back")],
         ])
 
     elif panel_type == "bandwidth_panel":
@@ -213,11 +244,12 @@ async def settings_callback(client: Client, callback: CallbackQuery):
         return
 
     panel_nav = {
-        "settings_bandwidth": ("bandwidth_panel", "📡 ʙᴀɴᴅᴡɪᴅᴛʜ ꜱᴇᴛᴛɪɴɢꜱ"),
-        "settings_sudo":      ("sudo_panel",      "👥 ꜱᴜᴅᴏ ᴜꜱᴇʀꜱ"),
-        "settings_botmode":   ("botmode_panel",   "🤖 ʙᴏᴛ ᴍᴏᴅᴇ ꜱᴇᴛᴛɪɴɢꜱ"),
-        "settings_fsub":      ("fsub_panel",      "📌 ꜰᴏʀᴄᴇ ꜱᴜʙ ꜱᴇᴛᴛɪɴɢꜱ"),
-        "settings_back":      ("main_panel",      "⬅️ ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴍᴇɴᴜ"),
+        "settings_bandwidth":   ("bandwidth_panel",   "📡 ʙᴀɴᴅᴡɪᴅᴛʜ ꜱᴇᴛᴛɪɴɢꜱ"),
+        "settings_autodelete":  ("autodelete_panel",  "🗑️ ᴀᴜᴛᴏ ᴅᴇʟᴇᴛᴇ ꜱᴇᴛᴛɪɴɢꜱ"),
+        "settings_sudo":        ("sudo_panel",        "👥 ꜱᴜᴅᴏ ᴜꜱᴇʀꜱ"),
+        "settings_botmode":     ("botmode_panel",     "🤖 ʙᴏᴛ ᴍᴏᴅᴇ ꜱᴇᴛᴛɪɴɢꜱ"),
+        "settings_fsub":        ("fsub_panel",        "📌 ꜰᴏʀᴄᴇ ꜱᴜʙ ꜱᴇᴛᴛɪɴɢꜱ"),
+        "settings_back":        ("main_panel",        "⬅️ ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴍᴇɴᴜ"),
     }
     if data in panel_nav:
         panel, toast = panel_nav[data]
@@ -252,6 +284,13 @@ async def settings_callback(client: Client, callback: CallbackQuery):
         await callback.answer("✅ Fᴏʀᴄᴇ ꜱᴜʙ ᴛᴏɢɢʟᴇᴅ!", show_alert=True)
         return await show_panel(client, callback, "fsub_panel")
 
+    if data == "toggle_autodelete":
+        new_val = not config.get("auto_delete", False)
+        await Config.update(db.db, {"auto_delete": new_val})
+        state = "ᴀᴄᴛɪᴠᴇ" if new_val else "ɪɴᴀᴄᴛɪᴠᴇ"
+        await callback.answer(f"✅ Aᴜᴛᴏ Dᴇʟᴇᴛᴇ {state}!", show_alert=True)
+        return await show_panel(client, callback, "autodelete_panel")
+
     # ── Bandwidth limit ───────────────────────────────────────────────────
     if data == "set_bandwidth_limit":
         text = await ask_input(
@@ -272,6 +311,30 @@ async def settings_callback(client: Client, callback: CallbackQuery):
         await Config.update(db.db, {"max_bandwidth": new_limit})
         await callback.answer(f"✅ Lɪᴍɪᴛ ꜱᴇᴛ ᴛᴏ {format_size(new_limit)}!", show_alert=True)
         return await show_panel(client, callback, "bandwidth_panel")
+
+    # ── Auto-delete timer ─────────────────────────────────────────────────
+    if data == "set_autodelete_time":
+        text = await ask_input(
+            client, callback.from_user.id,
+            "⏱️ **Sᴇɴᴅ ᴀᴜᴛᴏ-ᴅᴇʟᴇᴛᴇ ᴛɪᴍᴇ ɪɴ ꜱᴇᴄᴏɴᴅꜱ**\n\n"
+            "ᴇxᴀᴍᴘʟᴇꜱ:\n"
+            "`60`   — 1 ᴍɪɴᴜᴛᴇ\n"
+            "`300`  — 5 ᴍɪɴᴜᴛᴇꜱ\n"
+            "`600`  — 10 ᴍɪɴᴜᴛᴇꜱ\n"
+            "`3600` — 1 ʜᴏᴜʀ\n\n"
+            "Sᴇɴᴅ `0` ᴛᴏ ʀᴇꜱᴇᴛ ᴛᴏ 5 ᴍɪɴᴜᴛᴇꜱ (300ꜱ).",
+        )
+        if text is None:
+            return
+        if not text.isdigit():
+            await callback.answer("❌ Iɴᴠᴀʟɪᴅ ɴᴜᴍʙᴇʀ!", show_alert=True)
+            return
+        new_time = int(text) or 300
+        await Config.update(db.db, {"auto_delete_time": new_time})
+        await callback.answer(
+            f"✅ Tɪᴍᴇʀ ꜱᴇᴛ ᴛᴏ {_fmt_delete_time(new_time)}!", show_alert=True
+        )
+        return await show_panel(client, callback, "autodelete_panel")
 
     # ── Sudo add ──────────────────────────────────────────────────────────
     if data == "sudo_add":
