@@ -74,7 +74,6 @@ class Config:
                 "max_bandwidth":  int(os.environ.get("MAX_BANDWIDTH", 107374182400)),
                 "bandwidth_used": 0,
                 "public_bot":     os.environ.get("PUBLIC_BOT", "False").lower() == "true",
-                # Renamed: max_telegram_size → max_file_size
                 "max_file_size":  int(os.environ.get("MAX_TELEGRAM_SIZE", 4294967296)),
                 "auto_delete":     False,
                 "auto_delete_time": 300,
@@ -91,9 +90,6 @@ class Config:
                 "auto_delete":      False,
                 "auto_delete_time": 300,
             }
-            # Migrate old key name max_telegram_size → max_file_size
-            if "max_telegram_size" in doc and "max_file_size" not in doc:
-                defaults["max_file_size"] = doc["max_telegram_size"]
             missing = {k: v for k, v in defaults.items() if k not in doc}
             if missing:
                 await db.config.update_one(
@@ -117,9 +113,6 @@ class Config:
 
     @classmethod
     def get(cls, key, default=None):
-        # Transparently redirect legacy key → new key
-        if key == "max_telegram_size":
-            key = "max_file_size"
         return cls._data.get(key, default)
 
     @classmethod
