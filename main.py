@@ -82,7 +82,6 @@ async def main() -> None:
     await database.init_db()
     db_instance.set(database)
     await Config.load(database.db)
-    logger.info("✅  ᴄᴏɴꜰɪɢ ᴄʀᴇᴀᴛᴇᴅ & ꜰᴜʟʟʏ ᴛᴜɴᴇᴅ ɪɴ ᴅʙ")
 
     #Bot
     logger.info("🤖  ᴄᴏɴɴᴇᴄᴛɪɴɢ ʙᴏᴛ ᴛᴏ ᴛᴇʟᴇɢʀᴀᴍ…")
