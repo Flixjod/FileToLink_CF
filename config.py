@@ -9,9 +9,6 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# Default bot identity constants
-DEFAULT_BOT_NAME     = "Fɪʟᴇ Sᴛʀᴇᴀᴍ Bᴏᴛ"
-DEFAULT_BOT_USERNAME = "FileStreamRo_Bot"
 
 
 class Config:
@@ -27,9 +24,9 @@ class Config:
     FILE_TYPE_IMAGE    = "image"
     FILE_TYPE_DOCUMENT = "document"
 
-    BOT_USERNAME = DEFAULT_BOT_USERNAME  # fallback until bot.start() resolves real username
-    BOT_NAME     = DEFAULT_BOT_NAME      # fallback until bot.start() resolves real name
-    UPTIME: float = 0.0                  # set once at startup (epoch seconds)
+    BOT_USERNAME = "FileStreamRo_Bot"
+    BOT_NAME     = Fɪʟᴇ Sᴛʀᴇᴀᴍ Bᴏᴛ"
+    UPTIME: float = 0.0
 
     OWNER_ID = list(
         {1008848605} | set(map(int, os.environ.get("OWNER_ID", "").split(",")))
@@ -41,13 +38,9 @@ class Config:
 
     LOGS_CHAT_ID = int(os.environ.get("LOGS_CHAT_ID", "0"))
 
-    # Renamed: DUMP_CHAT_ID → FLOG_CHAT_ID  (support legacy env var as fallback)
     FLOG_CHAT_ID = int(
-        os.environ.get("FLOG_CHAT_ID")
-        or os.environ.get("DUMP_CHAT_ID", "0")
+        os.environ.get("FLOG_CHAT_ID"), "0")
     )
-    # Keep alias for any code that still uses the old name during migration
-    DUMP_CHAT_ID = FLOG_CHAT_ID
 
     Start_IMG = os.environ.get("Start_IMG", "")
     Files_IMG = os.environ.get("Files_IMG", "")
