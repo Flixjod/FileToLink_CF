@@ -65,6 +65,7 @@ class Config:
     async def load(cls, db):
         doc = await db.config.find_one({"key": "Settings"})
         if not doc:
+            logger.warning("⚠️ ᴄᴏɴꜰɪɢ ɴᴏᴛ ꜰᴏᴜɴᴅ ɪɴ ᴅʙ — ᴀᴘᴘʟˏɪɴɢ ꜰʀᴇꜱʜ ᴄᴏɴꜰɪɢ ᴠᴀʟᴜᴇꜱ")
             doc = {
                 "key":            "Settings",
                 "fsub_mode":      bool(cls.FSUB_ID),
@@ -78,7 +79,7 @@ class Config:
                 "max_file_size":  int(os.environ.get("MAX_TELEGRAM_SIZE", 4294967296)),
             }
             await db.config.insert_one(doc)
-            logger.info("config created in db")
+            logger.info("✅ ᴄᴏɴꜰɪɢ ᴄʀᴇᴀᴛᴇᴅ & ꜰᴜʟʟˏ ᴛᴜɴᴇᴅ ɪɴ ᴅʙ")
         else:
             defaults = {
                 "bandwidth_mode": True,
@@ -96,9 +97,10 @@ class Config:
                     {"$set": missing},
                 )
                 doc.update(missing)
-                logger.info("migrated config — added fields: %s", list(missing.keys()))
-            logger.info("config loaded from db")
+                logger.info("🔄 ᴄᴏɴꜰɪɢ ᴍɪɢʀᴀᴛᴇᴅ — ꜰɪᴇʟᴅꜱ ᴀᴅᴅᴇᴅ: %s", list(missing.keys()))
+            logger.info("📥 ᴄᴏɴꜰɪɢ ꜰᴏᴜɴᴅ & ᴇɴʜᴀɴᴄᴇᴅ ꜰᴏʀ ᴜꜱᴇ")
         cls._data = doc
+        logger.info("✨ ᴄᴏɴꜰɪɢ ɪꜱ ʟɪᴠᴇ ᴀɴᴅ ᴛᴜɴᴇᴅ ᴛᴏ ᴘᴇʀꜰᴇᴄᴛɪᴏɴ")
 
     @classmethod
     async def update(cls, db, updates: dict):
@@ -134,5 +136,5 @@ class Config:
         if missing:
             raise ValueError(f"missing required configuration: {', '.join(missing)}")
         if not Config.URL:
-            logger.warning("URL not set — download links will use localhost")
+            logger.warning("⚠️ ᴜʀʟ ɴᴏᴛ ꜱᴇᴛ — ᴅᴏᴡɴʟᴏᴀᴅ ʟɪɴᴋꜱ ᴡɪʟʟ ᴜꜱᴇ ʟᴏᴄᴀʟʜᴏꜱᴛ")
         return True

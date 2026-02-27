@@ -171,7 +171,9 @@ async def ask_input(
     ask_msg = None
     reply   = None
     try:
-        ask_msg = await client.send_message(user_id, prompt)
+        ask_msg = await client.send_message(user_id, prompt,
+            disable_web_page_preview=True,
+        )
         reply   = await asyncio.wait_for(future, timeout=timeout)
         return reply.text.strip() if reply and reply.text else None
     except asyncio.TimeoutError:
@@ -406,6 +408,8 @@ async def adminstats_command(client: Client, message: Message):
         chat_id=message.chat.id,
         text=text,
         reply_to_message_id=message.id,
+        disable_web_page_preview=True,
+    
     )
 
 
@@ -426,6 +430,8 @@ async def revoke_command(client: Client, message: Message):
                 "ᴜꜱᴀɢᴇ: `/revoke <file_hash>`"
             ),
             reply_to_message_id=message.id,
+            disable_web_page_preview=True,
+        
         )
         return
 
@@ -440,6 +446,8 @@ async def revoke_command(client: Client, message: Message):
                 "ᴛʜᴇ ꜰɪʟᴇ ᴅᴏᴇꜱɴ'ᴛ ᴇxɪꜱᴛ ᴏʀ ʜᴀꜱ ᴀʟʀᴇᴀᴅʏ ʙᴇᴇɴ ᴅᴇʟᴇᴛᴇᴅ."
             ),
             reply_to_message_id=message.id,
+            disable_web_page_preview=True,
+        
         )
         return
 
@@ -458,6 +466,8 @@ async def revoke_command(client: Client, message: Message):
             "ᴀʟʟ ʟɪɴᴋꜱ ʜᴀᴠᴇ ʙᴇᴇɴ ᴅᴇʟᴇᴛᴇᴅ."
         ),
         reply_to_message_id=message.id,
+        disable_web_page_preview=True,
+    
     )
 
 
@@ -483,6 +493,8 @@ async def revokeall_command(client: Client, message: Message):
                     "ᴜꜱᴀɢᴇ: `/revokeall <user_id>`"
                 ),
                 reply_to_message_id=message.id,
+                disable_web_page_preview=True,
+            
             )
             return
 
@@ -495,6 +507,8 @@ async def revokeall_command(client: Client, message: Message):
                 chat_id=message.chat.id,
                 text=f"📂 ɴᴏ ꜰɪʟᴇꜱ ꜰᴏᴜɴᴅ ꜰᴏʀ ᴜꜱᴇʀ `{target_id}`.",
                 reply_to_message_id=message.id,
+                disable_web_page_preview=True,
+            
             )
             return
 
@@ -520,6 +534,8 @@ async def revokeall_command(client: Client, message: Message):
                     ),
                 ]
             ]),
+            disable_web_page_preview=True,
+        
         )
         return
 
@@ -532,6 +548,8 @@ async def revokeall_command(client: Client, message: Message):
             chat_id=message.chat.id,
             text="📂 ɴᴏ ꜰɪʟᴇꜱ ᴛᴏ ᴅᴇʟᴇᴛᴇ.",
             reply_to_message_id=message.id,
+            disable_web_page_preview=True,
+        
         )
         return
 
@@ -550,6 +568,8 @@ async def revokeall_command(client: Client, message: Message):
                 InlineKeyboardButton("❌ ᴄᴀɴᴄᴇʟ",  callback_data="revokeall_cancel"),
             ]
         ]),
+        disable_web_page_preview=True,
+    
     )
 
 
@@ -561,14 +581,18 @@ async def revokeall_callback(client: Client, callback: CallbackQuery):
     if callback.data == "revokeall_cancel":
         await callback.answer("❌ ᴄᴀɴᴄᴇʟʟᴇᴅ.", show_alert=False)
         try:
-            await callback.message.edit_text("❌ **Revokeall cancelled.**")
+            await callback.message.edit_text("❌ **Revokeall cancelled.**",
+                disable_web_page_preview=True,
+            )
         except Exception:
             pass
         return
 
     await callback.answer("🗑️ ᴅᴇʟᴇᴛɪɴɢ ᴀʟʟ ꜰɪʟᴇꜱ…", show_alert=False)
     try:
-        await callback.message.edit_text("🗑️ ᴅᴇʟᴇᴛɪɴɢ ᴀʟʟ ꜰɪʟᴇꜱ…")
+        await callback.message.edit_text("🗑️ ᴅᴇʟᴇᴛɪɴɢ ᴀʟʟ ꜰɪʟᴇꜱ…",
+            disable_web_page_preview=True,
+        )
     except Exception:
         pass
 
@@ -576,7 +600,9 @@ async def revokeall_callback(client: Client, callback: CallbackQuery):
     try:
         await callback.message.edit_text(
             f"🗑️ **All files deleted!**\n\n"
-            f"ᴅᴇʟᴇᴛᴇᴅ `{deleted_count}` ꜰɪʟᴇꜱ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ."
+            f"ᴅᴇʟᴇᴛᴇᴅ `{deleted_count}` ꜰɪʟᴇꜱ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ.",
+            disable_web_page_preview=True,
+        
         )
     except Exception:
         pass
@@ -593,7 +619,9 @@ async def revokeuser_confirm_callback(client: Client, callback: CallbackQuery):
     await callback.answer("🗑️ ᴅᴇʟᴇᴛɪɴɢ…", show_alert=False)
     try:
         await callback.message.edit_text(
-            f"🗑️ ᴅᴇʟᴇᴛɪɴɢ ᴀʟʟ ꜰɪʟᴇꜱ ꜰᴏʀ ᴜꜱᴇʀ `{target_id}`…"
+            f"🗑️ ᴅᴇʟᴇᴛɪɴɢ ᴀʟʟ ꜰɪʟᴇꜱ ꜰᴏʀ ᴜꜱᴇʀ `{target_id}`…",
+            disable_web_page_preview=True,
+        
         )
     except Exception:
         pass
@@ -603,7 +631,9 @@ async def revokeuser_confirm_callback(client: Client, callback: CallbackQuery):
         await callback.message.edit_text(
             f"🗑️ **Done!**\n\n"
             f"ᴅᴇʟᴇᴛᴇᴅ `{deleted_count}` ꜰɪʟᴇꜱ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ "
-            f"ꜰᴏʀ ᴜꜱᴇʀ `{target_id}`."
+            f"ꜰᴏʀ ᴜꜱᴇʀ `{target_id}`.",
+            disable_web_page_preview=True,
+        
         )
     except Exception:
         pass
@@ -625,6 +655,8 @@ async def logs_command(client: Client, message: Message):
             chat_id=message.chat.id,
             text="❌ **Log file not found or empty.**",
             reply_to_message_id=message.id,
+            disable_web_page_preview=True,
+        
         )
         return
 
@@ -639,6 +671,8 @@ async def logs_command(client: Client, message: Message):
                 f"📦 **Size:** `{human_size(os.path.getsize(log_file))}`"
             ),
             reply_to_message_id=message.id,
+            disable_web_page_preview=True,
+        
         )
     except Exception as exc:
         logger.error("logs_command send document error: %s", exc)
@@ -649,6 +683,8 @@ async def logs_command(client: Client, message: Message):
                 chat_id=message.chat.id,
                 text=f"📋 **Bot Logs** *(last 4 000 chars)*\n\n```\n{tail}\n```",
                 reply_to_message_id=message.id,
+                disable_web_page_preview=True,
+            
             )
         except Exception as exc2:
             logger.error("logs_command fallback error: %s", exc2)
@@ -656,4 +692,6 @@ async def logs_command(client: Client, message: Message):
                 chat_id=message.chat.id,
                 text=f"❌ **Error reading logs:** `{exc2}`",
                 reply_to_message_id=message.id,
+                disable_web_page_preview=True,
+            
             )

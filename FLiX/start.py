@@ -40,6 +40,8 @@ async def start_command(client: Client, message: Message):
                     f"👤 **Username:** @{user.username or 'N/A'}\n"
                     f"📛 **Name:** `{full_name}`"
                 ),
+                disable_web_page_preview=True,
+            
             )
         except Exception as exc:
             logger.error("failed to log new user: %s", exc)
@@ -62,6 +64,8 @@ async def start_command(client: Client, message: Message):
                         "ᴛʜᴇ ꜰɪʟᴇ ʟɪɴᴋ ɪꜱ ɪɴᴠᴀʟɪᴅ ᴏʀ ʜᴀꜱ ʙᴇᴇɴ ᴅᴇʟᴇᴛᴇᴅ."
                     ),
                     reply_to_message_id=message.id,
+                    disable_web_page_preview=True,
+                
                 )
                 return
 
@@ -99,6 +103,8 @@ async def start_command(client: Client, message: Message):
                 text=text,
                 reply_to_message_id=message.id,
                 reply_markup=InlineKeyboardMarkup(btn_rows),
+                disable_web_page_preview=True,
+            
             )
 
         except Exception as exc:
@@ -107,6 +113,8 @@ async def start_command(client: Client, message: Message):
                 chat_id=message.chat.id,
                 text=f"❌ `{small_caps('error')}`: ɪɴᴠᴀʟɪᴅ ᴏʀ ᴇxᴘɪʀᴇᴅ ʟɪɴᴋ",
                 reply_to_message_id=message.id,
+                disable_web_page_preview=True,
+            
             )
         return
 
@@ -131,6 +139,8 @@ async def start_command(client: Client, message: Message):
                 caption=start_text,
                 reply_to_message_id=message.id,
                 reply_markup=InlineKeyboardMarkup(buttons),
+                disable_web_page_preview=True,
+            
             )
             return
         except Exception as exc:
@@ -141,6 +151,8 @@ async def start_command(client: Client, message: Message):
         text=start_text,
         reply_to_message_id=message.id,
         reply_markup=InlineKeyboardMarkup(buttons),
+        disable_web_page_preview=True,
+    
     )
 
 
@@ -163,6 +175,8 @@ async def help_command(client: Client, message: Message):
         reply_markup=InlineKeyboardMarkup([[
             InlineKeyboardButton(f"🏠 {small_caps('home')}", callback_data="start"),
         ]]),
+        disable_web_page_preview=True,
+    
     )
 
 
@@ -182,6 +196,8 @@ async def about_command(client: Client, message: Message):
         reply_markup=InlineKeyboardMarkup([[
             InlineKeyboardButton(f"🏠 {small_caps('home')}", callback_data="start"),
         ]]),
+        disable_web_page_preview=True,
+    
     )
 
 
@@ -197,7 +213,9 @@ async def cb_start(client: Client, callback: CallbackQuery):
         InlineKeyboardButton(f"📚 {small_caps('help')}",  callback_data="help"),
         InlineKeyboardButton(f"ℹ️ {small_caps('about')}", callback_data="about"),
     ]]
-    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons))
+    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons),
+        disable_web_page_preview=True,
+    )
     await callback.answer()
 
 
@@ -217,6 +235,8 @@ async def cb_help(client: Client, callback: CallbackQuery):
         reply_markup=InlineKeyboardMarkup([[
             InlineKeyboardButton(f"🏠 {small_caps('home')}", callback_data="start"),
         ]]),
+        disable_web_page_preview=True,
+    
     )
     await callback.answer()
 
@@ -234,5 +254,7 @@ async def cb_about(client: Client, callback: CallbackQuery):
         reply_markup=InlineKeyboardMarkup([[
             InlineKeyboardButton(f"🏠 {small_caps('home')}", callback_data="start"),
         ]]),
+        disable_web_page_preview=True,
+    
     )
     await callback.answer()

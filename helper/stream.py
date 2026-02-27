@@ -363,7 +363,8 @@ class StreamingService:
         response = web.StreamResponse(status=status, headers=headers)
         await response.prepare(request)
 
-        # ── Stream chunks ──────────────────────────────────────────────────
+        # ── Stream chunks — count only bytes actually sent ─────────────────
+        bytes_sent = 0
         try:
             async for chunk in self.streamer.yield_file(
                 file_id,
@@ -374,12 +375,15 @@ class StreamingService:
                 CHUNK_SIZE,
             ):
                 await response.write(chunk)
+                bytes_sent += len(chunk)
         except Exception as exc:
             logger.error("streaming error: msg=%s err=%s", message_id, exc)
             # Can't send HTTP error once streaming started; just close the connection
 
         await response.write_eof()
 
-        asyncio.create_task(self.db.track_bandwidth(message_id, req_length))
+        # Only record the bytes we actually delivered, not the full requested range
+        if bytes_sent > 0:
+            asyncio.create_task(self.db.track_bandwidth(message_id, bytes_sent))
 
         return response

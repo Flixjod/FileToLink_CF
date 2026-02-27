@@ -7,6 +7,10 @@ from pyrogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     InlineQueryResultArticle,
+    InlineQueryResultPhoto,
+    InlineQueryResultDocument,
+    InlineQueryResultVideo,
+    InlineQueryResultAudio,
     InputTextMessageContent,
     Message,
 )
@@ -46,6 +50,8 @@ async def file_handler(client: Client, message: Message):
             chat_id=message.chat.id,
             text=f"❌ **{small_caps('access forbidden')}**\n\n📡 ᴛʜɪꜱ ɪꜱ ᴀ ᴘʀɪᴠᴀᴛᴇ ʙᴏᴛ.",
             reply_to_message_id=message.id,
+            disable_web_page_preview=True,
+        
         )
         return
 
@@ -59,6 +65,8 @@ async def file_handler(client: Client, message: Message):
                 "ᴘʟᴇᴀꜱᴇ ᴄᴏɴᴛᴀᴄᴛ ᴛʜᴇ ᴀᴅᴍɪɴɪꜱᴛʀᴀᴛᴏʀ."
             ),
             reply_to_message_id=message.id,
+            disable_web_page_preview=True,
+        
         )
         return
 
@@ -91,6 +99,8 @@ async def file_handler(client: Client, message: Message):
             chat_id=message.chat.id,
             text="❌ ᴜɴꜱᴜᴘᴘᴏʀᴛᴇᴅ ꜰɪʟᴇ ᴛʏᴘᴇ",
             reply_to_message_id=message.id,
+            disable_web_page_preview=True,
+        
         )
         return
 
@@ -104,6 +114,8 @@ async def file_handler(client: Client, message: Message):
                 f"⚠️ **{small_caps('max allowed')}:** `{format_size(max_file_size)}`"
             ),
             reply_to_message_id=message.id,
+            disable_web_page_preview=True,
+        
         )
         return
 
@@ -111,6 +123,8 @@ async def file_handler(client: Client, message: Message):
         chat_id=message.chat.id,
         text="⏳ ᴘʀᴏᴄᴇꜱꜱɪɴɢ ʏᴏᴜʀ ꜰɪʟᴇ…",
         reply_to_message_id=message.id,
+        disable_web_page_preview=True,
+    
     )
 
     try:
@@ -123,7 +137,9 @@ async def file_handler(client: Client, message: Message):
         await processing_msg.edit_text(
             f"❌ **{small_caps('failed to process file')}**\n\n"
             "ᴄᴏᴜʟᴅ ɴᴏᴛ ꜰᴏʀᴡᴀʀᴅ ꜰɪʟᴇ ᴛᴏ ꜱᴛᴏʀᴀɢᴇ.\n"
-            f"`{exc}`"
+            f"`{exc}`",
+            disable_web_page_preview=True,
+        
         )
         return
 
@@ -142,7 +158,9 @@ async def file_handler(client: Client, message: Message):
         await processing_msg.edit_text(
             f"❌ **{small_caps('file processing failed')}**\n\n"
             "ꜰɪʟᴇ ᴄᴏᴜʟᴅ ɴᴏᴛ ʙᴇ ʀᴇᴀᴅ ꜰʀᴏᴍ ᴛᴇʟᴇɢʀᴀᴍ ᴀꜰᴛᴇʀ ꜰᴏʀᴡᴀʀᴅɪɴɢ.\n"
-            "ᴛʜɪꜱ ᴜꜱᴜᴀʟʟʏ ʜᴀᴘᴘᴇɴꜱ ᴡɪᴛʜ ᴠᴇʀʏ ʟᴀʀɢᴇ ꜰɪʟᴇꜱ. ᴘʟᴇᴀꜱᴇ ᴛʀʏ ᴀɢᴀɪɴ."
+            "ᴛʜɪꜱ ᴜꜱᴜᴀʟʟʏ ʜᴀᴘᴘᴇɴꜱ ᴡɪᴛʜ ᴠᴇʀʏ ʟᴀʀɢᴇ ꜰɪʟᴇꜱ. ᴘʟᴇᴀꜱᴇ ᴛʀʏ ᴀɢᴀɪɴ.",
+            disable_web_page_preview=True,
+        
         )
         return
 
@@ -217,6 +235,8 @@ async def file_handler(client: Client, message: Message):
     await processing_msg.edit_text(
         text,
         reply_markup=InlineKeyboardMarkup(buttons),
+        disable_web_page_preview=True,
+    
     )
 
 
@@ -231,6 +251,8 @@ async def files_command(client: Client, message: Message):
                 chat_id=message.chat.id,
                 text="🚫 **Access Denied!**\n\n🔒 Only the bot owner can view other users' files.",
                 reply_to_message_id=message.id,
+                disable_web_page_preview=True,
+            
             )
             return
 
@@ -243,6 +265,8 @@ async def files_command(client: Client, message: Message):
                     "ᴜꜱᴀɢᴇ: `/files <user_id>`"
                 ),
                 reply_to_message_id=message.id,
+                disable_web_page_preview=True,
+            
             )
             return
 
@@ -259,6 +283,8 @@ async def files_command(client: Client, message: Message):
                     caption=caption,
                     reply_to_message_id=message.id,
                     reply_markup=markup,
+                    disable_web_page_preview=True,
+                
                 )
                 return
             except Exception as exc:
@@ -269,6 +295,8 @@ async def files_command(client: Client, message: Message):
             text=caption,
             reply_to_message_id=message.id,
             reply_markup=markup,
+            disable_web_page_preview=True,
+        
         )
         return
 
@@ -278,6 +306,8 @@ async def files_command(client: Client, message: Message):
             chat_id=message.chat.id,
             text=f"❌ **{small_caps('access forbidden')}**",
             reply_to_message_id=message.id,
+            disable_web_page_preview=True,
+        
         )
         return
 
@@ -293,6 +323,8 @@ async def files_command(client: Client, message: Message):
                 caption=caption,
                 reply_to_message_id=message.id,
                 reply_markup=markup,
+                disable_web_page_preview=True,
+            
             )
             return
         except Exception as exc:
@@ -303,6 +335,8 @@ async def files_command(client: Client, message: Message):
         text=caption,
         reply_to_message_id=message.id,
         reply_markup=markup,
+        disable_web_page_preview=True,
+    
     )
 
 
@@ -405,7 +439,9 @@ async def cb_user_files_page(client: Client, callback: CallbackQuery):
         client, user_id, page=page, owner_view=False
     )
     try:
-        await callback.message.edit_text(caption, reply_markup=markup)
+        await callback.message.edit_text(caption, reply_markup=markup,
+            disable_web_page_preview=True,
+        )
     except Exception:
         pass
     await callback.answer()
@@ -427,7 +463,9 @@ async def cb_own_files_page(client: Client, callback: CallbackQuery):
         client, target_id, page=page, owner_view=True
     )
     try:
-        await callback.message.edit_text(caption, reply_markup=markup)
+        await callback.message.edit_text(caption, reply_markup=markup,
+            disable_web_page_preview=True,
+        )
     except Exception:
         pass
     await callback.answer()
@@ -478,7 +516,9 @@ async def cb_myfile(client: Client, callback: CallbackQuery):
         f"📊 **{small_caps('type')}:** `{file_data['file_type']}`\n"
         f"📅 **{small_caps('uploaded')}:** `{file_data['created_at'].strftime('%Y-%m-%d')}`"
     )
-    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons))
+    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons),
+        disable_web_page_preview=True,
+    )
     await callback.answer()
 
 
@@ -543,7 +583,9 @@ async def cb_owner_view_file(client: Client, callback: CallbackQuery):
         f"👤 **{small_caps('owner')}:** `{file_data.get('user_id', 'N/A')}`\n"
         f"📅 **{small_caps('uploaded')}:** `{file_data['created_at'].strftime('%Y-%m-%d')}`"
     )
-    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons))
+    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons),
+        disable_web_page_preview=True,
+    )
     await callback.answer()
 
 
@@ -583,6 +625,8 @@ async def cb_owner_revoke_file(client: Client, callback: CallbackQuery):
                 callback_data=f"ownfiles_{target_id}_1",
             )],
         ]),
+        disable_web_page_preview=True,
+    
     )
     await callback.answer("✅ ꜰɪʟᴇ ʀᴇᴠᴏᴋᴇᴅ!", show_alert=False)
 
@@ -600,7 +644,9 @@ async def cb_owner_back(client: Client, callback: CallbackQuery):
         target_id, page=1, owner_view=True
     )
     try:
-        await callback.message.edit_text(caption, reply_markup=markup)
+        await callback.message.edit_text(caption, reply_markup=markup,
+            disable_web_page_preview=True,
+        )
     except Exception:
         pass
     await callback.answer()
@@ -642,7 +688,9 @@ async def cb_view_file(client: Client, callback: CallbackQuery):
         f"📊 **{small_caps('type')}:** `{file_data['file_type']}`\n"
         f"📅 **{small_caps('uploaded')}:** `{file_data['created_at'].strftime('%Y-%m-%d')}`"
     )
-    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons))
+    await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons),
+        disable_web_page_preview=True,
+    )
     await callback.answer()
 
 
@@ -666,6 +714,8 @@ async def cb_revoke(client: Client, callback: CallbackQuery):
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton(f"⬅️ {small_caps('back to files')}", callback_data="userfiles_1")],
         ]),
+        disable_web_page_preview=True,
+    
     )
     await callback.answer("✅ ꜰɪʟᴇ ʀᴇᴠᴏᴋᴇᴅ!", show_alert=False)
 
@@ -678,7 +728,9 @@ async def cb_back_to_files(client: Client, callback: CallbackQuery):
         client, user_id, page=1, owner_view=False
     )
     try:
-        await callback.message.edit_text(caption, reply_markup=markup)
+        await callback.message.edit_text(caption, reply_markup=markup,
+            disable_web_page_preview=True,
+        )
     except Exception:
         pass
     await callback.answer()
@@ -714,6 +766,8 @@ async def cb_send_file(client: Client, callback: CallbackQuery):
             await client.send_message(
                 chat_id=user_id,
                 text=f"❌ **{small_caps('could not send file')}**\n\n`{exc}`",
+                disable_web_page_preview=True,
+            
             )
         except Exception:
             pass
@@ -755,6 +809,8 @@ async def inline_query_handler(client: Client, inline_query):
     is_streamable = file_type in STREAMABLE_TYPES
     safe_name     = escape_markdown(file_data["file_name"])
     fmt_size      = format_size(file_data["file_size"])
+    mime_type     = file_data.get("mime_type", "") or ""
+    tg_file_id    = file_data.get("telegram_file_id", "")
 
     text = (
         f"📂 **{small_caps('file')}:** `{safe_name}`\n"
@@ -778,17 +834,51 @@ async def inline_query_handler(client: Client, inline_query):
     btn_rows.append([
         InlineKeyboardButton(f"📩 {small_caps('get file via bot')}", url=telegram_link),
     ])
+    markup = InlineKeyboardMarkup(btn_rows)
 
-    results = [
-        InlineQueryResultArticle(
+    # ── Build the inline result with file thumbnail ─────────────────────────
+    # Attempt to get thumbnail URL from Telegram for image/video files.
+    # For non-image types we still show a type-appropriate thumb_url.
+    THUMB_VIDEO    = "https://telegra.ph/file/3a85c1478f2a0b8d0b6c2.jpg"  # generic video icon
+    THUMB_AUDIO    = "https://telegra.ph/file/09af9f7d7dc47bb3e4f2f.jpg"  # generic audio icon
+    THUMB_DOCUMENT = "https://telegra.ph/file/1a2b3c4d5e6f7a8b9c0d1.jpg"  # generic doc icon
+
+    result_item = None
+
+    if file_type == "image" and tg_file_id:
+        # Use InlineQueryResultPhoto so the actual image is shown as thumbnail
+        try:
+            result_item = InlineQueryResultPhoto(
+                photo_url=stream_link,
+                thumb_url=stream_link,
+                title=file_data["file_name"],
+                description=f"{fmt_size} • image",
+                caption=text,
+                reply_markup=markup,
+            )
+        except Exception as exc:
+            logger.debug("InlineQueryResultPhoto build failed: %s", exc)
+
+    if result_item is None:
+        # Fallback: Article with a type-specific thumbnail
+        if file_type == "video":
+            thumb = THUMB_VIDEO
+        elif file_type == "audio":
+            thumb = THUMB_AUDIO
+        else:
+            thumb = THUMB_DOCUMENT
+
+        result_item = InlineQueryResultArticle(
             title=file_data["file_name"],
             description=f"{fmt_size} • {file_type}",
             input_message_content=InputTextMessageContent(
                 message_text=text,
             ),
-            reply_markup=InlineKeyboardMarkup(btn_rows),
+            reply_markup=markup,
+            thumb_url=thumb,
+            thumb_width=48,
+            thumb_height=48,
         )
-    ]
 
-    await inline_query.answer(results=results, cache_time=30)
+    await inline_query.answer(results=[result_item], cache_time=30)
 

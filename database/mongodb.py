@@ -24,19 +24,46 @@ class Database:
         self.config     = self.db.config
 
     async def init_db(self):
+        """Create all required indexes only if they do not already exist."""
         try:
-            await self.files.create_index("file_id",    unique=True)
-            await self.files.create_index("message_id", unique=True)
-            await self.files.create_index("user_id")
-            await self.files.create_index("created_at")
-            await self.users.create_index("user_id",      unique=True)
-            await self.users.create_index("last_activity")
-            await self.bandwidth.create_index("date")
-            await self.sudo_users.create_index("user_id", unique=True)
-            logger.info("database indexes created")
+            # Helper: build set of existing index key-names for a collection
+            async def _existing(col):
+                info = await col.index_information()
+                # Each value has a 'key' list like [('field', 1), ...]
+                return {v['key'][0][0] for v in info.values() if v.get('key')}
+
+            # ── files collection ──────────────────────────────────────────────
+            files_idx = await _existing(self.files)
+            if 'file_id'    not in files_idx:
+                await self.files.create_index('file_id',    unique=True)
+            if 'message_id' not in files_idx:
+                await self.files.create_index('message_id', unique=True)
+            if 'user_id'    not in files_idx:
+                await self.files.create_index('user_id')
+            if 'created_at' not in files_idx:
+                await self.files.create_index('created_at')
+
+            # ── users collection ──────────────────────────────────────────────
+            users_idx = await _existing(self.users)
+            if 'user_id'       not in users_idx:
+                await self.users.create_index('user_id',      unique=True)
+            if 'last_activity' not in users_idx:
+                await self.users.create_index('last_activity')
+
+            # ── bandwidth collection ──────────────────────────────────────────
+            bw_idx = await _existing(self.bandwidth)
+            if 'date' not in bw_idx:
+                await self.bandwidth.create_index('date')
+
+            # ── sudo_users collection ─────────────────────────────────────────
+            sudo_idx = await _existing(self.sudo_users)
+            if 'user_id' not in sudo_idx:
+                await self.sudo_users.create_index('user_id', unique=True)
+
+            logger.info("✅ ᴅʙ ɪɴᴅᴇxᴇꜱ ʀᴇᴀᴅˏ ᴀʟʟ ɪɴꜱᴛᴀɴᴛ — ꜱᴄɪᴘᴘᴇᴅ ɴᴇᴡ ᴄʀᴇᴀᴛɪᴏɴ ᴏɴʟˏ")
             return True
         except Exception as e:
-            logger.error("database init error: %s", e)
+            logger.error("❌ ᴅʙ ɪɴɪᴛ ᴇʀʀᴏʀ: %s", e)
             return False
 
     async def add_file(self, file_data: Dict) -> bool:
@@ -179,10 +206,10 @@ class Database:
                 "first_used":    datetime.utcnow(),
                 "last_activity": datetime.utcnow(),
             })
-            logger.info("new user registered: %s", user_data["user_id"])
+            logger.info("👤 ɴᴇᴡ ᴜꜱᴇʀ ʀᴇɢɪꜱᴛᴇʀᴇᴅ: %s", user_data["user_id"])
             return True  # new user
         except Exception as e:
-            logger.error("register_user_on_start error: %s", e)
+            logger.error("❌ ʀᴇɢɪꜱᴛᴇʀ_ᴜꜱᴇʀ_ᴏɴ_ꜱᴛᴀʀᴛ ᴇʀʀᴏʀ: %s", e)
             return False
 
     async def get_user(self, user_id: str) -> Optional[Dict]:
