@@ -51,17 +51,25 @@ async def show_panel(client: Client, source, panel_type: str):
         ])
 
     elif panel_type == "bandwidth_panel":
-        max_bw    = Config.get("max_bandwidth", 107374182400)
-        bw_toggle = Config.get("bandwidth_mode", True)
+        max_bw        = Config.get("max_bandwidth",    107374182400)
+        max_file      = Config.get("max_file_size",    4294967296)
+        max_tg        = Config.get("max_telegram_size", 4294967296)
+        bw_toggle     = Config.get("bandwidth_mode", True)
         text = (
-            "💠 **Bᴀɴᴅᴡɪᴅᴛʜ Sᴇᴛᴛɪɴɢꜱ** 💠\n\n"
-            f"⚡ **Mᴏᴅᴇ**   : {'🟢 ᴀᴄᴛɪᴠᴇ' if bw_toggle else '🔴 ɪɴᴀᴄᴛɪᴠᴇ'}\n"
-            f"📊 **Lɪᴍɪᴛ** : `{format_size(max_bw)}`"
+            "💠 **Bᴀɴᴅᴡɪᴅᴛʜ & Fɪʟᴇ Sɪᴢᴇ Sᴇᴛᴛɪɴɢꜱ** 💠\n\n"
+            f"⚡ **Bᴡ Mᴏᴅᴇ**           : {'🟢 ᴀᴄᴛɪᴠᴇ' if bw_toggle else '🔴 ɪɴᴀᴄᴛɪᴠᴇ'}\n"
+            f"📊 **Bᴡ Lɪᴍɪᴛ**          : `{format_size(max_bw)}`\n\n"
+            f"📂 **Bᴏᴛ Fɪʟᴇ Sɪᴢᴇ Cᴀᴘ**  : `{format_size(max_file)}`\n"
+            f"🔒 **Tɢ API Sɪᴢᴇ Cᴀᴘ**   : `{format_size(max_tg)}`"
         )
         buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("⚡ ᴛᴏɢɢʟᴇ",      callback_data="toggle_bandwidth")],
-            [InlineKeyboardButton("✏️ ꜱᴇᴛ ʟɪᴍɪᴛ",  callback_data="set_bandwidth_limit")],
-            [InlineKeyboardButton("⬅️ ʙᴀᴄᴋ",        callback_data="settings_back")],
+            [InlineKeyboardButton("⚡ ᴛᴏɢɢʟᴇ ʙᴡ",          callback_data="toggle_bandwidth")],
+            [InlineKeyboardButton("✏️ ꜱᴇᴛ ʙᴡ ʟɪᴍɪᴛ",       callback_data="set_bandwidth_limit")],
+            [
+                InlineKeyboardButton("📂 ꜱᴇᴛ ꜰɪʟᴇ ꜱɪᴢᴇ ᴄᴀᴘ",  callback_data="set_max_file_size"),
+                InlineKeyboardButton("🔒 ꜱᴇᴛ ᴛɢ ꜱɪᴢᴇ ᴄᴀᴘ",    callback_data="set_max_telegram_size"),
+            ],
+            [InlineKeyboardButton("⬅️ ʙᴀᴄᴋ",               callback_data="settings_back")],
         ])
 
     elif panel_type == "sudo_panel":
@@ -273,6 +281,50 @@ async def settings_callback(client: Client, callback: CallbackQuery):
         new_limit = int(text) or 107374182400
         await Config.update(db.db, {"max_bandwidth": new_limit})
         await callback.answer(f"✅ Lɪᴍɪᴛ ꜱᴇᴛ ᴛᴏ {format_size(new_limit)}!", show_alert=True)
+        return await show_panel(client, callback, "bandwidth_panel")
+
+    # ── Bot file-size cap (max_file_size) ──────────────────────────────────
+    if data == "set_max_file_size":
+        text = await ask_input(
+            client, callback.from_user.id,
+            "📂 **Sᴇᴛ ʙᴏᴛ ꜰɪʟᴇ-ꜱɪᴢᴇ ᴄᴀᴘ ɪɴ ʙʏᴛᴇꜱ**\n\n"
+            "ᴛʜɪꜱ ɪꜱ ᴛʜᴇ ᴍᴀxɪᴍᴜᴍ ꜱɪᴢᴇ ᴀ ᴜꜱᴇʀ ᴄᴀɴ ᴜᴘʟᴏᴀᴅ ᴛᴏ ᴛʜɪꜱ ʙᴏᴛ.\n\n"
+            "ᴇxᴀᴍᴘʟᴇꜱ:\n"
+            "`4294967296` — 4 GB (ᴅᴇꜰᴀᴜʟᴛ)\n"
+            "`2147483648` — 2 GB\n"
+            "`1073741824` — 1 GB\n\n"
+            "Sᴇɴᴅ `0` ᴛᴏ ʀᴇꜱᴇᴛ ᴛᴏ 4 GB.",
+        )
+        if text is None:
+            return
+        if not text.isdigit():
+            await callback.answer("❌ Iɴᴠᴀʟɪᴅ ɴᴜᴍʙᴇʀ!", show_alert=True)
+            return
+        new_cap = int(text) or 4294967296
+        await Config.update(db.db, {"max_file_size": new_cap})
+        await callback.answer(f"✅ Bᴏᴛ ꜰɪʟᴇ ᴄᴀᴘ ꜱᴇᴛ ᴛᴏ {format_size(new_cap)}!", show_alert=True)
+        return await show_panel(client, callback, "bandwidth_panel")
+
+    # ── Telegram API size cap (max_telegram_size) ──────────────────────────
+    if data == "set_max_telegram_size":
+        text = await ask_input(
+            client, callback.from_user.id,
+            "🔒 **Sᴇᴛ Tᴇʟᴇɢʀᴀᴍ API ꜱɪᴢᴇ ᴄᴀᴘ ɪɴ ʙʏᴛᴇꜱ**\n\n"
+            "ᴛʜɪꜱ ɪꜱ ᴛʜᴇ ʜᴀʀᴅ Tᴇʟᴇɢʀᴀᴍ API ʟɪᴍɪᴛ (ɪɴꜰʀᴀꜱᴛʀᴜᴄᴛᴜʀᴇ ᴄᴀᴘ).\n"
+            "Dᴏ ɴᴏᴛ ᴇxᴄᴇᴇᴅ ᴡʜᴀᴛ ʏᴏᴜʀ Tᴇʟᴇɢʀᴀᴍ ᴘʟᴀɴ ꜱᴜᴘᴘᴏʀᴛꜱ.\n\n"
+            "ᴇxᴀᴍᴘʟᴇꜱ:\n"
+            "`4294967296`  — 4 GB  (ꜰʀᴇᴇ ᴀᴄᴄᴏᴜɴᴛ ʟɪᴍɪᴛ)\n"
+            "`21474836480` — 20 GB (Pʀᴇᴍɪᴜᴍ ʟɪᴍɪᴛ)\n\n"
+            "Sᴇɴᴅ `0` ᴛᴏ ʀᴇꜱᴇᴛ ᴛᴏ 4 GB.",
+        )
+        if text is None:
+            return
+        if not text.isdigit():
+            await callback.answer("❌ Iɴᴠᴀʟɪᴅ ɴᴜᴍʙᴇʀ!", show_alert=True)
+            return
+        new_cap = int(text) or 4294967296
+        await Config.update(db.db, {"max_telegram_size": new_cap})
+        await callback.answer(f"✅ Tɢ API ᴄᴀᴘ ꜱᴇᴛ ᴛᴏ {format_size(new_cap)}!", show_alert=True)
         return await show_panel(client, callback, "bandwidth_panel")
 
     # ── Sudo add ──────────────────────────────────────────────────────────

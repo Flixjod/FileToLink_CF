@@ -71,25 +71,27 @@ class Config:
                 "fsub_mode":      bool(cls.FSUB_ID),
                 "fsub_chat_id":   cls.FSUB_ID or 0,
                 "fsub_inv_link":  cls.FSUB_INV_LINK or "",
-                "bandwidth_mode": True,
-                "max_bandwidth":  int(os.environ.get("MAX_BANDWIDTH", 107374182400)),
-                "bandwidth_used": 0,
-                "public_bot":     os.environ.get("PUBLIC_BOT", "False").lower() == "true",
-                # Renamed: max_telegram_size → max_file_size
-                "max_file_size":  int(os.environ.get("MAX_TELEGRAM_SIZE", 4294967296)),
+                "bandwidth_mode":    True,
+                "max_bandwidth":     int(os.environ.get("MAX_BANDWIDTH", 107374182400)),
+                "bandwidth_used":    0,
+                "public_bot":        os.environ.get("PUBLIC_BOT", "False").lower() == "true",
+                # max_file_size  — max size a user can upload to the bot (bot-level cap)
+                "max_file_size":     int(os.environ.get("MAX_FILE_SIZE", 4294967296)),
+                # max_telegram_size — hard Telegram API upload limit (infrastructure cap)
+                "max_telegram_size": int(os.environ.get("MAX_TELEGRAM_SIZE", 4294967296)),
             }
             await db.config.insert_one(doc)
             logger.info("✅ ᴄᴏɴꜰɪɢ ᴄʀᴇᴀᴛᴇᴅ & ꜰᴜʟʟˏ ᴛᴜɴᴇᴅ ɪɴ ᴅʙ")
         else:
             defaults = {
-                "bandwidth_mode": True,
-                "fsub_mode":      doc.get("fsub_mode", False),
-                "fsub_chat_id":   doc.get("fsub_chat_id", 0),
-                "fsub_inv_link":  doc.get("fsub_inv_link", ""),
+                "bandwidth_mode":    True,
+                "fsub_mode":         doc.get("fsub_mode", False),
+                "fsub_chat_id":      doc.get("fsub_chat_id", 0),
+                "fsub_inv_link":     doc.get("fsub_inv_link", ""),
+                # Ensure both size keys exist independently in every DB document
+                "max_file_size":     int(os.environ.get("MAX_FILE_SIZE", 4294967296)),
+                "max_telegram_size": int(os.environ.get("MAX_TELEGRAM_SIZE", 4294967296)),
             }
-            # Migrate old key name max_telegram_size → max_file_size
-            if "max_telegram_size" in doc and "max_file_size" not in doc:
-                defaults["max_file_size"] = doc["max_telegram_size"]
             missing = {k: v for k, v in defaults.items() if k not in doc}
             if missing:
                 await db.config.update_one(
@@ -113,9 +115,9 @@ class Config:
 
     @classmethod
     def get(cls, key, default=None):
-        # Transparently redirect legacy key → new key
-        if key == "max_telegram_size":
-            key = "max_file_size"
+        # max_telegram_size and max_file_size are distinct — no redirection.
+        # max_telegram_size : hard Telegram API cap (infrastructure limit).
+        # max_file_size     : bot-level cap the operator configures.
         return cls._data.get(key, default)
 
     @classmethod

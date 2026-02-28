@@ -114,7 +114,7 @@ def build_app(bot: Bot, database) -> web.Application:
             "file_type":      file_type,
             "stream_url":     f"{base}/stream/{file_hash}",
             "download_url":   f"{base}/dl/{file_hash}",
-            "telegram_url":   f"https://t.me/{Config.BOT_USERNAME}?start={file_hash}",
+            "telegram_url":   f"https://t.me/{Config.BOT_USERNAME}?start=file_{file_hash}",
         }
         return aiohttp_jinja2.render_template("stream.html", request, context)
 
@@ -122,6 +122,41 @@ def build_app(bot: Bot, database) -> web.Application:
         """GET /dl/<file_hash> — always force-download."""
         file_hash = request.match_info["file_hash"]
         return await streaming_service.stream_file(request, file_hash, is_download=True)
+
+    async def thumbnail_endpoint(request: web.Request):
+        """
+        GET /thumb/<file_hash>
+
+        Returns the Telegram-stored thumbnail for a file (for inline results).
+        Falls back to a tiny transparent PNG if no thumbnail is available.
+        Never touches Telegraph or any external service.
+        """
+        file_hash = request.match_info["file_hash"]
+        try:
+            thumb_bytes = await streaming_service.get_thumbnail(file_hash)
+            if thumb_bytes:
+                return web.Response(
+                    body=thumb_bytes,
+                    content_type="image/jpeg",
+                    headers={
+                        "Cache-Control": "public, max-age=86400",
+                        "Access-Control-Allow-Origin": "*",
+                    },
+                )
+        except Exception as exc:
+            logger.debug("thumbnail_endpoint error hash=%s: %s", file_hash, exc)
+
+        # 1×1 transparent PNG as a safe no-thumbnail placeholder
+        BLANK_PNG = (
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+            b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01"
+            b"\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+        )
+        return web.Response(
+            body=BLANK_PNG,
+            content_type="image/png",
+            headers={"Cache-Control": "public, max-age=86400"},
+        )
 
     async def stats_endpoint(request: web.Request):
         try:
@@ -164,6 +199,7 @@ def build_app(bot: Bot, database) -> web.Application:
     app.router.add_get("/",                   home)
     app.router.add_get("/stream/{file_hash}", stream_page)
     app.router.add_get("/dl/{file_hash}",     download_file)
+    app.router.add_get("/thumb/{file_hash}",  thumbnail_endpoint)
     app.router.add_get("/stats",              stats_endpoint)
     app.router.add_get("/bandwidth",          bandwidth_endpoint)
     app.router.add_get("/health",             health)

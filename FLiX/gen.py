@@ -17,6 +17,7 @@ from pyrogram.types import (
 
 from config import Config
 from helper import Cryptic, format_size, escape_markdown, small_caps, check_fsub
+from helper.stream import StreamingService
 from database import db
 
 logger = logging.getLogger(__name__)
@@ -104,14 +105,21 @@ async def file_handler(client: Client, message: Message):
         )
         return
 
-    max_file_size = Config.get("max_file_size", 4294967296)
-    if file_size > max_file_size:
+    # ── File size guard ────────────────────────────────────────────────────
+    # max_file_size     : bot-level operator cap (configurable via settings).
+    # max_telegram_size : hard Telegram API upload limit (infrastructure cap).
+    # Reject if the file exceeds either cap.
+    max_file_size     = Config.get("max_file_size",     4294967296)  # 4 GB default
+    max_telegram_size = Config.get("max_telegram_size", 4294967296)  # 4 GB hard cap
+    effective_limit   = min(max_file_size, max_telegram_size)
+    if file_size > effective_limit:
         await client.send_message(
             chat_id=message.chat.id,
             text=(
                 f"❌ **{small_caps('file too large')}**\n\n"
                 f"📊 **{small_caps('file size')}:** `{format_size(file_size)}`\n"
-                f"⚠️ **{small_caps('max allowed')}:** `{format_size(max_file_size)}`"
+                f"⚠️ **{small_caps('bot limit')}:** `{format_size(max_file_size)}`\n"
+                f"🔒 **{small_caps('telegram limit')}:** `{format_size(max_telegram_size)}`"
             ),
             reply_to_message_id=message.id,
             disable_web_page_preview=True,
@@ -192,6 +200,11 @@ async def file_handler(client: Client, message: Message):
         "file_type":        file_type,
         "mime_type":        getattr(file, "mime_type", ""),
     })
+
+    # ── Pre-warm media session so the first stream request is instant ─────
+    svc = StreamingService.get_instance()
+    if svc:
+        await svc.pre_warm(str(file_info.id))
 
     is_streamable = file_type in STREAMABLE_TYPES
     buttons       = []
@@ -553,7 +566,7 @@ async def cb_owner_view_file(client: Client, callback: CallbackQuery):
     base_url      = Config.URL or f"http://localhost:{Config.PORT}"
     stream_link   = f"{base_url}/stream/{file_hash}"
     download_link = f"{base_url}/dl/{file_hash}"
-    telegram_link = f"https://t.me/{Config.BOT_USERNAME}?start={file_hash}"
+    telegram_link = f"https://t.me/{Config.BOT_USERNAME}?start=file_{file_hash}"
 
     safe_name      = escape_markdown(file_data["file_name"])
     formatted_size = format_size(file_data["file_size"])
@@ -804,7 +817,7 @@ async def inline_query_handler(client: Client, inline_query):
     file_hash     = file_data["file_id"]
     stream_link   = f"{base_url}/stream/{file_hash}"
     download_link = f"{base_url}/dl/{file_hash}"
-    telegram_link = f"https://t.me/{Config.BOT_USERNAME}?start={file_hash}"
+    telegram_link = f"https://t.me/{Config.BOT_USERNAME}?start=file_{file_hash}"
     file_type     = file_data.get("file_type", "document")
     is_streamable = file_type in STREAMABLE_TYPES
     safe_name     = escape_markdown(file_data["file_name"])
@@ -836,18 +849,29 @@ async def inline_query_handler(client: Client, inline_query):
     ])
     markup = InlineKeyboardMarkup(btn_rows)
 
-    # ── Build the inline result with file thumbnail ─────────────────────────
-    # Attempt to get thumbnail URL from Telegram for image/video files.
-    # For non-image types we still show a type-appropriate thumb_url.
-    THUMB_VIDEO    = "https://telegra.ph/file/3a85c1478f2a0b8d0b6c2.jpg"  # generic video icon
-    THUMB_AUDIO    = "https://telegra.ph/file/09af9f7d7dc47bb3e4f2f.jpg"  # generic audio icon
-    THUMB_DOCUMENT = "https://telegra.ph/file/1a2b3c4d5e6f7a8b9c0d1.jpg"  # generic doc icon
+    # ── Build the inline result — rich media card, no Telegraph fallback ────────
+    #
+    # Strategy (no web_page_preview, no Telegraph):
+    #   image    → InlineQueryResultPhoto   (photo_url  = stream URL)
+    #   video    → InlineQueryResultVideo   (video_url  = stream URL, thumb via /thumb/ endpoint)
+    #   audio    → InlineQueryResultAudio   (audio_url  = stream URL)
+    #   document → InlineQueryResultDocument(document_url = dl URL)
+    #
+    # All rich result types carry their own inline preview (poster/waveform/icon)
+    # so disable_web_page_preview is implicitly irrelevant for inline answers, but
+    # we also set it on the InputTextMessageContent fallback just to be safe.
+    #
+    # Thumbnail URL for video/document: we expose a /thumb/<file_hash> endpoint
+    # that returns the Telegram-stored thumbnail bytes (added in app.py).
+    # If no server-side thumbnail is available we use a data-URI placeholder so
+    # we never touch Telegraph.
+
+    thumb_url = f"{base_url}/thumb/{file_hash}"
 
     result_item = None
 
-    if file_type == "image" and tg_file_id:
-        # Use InlineQueryResultPhoto so the actual image is shown as thumbnail
-        try:
+    try:
+        if file_type == "image":
             result_item = InlineQueryResultPhoto(
                 photo_url=stream_link,
                 thumb_url=stream_link,
@@ -856,28 +880,60 @@ async def inline_query_handler(client: Client, inline_query):
                 caption=text,
                 reply_markup=markup,
             )
-        except Exception as exc:
-            logger.debug("InlineQueryResultPhoto build failed: %s", exc)
+
+        elif file_type == "video":
+            result_item = InlineQueryResultVideo(
+                video_url=stream_link,
+                mime_type=mime_type or "video/mp4",
+                thumb_url=thumb_url,
+                title=file_data["file_name"],
+                description=f"{fmt_size} • video",
+                caption=text,
+                reply_markup=markup,
+            )
+
+        elif file_type == "audio":
+            result_item = InlineQueryResultAudio(
+                audio_url=stream_link,
+                title=file_data["file_name"],
+                performer=f"{fmt_size} • audio",
+                caption=text,
+                reply_markup=markup,
+            )
+
+        else:
+            # document / unknown
+            result_item = InlineQueryResultDocument(
+                document_url=download_link,
+                mime_type=(
+                    mime_type
+                    if mime_type in (
+                        "application/pdf",
+                        "application/zip",
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    )
+                    else "application/zip"
+                ),
+                thumb_url=thumb_url,
+                title=file_data["file_name"],
+                description=f"{fmt_size} • {file_type}",
+                caption=text,
+                reply_markup=markup,
+            )
+
+    except Exception as exc:
+        logger.debug("Rich inline result build failed (%s): %s — falling back to Article", file_type, exc)
 
     if result_item is None:
-        # Fallback: Article with a type-specific thumbnail
-        if file_type == "video":
-            thumb = THUMB_VIDEO
-        elif file_type == "audio":
-            thumb = THUMB_AUDIO
-        else:
-            thumb = THUMB_DOCUMENT
-
+        # Last-resort fallback: plain Article — no external thumbnail service used
         result_item = InlineQueryResultArticle(
             title=file_data["file_name"],
             description=f"{fmt_size} • {file_type}",
             input_message_content=InputTextMessageContent(
                 message_text=text,
+                disable_web_page_preview=True,
             ),
             reply_markup=markup,
-            thumb_url=thumb,
-            thumb_width=48,
-            thumb_height=48,
         )
 
     await inline_query.answer(results=[result_item], cache_time=30)

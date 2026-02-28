@@ -2,7 +2,7 @@ import asyncio
 import logging
 import mimetypes
 import math
-from typing import Dict, Union
+from typing import Dict, Optional, Union
 
 from aiohttp import web
 from pyrogram import Client, utils, raw
@@ -250,6 +250,24 @@ class ByteStreamer:
             self.cached_file_ids.clear()
             logger.debug("ByteStreamer cache cleared")
 
+    async def warm_up(self, message_id: str) -> None:
+        """
+        Pre-warm both the FileId cache and the Telegram media session for
+        *message_id*.  Called as a fire-and-forget background task so the
+        media player doesn't pay the cold-start cost on its first request.
+
+        Steps performed (once per DC per bot lifetime):
+          1. Resolve FileId from Telegram (cached afterward).
+          2. Call generate_media_session() which creates + authorises the
+             cross-DC session if it doesn't exist yet.
+        """
+        try:
+            file_id = await self.get_file_properties(message_id)
+            await self.generate_media_session(self.client, file_id)
+            logger.debug("warm_up complete for msg=%s dc=%s", message_id, file_id.dc_id)
+        except Exception as exc:
+            logger.debug("warm_up failed for msg=%s: %s", message_id, exc)
+
 
 def _parse_range(range_header: str, file_size: int):
     if range_header:
@@ -272,10 +290,71 @@ def _parse_range(range_header: str, file_size: int):
 
 class StreamingService:
 
+    # Module-level singleton so FLiX handlers can call pre_warm without
+    # needing a direct reference to the service instance.
+    _instance: "Optional[StreamingService]" = None
+
     def __init__(self, bot_client: Client, db: Database):
         self.bot      = bot_client
         self.db       = db
         self.streamer = ByteStreamer(bot_client)
+        StreamingService._instance = self
+
+    @classmethod
+    def get_instance(cls) -> "Optional[StreamingService]":
+        return cls._instance
+
+    async def pre_warm(self, message_id: str) -> None:
+        """
+        Fire-and-forget warm-up: resolves FileId + establishes the Telegram
+        media-session for *message_id*.  Call this right after a file is
+        registered so the cold-start session setup happens in the background
+        before any media player ever opens the stream URL.
+        """
+        asyncio.create_task(self.streamer.warm_up(message_id))
+
+    async def get_thumbnail(self, file_hash: str) -> Optional[bytes]:
+        """
+        Fetch the Telegram-stored thumbnail for a file and return its raw bytes.
+        Returns None if no thumbnail is available.
+        Downloads only the thumbnail track (thumb_size="s"), not the full file.
+        """
+        file_data = await self.db.get_file_by_hash(file_hash)
+        if not file_data:
+            return None
+
+        message_id = str(file_data["message_id"])
+        try:
+            msg = await self.bot.get_messages(Config.FLOG_CHAT_ID, int(message_id))
+            if not msg or msg.empty:
+                return None
+
+            # Video / document with a poster/thumb → download the smallest thumb
+            media = (
+                getattr(msg, "video",    None)
+                or getattr(msg, "document", None)
+                or getattr(msg, "audio",    None)
+                or getattr(msg, "animation", None)
+            )
+            if media and getattr(media, "thumbs", None):
+                # thumbs is a list of PhotoSize; pick the smallest to keep it fast
+                thumb = media.thumbs[0]
+                data = await self.bot.download_media(thumb.file_id, in_memory=True)
+                if data:
+                    data.seek(0)
+                    return data.read()
+
+            # Photo message itself
+            if msg.photo:
+                data = await self.bot.download_media(msg.photo.file_id, in_memory=True)
+                if data:
+                    data.seek(0)
+                    return data.read()
+
+        except Exception as exc:
+            logger.debug("get_thumbnail error hash=%s: %s", file_hash, exc)
+
+        return None
 
     async def stream_file(
         self,
@@ -300,12 +379,23 @@ class StreamingService:
         message_id = str(file_data["message_id"])
 
         # ── Resolve FileId BEFORE preparing the response so we can still
-        #    raise HTTP errors (once response.prepare() is called it's too late)
+        #    raise HTTP errors (once response.prepare() is called it's too late).
+        #    This also warms the FileId cache for subsequent requests.
         try:
             file_id = await self.streamer.get_file_properties(message_id)
         except Exception as exc:
             logger.error("get_file_properties failed: msg=%s err=%s", message_id, exc)
             raise web.HTTPNotFound(reason="could not resolve file on Telegram")
+
+        # ── Pre-warm the media session so the first chunk fetch is instant ──
+        #    If the session for this DC is already cached this is a no-op
+        #    (returns immediately). If it isn't, we await it here — this is
+        #    the authoritative path that eliminates the 10-second cold start.
+        try:
+            await self.streamer.generate_media_session(self.streamer.client, file_id)
+        except Exception as exc:
+            # Non-fatal — yield_file will retry
+            logger.debug("pre-warm media session failed: msg=%s err=%s", message_id, exc)
 
         # ── Parse Range header ─────────────────────────────────────────────
         range_header            = request.headers.get("Range", "")

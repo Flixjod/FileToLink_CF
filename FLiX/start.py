@@ -48,7 +48,11 @@ async def start_command(client: Client, message: Message):
 
     # ── Deep-link (file hash in /start arg) ─────────────────────────────
     if len(message.command) > 1:
-        file_hash = message.command[1]
+        raw_param = message.command[1]
+
+        # Support both bare hash and the "file_<hash>" convention used by
+        # inline share buttons (Telegram /start params allow only [A-Za-z0-9_-])
+        file_hash = raw_param[5:] if raw_param.startswith("file_") else raw_param
 
         if Config.get("fsub_mode", False):
             if not await check_fsub(client, message):
