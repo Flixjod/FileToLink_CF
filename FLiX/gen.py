@@ -338,8 +338,6 @@ async def files_command(client: Client, message: Message):
                 caption=caption,
                 reply_to_message_id=message.id,
                 reply_markup=markup,
-                disable_web_page_preview=True,
-            
             )
             return
         except Exception as exc:
