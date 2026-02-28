@@ -818,22 +818,11 @@ async def inline_query_handler(client: Client, inline_query):
     ])
     markup = InlineKeyboardMarkup(btn_rows)
 
-    # ── Build the inline result with file-type icon (mirrors home.html icons) ──
-    # Icon map: same semantic icons used in the home page feature cards.
-    TYPE_ICONS = {
-        "video":    "🎬",
-        "audio":    "🎵",
-        "image":    "🖼️",
-        "document": "📄",
-    }
-    type_icon = TYPE_ICONS.get(file_type, "📁")
-
-    # Thumbnail URLs — distinct coloured square icons per file type.
-    # These are publicly hosted PNG icons that Telegram renders in the result list.
-    THUMB_VIDEO    = "https://i.imgur.com/rLkpZFV.png"   # 🎬 video
-    THUMB_AUDIO    = "https://i.imgur.com/BfFHs0Q.png"   # 🎵 audio
-    THUMB_IMAGE    = "https://i.imgur.com/0EQ3FQu.png"   # 🖼️ image
-    THUMB_DOCUMENT = "https://i.imgur.com/7jjhFxo.png"   # 📄 document
+    THUMB_VIDEO = "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Clapper%20board/3D/clapper_board_3d.png"
+    THUMB_AUDIO = "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Musical%20note/3D/musical_note_3d.png"
+    THUMB_IMAGE = "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Framed%20picture/3D/framed_picture_3d.png"
+    THUMB_DOCUMENT = "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Page%20facing%20up/3D/page_facing_up_3d.png"
+    DEFAULT_THUMB = "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/File%20folder/3D/file_folder_3d.png"
 
     TYPE_THUMBS = {
         "video":    THUMB_VIDEO,
@@ -841,7 +830,7 @@ async def inline_query_handler(client: Client, inline_query):
         "image":    THUMB_IMAGE,
         "document": THUMB_DOCUMENT,
     }
-    thumb_url = TYPE_THUMBS.get(file_type, THUMB_DOCUMENT)
+    thumb_url = TYPE_THUMBS.get(file_type, DEFAULT_THUMB)
 
     result_item = None
 
@@ -850,9 +839,10 @@ async def inline_query_handler(client: Client, inline_query):
             result_item = InlineQueryResultPhoto(
                 photo_url=stream_link,
                 thumb_url=stream_link,
-                title=f"{type_icon}  {file_data['file_name']}",
-                description=f"{fmt_size} • image",
+                title=f"{file_data['file_name']}",
+                description=small_caps(f"image • {fmt_size}")},
                 caption=text,
+                disable_web_page_preview=True,
                 reply_markup=markup,
             )
         except Exception as exc:
@@ -860,8 +850,8 @@ async def inline_query_handler(client: Client, inline_query):
 
     if result_item is None:
         result_item = InlineQueryResultArticle(
-            title=f"{type_icon}  {file_data['file_name']}",
-            description=f"{fmt_size} • {file_type}",
+            title=f"{file_data['file_name']}",
+            description=small_caps(f"{file_type} • {fmt_size}")},
             input_message_content=InputTextMessageContent(
                 message_text=text,
                 disable_web_page_preview=True,
