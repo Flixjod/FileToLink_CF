@@ -846,7 +846,6 @@ async def inline_query_handler(client: Client, inline_query):
     result_item = None
 
     if file_type == "image" and tg_file_id:
-        # Use InlineQueryResultPhoto so the actual image is shown as thumbnail
         try:
             result_item = InlineQueryResultPhoto(
                 photo_url=stream_link,
@@ -865,6 +864,7 @@ async def inline_query_handler(client: Client, inline_query):
             description=f"{fmt_size} • {file_type}",
             input_message_content=InputTextMessageContent(
                 message_text=text,
+                disable_web_page_preview=True,
             ),
             reply_markup=markup,
             thumb_url=thumb_url,
