@@ -150,7 +150,6 @@ async def start_command(client: Client, message: Message):
                 caption=start_text,
                 reply_to_message_id=message.id,
                 reply_markup=InlineKeyboardMarkup(buttons),
-                disable_web_page_preview=True,
             
             )
             return
