@@ -1,6 +1,7 @@
 import time
 from pyrogram import Client
 from pyrogram.types import BotCommand, BotCommandScopeChat
+from pyrogram.enums import ChatMemberStatus
 from config import Config
 import logging
 
@@ -27,8 +28,93 @@ class Bot(Client):
         Config.UPTIME       = time.time()
         logger.info("⚡  ʙᴏᴛ: @%s  │  ɴᴀᴍᴇ: %s  │  ɪᴅ: %s  │  ᴡᴏʀᴋᴇʀs: %s",
                     me.username, me.first_name, me.id, "50")
+
+        # ── Resolve FLOG_CHAT_ID peer & verify channel / Manage Messages ─
+        await self._check_flog_chat()
+
         await self._set_commands()
         return me
+
+    async def _check_flog_chat(self):
+        """
+        1. Resolve the peer (get_chat) so Pyrogram caches it — fixes
+           'PeerIdInvalid' errors that occur when only a bare int is used.
+        2. Fetch the bot's own membership to verify it has the
+           'Manage Messages' (delete_messages) right.
+        Logs a critical warning to every OWNER if permission is missing.
+        """
+        chat_id = Config.FLOG_CHAT_ID
+        if not chat_id:
+            logger.warning("⚠️  FLOG_CHAT_ID ɪꜱ ɴᴏᴛ ꜱᴇᴛ — ꜰɪʟᴇ ʟᴏɢɢɪɴɢ ᴅɪꜱᴀʙʟᴇᴅ")
+            return
+
+        # ── Step 1: resolve peer (caches access hash) ─────────────────────
+        try:
+            chat = await self.get_chat(chat_id)
+            logger.info(
+                "✅  ꜰʟᴏɢ ᴄʜᴀᴛ ʀᴇꜱᴏʟᴠᴇᴅ  │  ɴᴀᴍᴇ: \"%s\"  │  ɪᴅ: %s",
+                getattr(chat, "title", None) or getattr(chat, "first_name", "?"),
+                chat_id,
+            )
+        except Exception as exc:
+            logger.critical(
+                "❌  ᴄᴀɴɴᴏᴛ ʀᴇꜱᴏʟᴠᴇ FLOG_CHAT_ID=%s: %s  "
+                "— ᴄʜᴇᴄᴋ ᴛʜᴀᴛ ᴛʜᴇ ʙᴏᴛ ɪꜱ ᴀ ᴍᴇᴍʙᴇʀ ᴏꜰ ᴛʜᴀᴛ ᴄʜᴀᴛ",
+                chat_id, exc,
+            )
+            return
+
+        # ── Step 2: check bot's own privileges ────────────────────────────
+        try:
+            me     = await self.get_me()
+            member = await self.get_chat_member(chat_id, me.id)
+
+            has_manage = False
+            if member.status in (ChatMemberStatus.OWNER,):
+                has_manage = True
+            elif member.status == ChatMemberStatus.ADMINISTRATOR:
+                privileges = getattr(member, "privileges", None)
+                # 'delete_messages' maps to Manage Messages in Telegram
+                has_manage = bool(privileges and privileges.can_delete_messages)
+
+            if not has_manage:
+                warn_text = (
+                    "❌ Mɪꜱꜱɪɴɢ Pᴇʀᴍɪꜱꜱɪᴏɴ!\n\n"
+                    "📝 Pʟᴇᴀꜱᴇ ɢʀᴀɴᴛ:\n"
+                    "⚡ `Mᴀɴᴀɢᴇ Mᴇꜱꜱᴀɢᴇꜱ` ʀɪɢʜᴛ"
+                )
+                logger.critical(
+                    "❌  ʙᴏᴛ ʟᴀᴄᴋꜱ 'Mᴀɴᴀɢᴇ Mᴇꜱꜱᴀɢᴇꜱ' ɪɴ FLOG chat %s  "
+                    "— ꜱᴛʀᴇᴀᴍɪɴɢ ᴀɴᴅ ꜰɪʟᴇ ᴅᴇʟᴇᴛɪᴏɴ ᴡɪʟʟ ꜰᴀɪʟ",
+                    chat_id,
+                )
+                for owner_id in Config.OWNER_ID:
+                    try:
+                        await self.send_message(
+                            chat_id=owner_id,
+                            text=(
+                                f"⚠️ **Fʟɪx Bᴏᴛ Pᴇʀᴍɪꜱꜱɪᴏɴ Wᴀʀɴɪɴɢ**\n\n"
+                                f"🗂️ **Fʟᴏɢ Cʜᴀᴛ:** `{chat_id}`\n\n"
+                                + warn_text
+                            ),
+                            disable_web_page_preview=True,
+                        )
+                    except Exception as notify_exc:
+                        logger.warning(
+                            "ᴄᴏᴜʟᴅ ɴᴏᴛ ɴᴏᴛɪꜰʏ ᴏᴡɴᴇʀ %s: %s",
+                            owner_id, notify_exc,
+                        )
+            else:
+                logger.info(
+                    "✅  ʙᴏᴛ ʜᴀꜱ 'Mᴀɴᴀɢᴇ Mᴇꜱꜱᴀɢᴇꜱ' ɪɴ FLOG chat %s",
+                    chat_id,
+                )
+
+        except Exception as exc:
+            logger.warning(
+                "⚠️  ᴄᴏᴜʟᴅ ɴᴏᴛ ᴄʜᴇᴄᴋ ʙᴏᴛ ᴘᴇʀᴍɪꜱꜱɪᴏɴꜱ ɪɴ FLOG chat %s: %s",
+                chat_id, exc,
+            )
 
     async def stop(self, *args):
         await super().stop()

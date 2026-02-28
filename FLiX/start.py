@@ -46,7 +46,7 @@ async def start_command(client: Client, message: Message):
         except Exception as exc:
             logger.error("failed to log new user: %s", exc)
 
-    # ── Deep-link (file hash in /start arg) ─────────────────────────────
+    # ── Deep-link (file_{hash} in /start arg) ───────────────────────────
     if len(message.command) > 1:
         file_hash = message.command[1]
 
@@ -65,7 +65,6 @@ async def start_command(client: Client, message: Message):
                     ),
                     reply_to_message_id=message.id,
                     disable_web_page_preview=True,
-                
                 )
                 return
 
@@ -98,13 +97,26 @@ async def start_command(client: Client, message: Message):
                     InlineKeyboardButton(f"📥 {small_caps('download')}", url=download_link),
                 ])
 
+            # ── Send the actual file directly to the user ────────────────
+            try:
+                await client.copy_message(
+                    chat_id=message.chat.id,
+                    from_chat_id=Config.FLOG_CHAT_ID,
+                    message_id=int(file_data["message_id"]),
+                )
+            except Exception as copy_exc:
+                logger.warning(
+                    "deep-link copy_message failed: user=%s hash=%s err=%s",
+                    user_id, file_hash, copy_exc,
+                )
+
+            # ── Then send the info card with links ───────────────────────
             await client.send_message(
                 chat_id=message.chat.id,
                 text=text,
                 reply_to_message_id=message.id,
                 reply_markup=InlineKeyboardMarkup(btn_rows),
                 disable_web_page_preview=True,
-            
             )
 
         except Exception as exc:
@@ -114,7 +126,6 @@ async def start_command(client: Client, message: Message):
                 text=f"❌ `{small_caps('error')}`: ɪɴᴠᴀʟɪᴅ ᴏʀ ᴇxᴘɪʀᴇᴅ ʟɪɴᴋ",
                 reply_to_message_id=message.id,
                 disable_web_page_preview=True,
-            
             )
         return
 

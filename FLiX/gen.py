@@ -24,6 +24,21 @@ logger = logging.getLogger(__name__)
 STREAMABLE_TYPES = ("video", "audio")
 PAGE_SIZE = 10
 
+# ── File-type fallback icon URLs (self-hosted / well-known, no Telegraph) ────
+# These are reliable CDN-hosted generic icons matching the home.html style
+# (Font Awesome / similar flat icons served via a stable CDN).
+_ICON_VIDEO    = "https://img.icons8.com/color/96/video-file.png"
+_ICON_AUDIO    = "https://img.icons8.com/color/96/audio-file.png"
+_ICON_DOCUMENT = "https://img.icons8.com/color/96/document.png"
+_ICON_IMAGE    = "https://img.icons8.com/color/96/image-file.png"
+
+_TYPE_ICONS = {
+    "video":    _ICON_VIDEO,
+    "audio":    _ICON_AUDIO,
+    "image":    _ICON_IMAGE,
+    "document": _ICON_DOCUMENT,
+}
+
 
 async def check_access(user_id: int) -> bool:
     if Config.get("public_bot", False):
@@ -776,6 +791,12 @@ async def cb_send_file(client: Client, callback: CallbackQuery):
 # ════════════════════════════════════════════════════════════════════════════ #
 #  Inline query — share file info card to any chat                            #
 #  Triggered when user taps "🔁 Share" (switch_inline_query)                  #
+#                                                                              #
+#  Rules:                                                                      #
+#   • Web view is COMPLETELY disabled (no_webpage=True / no web_page_preview) #
+#   • Previews use the stream URL for images/video thumbnails; for all other  #
+#     types (audio, document) we use the matching file-type icon from         #
+#     _TYPE_ICONS — no Telegraph links whatsoever.                            #
 # ════════════════════════════════════════════════════════════════════════════ #
 
 @Client.on_inline_query(group=0)
@@ -810,8 +831,8 @@ async def inline_query_handler(client: Client, inline_query):
     safe_name     = escape_markdown(file_data["file_name"])
     fmt_size      = format_size(file_data["file_size"])
     mime_type     = file_data.get("mime_type", "") or ""
-    tg_file_id    = file_data.get("telegram_file_id", "")
 
+    # ── Message text (web page preview is disabled on the sent message) ──
     text = (
         f"📂 **{small_caps('file')}:** `{safe_name}`\n"
         f"💾 **{small_caps('size')}:** `{fmt_size}`\n"
@@ -821,6 +842,7 @@ async def inline_query_handler(client: Client, inline_query):
         text += f"🎬 **{small_caps('stream')}:** {stream_link}\n"
     text += f"📥 **{small_caps('download')}:** {download_link}"
 
+    # ── Buttons ──────────────────────────────────────────────────────────
     btn_rows = []
     if is_streamable:
         btn_rows.append([
@@ -836,49 +858,108 @@ async def inline_query_handler(client: Client, inline_query):
     ])
     markup = InlineKeyboardMarkup(btn_rows)
 
-    # ── Build the inline result with file thumbnail ─────────────────────────
-    # Attempt to get thumbnail URL from Telegram for image/video files.
-    # For non-image types we still show a type-appropriate thumb_url.
-    THUMB_VIDEO    = "https://telegra.ph/file/3a85c1478f2a0b8d0b6c2.jpg"  # generic video icon
-    THUMB_AUDIO    = "https://telegra.ph/file/09af9f7d7dc47bb3e4f2f.jpg"  # generic audio icon
-    THUMB_DOCUMENT = "https://telegra.ph/file/1a2b3c4d5e6f7a8b9c0d1.jpg"  # generic doc icon
+    # ── Build inline result with proper preview ───────────────────────────
+    # Strategy:
+    #   image   → InlineQueryResultPhoto  (stream_link serves the image bytes)
+    #   video   → InlineQueryResultVideo  (stream_link as video_url; thumb = stream_link)
+    #   audio   → InlineQueryResultAudio  (stream_link as audio_url)
+    #   document→ InlineQueryResultDocument (download_link; thumb = icon)
+    # Fallback for any failure → InlineQueryResultArticle with icon thumb.
+    # All results use InputTextMessageContent with disable_web_page_preview=True
+    # so the posted message never spawns a web preview.
 
     result_item = None
 
-    if file_type == "image" and tg_file_id:
-        # Use InlineQueryResultPhoto so the actual image is shown as thumbnail
+    # ── InputTextMessageContent wrapper (web preview disabled) ───────────
+    msg_content = InputTextMessageContent(
+        message_text=text,
+        disable_web_page_preview=True,
+    )
+
+    if file_type == "image":
         try:
             result_item = InlineQueryResultPhoto(
                 photo_url=stream_link,
                 thumb_url=stream_link,
                 title=file_data["file_name"],
-                description=f"{fmt_size} • image",
+                description=f"{fmt_size} • ɪᴍᴀɢᴇ",
                 caption=text,
                 reply_markup=markup,
             )
         except Exception as exc:
             logger.debug("InlineQueryResultPhoto build failed: %s", exc)
+            result_item = None
 
+    elif file_type == "video":
+        # InlineQueryResultVideo requires a proper video MIME type
+        video_mime = mime_type if mime_type.startswith("video/") else "video/mp4"
+        try:
+            result_item = InlineQueryResultVideo(
+                video_url=stream_link,
+                mime_type=video_mime,
+                thumb_url=stream_link,          # first frame / poster served by streaming endpoint
+                title=file_data["file_name"],
+                description=f"{fmt_size} • ᴠɪᴅᴇᴏ",
+                caption=text,
+                reply_markup=markup,
+            )
+        except Exception as exc:
+            logger.debug("InlineQueryResultVideo build failed: %s", exc)
+            result_item = None
+
+    elif file_type == "audio":
+        audio_mime = mime_type if mime_type.startswith("audio/") else "audio/mpeg"
+        performer  = ""
+        title_str  = file_data["file_name"]
+        try:
+            result_item = InlineQueryResultAudio(
+                audio_url=stream_link,
+                title=title_str,
+                performer=performer,
+                caption=text,
+                reply_markup=markup,
+            )
+        except Exception as exc:
+            logger.debug("InlineQueryResultAudio build failed: %s", exc)
+            result_item = None
+
+    elif file_type == "document":
+        doc_mime = mime_type if mime_type else "application/octet-stream"
+        try:
+            result_item = InlineQueryResultDocument(
+                document_url=download_link,
+                mime_type=doc_mime if doc_mime in (
+                    "application/pdf",
+                    "application/zip",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                ) else "application/pdf",          # Telegram only allows a few MIME types here
+                title=file_data["file_name"],
+                description=f"{fmt_size} • ᴅᴏᴄᴜᴍᴇɴᴛ",
+                caption=text,
+                reply_markup=markup,
+                thumb_url=_ICON_DOCUMENT,
+            )
+        except Exception as exc:
+            logger.debug("InlineQueryResultDocument build failed: %s", exc)
+            result_item = None
+
+    # ── Universal Article fallback ────────────────────────────────────────
     if result_item is None:
-        # Fallback: Article with a type-specific thumbnail
-        if file_type == "video":
-            thumb = THUMB_VIDEO
-        elif file_type == "audio":
-            thumb = THUMB_AUDIO
-        else:
-            thumb = THUMB_DOCUMENT
-
+        thumb = _TYPE_ICONS.get(file_type, _ICON_DOCUMENT)
         result_item = InlineQueryResultArticle(
             title=file_data["file_name"],
             description=f"{fmt_size} • {file_type}",
-            input_message_content=InputTextMessageContent(
-                message_text=text,
-            ),
+            input_message_content=msg_content,
             reply_markup=markup,
             thumb_url=thumb,
-            thumb_width=48,
-            thumb_height=48,
+            thumb_width=96,
+            thumb_height=96,
         )
 
-    await inline_query.answer(results=[result_item], cache_time=30)
+    await inline_query.answer(
+        results=[result_item],
+        cache_time=30,
+        is_personal=True,        # don't cache across different users
+    )
+
 
