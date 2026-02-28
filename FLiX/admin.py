@@ -53,15 +53,22 @@ async def show_panel(client: Client, source, panel_type: str):
     elif panel_type == "bandwidth_panel":
         max_bw    = Config.get("max_bandwidth", 107374182400)
         bw_toggle = Config.get("bandwidth_mode", True)
+        bw_stats  = await db.get_bandwidth_stats()
+        bw_used   = bw_stats["total_bandwidth"]
+        bw_today  = bw_stats["today_bandwidth"]
+        bw_pct    = (bw_used / max_bw * 100) if max_bw else 0
         text = (
             "💠 **Bᴀɴᴅᴡɪᴅᴛʜ Sᴇᴛᴛɪɴɢꜱ** 💠\n\n"
-            f"⚡ **Mᴏᴅᴇ**   : {'🟢 ᴀᴄᴛɪᴠᴇ' if bw_toggle else '🔴 ɪɴᴀᴄᴛɪᴠᴇ'}\n"
-            f"📊 **Lɪᴍɪᴛ** : `{format_size(max_bw)}`"
+            f"⚡ **Mᴏᴅᴇ**       : {'🟢 ᴀᴄᴛɪᴠᴇ' if bw_toggle else '🔴 ɪɴᴀᴄᴛɪᴠᴇ'}\n"
+            f"📊 **Lɪᴍɪᴛ**      : `{format_size(max_bw)}`\n"
+            f"📤 **Uꜱᴇᴅ (ᴛᴏᴛᴀʟ)**: `{format_size(bw_used)}` ({bw_pct:.1f}%)\n"
+            f"📅 **Uꜱᴇᴅ ᴛᴏᴅᴀʏ** : `{format_size(bw_today)}`"
         )
         buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("⚡ ᴛᴏɢɢʟᴇ",      callback_data="toggle_bandwidth")],
-            [InlineKeyboardButton("✏️ ꜱᴇᴛ ʟɪᴍɪᴛ",  callback_data="set_bandwidth_limit")],
-            [InlineKeyboardButton("⬅️ ʙᴀᴄᴋ",        callback_data="settings_back")],
+            [InlineKeyboardButton("⚡ ᴛᴏɢɢʟᴇ",         callback_data="toggle_bandwidth")],
+            [InlineKeyboardButton("✏️ ꜱᴇᴛ ʟɪᴍɪᴛ",     callback_data="set_bandwidth_limit")],
+            [InlineKeyboardButton("🔄 ʀᴇꜱᴇᴛ ᴜꜱᴀɢᴇ",   callback_data="reset_bandwidth")],
+            [InlineKeyboardButton("⬅️ ʙᴀᴄᴋ",           callback_data="settings_back")],
         ])
 
     elif panel_type == "sudo_panel":
@@ -130,14 +137,12 @@ async def show_panel(client: Client, source, panel_type: str):
             await source.message.edit_text(
                 text,
                 reply_markup=buttons,
-                disable_web_page_preview=True,
             )
         except Exception:
             await client.send_message(
                 chat_id=source.message.chat.id,
                 text=text,
                 reply_markup=buttons,
-                disable_web_page_preview=True,
             )
     else:
         await client.send_message(
@@ -145,7 +150,6 @@ async def show_panel(client: Client, source, panel_type: str):
             text=text,
             reply_to_message_id=source.id,
             reply_markup=buttons,
-            disable_web_page_preview=True,
         )
 
 
@@ -172,7 +176,6 @@ async def ask_input(
     reply   = None
     try:
         ask_msg = await client.send_message(user_id, prompt,
-            disable_web_page_preview=True,
         )
         reply   = await asyncio.wait_for(future, timeout=timeout)
         return reply.text.strip() if reply and reply.text else None
@@ -204,7 +207,7 @@ async def open_settings(client: Client, message: Message):
 
 
 @Client.on_callback_query(
-    filters.regex(r"^(settings_|toggle_|set_|sudo_).+"),
+    filters.regex(r"^(settings_|toggle_|set_|sudo_|reset_).+"),
     group=2,
 )
 async def settings_callback(client: Client, callback: CallbackQuery):
@@ -273,6 +276,16 @@ async def settings_callback(client: Client, callback: CallbackQuery):
         new_limit = int(text) or 107374182400
         await Config.update(db.db, {"max_bandwidth": new_limit})
         await callback.answer(f"✅ Lɪᴍɪᴛ ꜱᴇᴛ ᴛᴏ {format_size(new_limit)}!", show_alert=True)
+        return await show_panel(client, callback, "bandwidth_panel")
+
+    # ── Reset bandwidth usage ─────────────────────────────────────────────
+    if data == "reset_bandwidth":
+        await callback.answer("🔄 Rᴇꜱᴇᴛᴛɪɴɢ ʙᴀɴᴅᴡɪᴅᴛʜ ᴜꜱᴀɢᴇ…", show_alert=False)
+        ok = await db.reset_bandwidth()
+        if ok:
+            await callback.answer("✅ Bᴀɴᴅᴡɪᴅᴛʜ ᴜꜱᴀɢᴇ ʀᴇꜱᴇᴛ ᴛᴏ ᴢᴇʀᴏ!", show_alert=True)
+        else:
+            await callback.answer("❌ Fᴀɪʟᴇᴅ ᴛᴏ ʀᴇꜱᴇᴛ ʙᴀɴᴅᴡɪᴅᴛʜ.", show_alert=True)
         return await show_panel(client, callback, "bandwidth_panel")
 
     # ── Sudo add ──────────────────────────────────────────────────────────
@@ -408,7 +421,6 @@ async def adminstats_command(client: Client, message: Message):
         chat_id=message.chat.id,
         text=text,
         reply_to_message_id=message.id,
-        disable_web_page_preview=True,
     
     )
 
@@ -430,7 +442,6 @@ async def revoke_command(client: Client, message: Message):
                 "ᴜꜱᴀɢᴇ: `/revoke <file_hash>`"
             ),
             reply_to_message_id=message.id,
-            disable_web_page_preview=True,
         
         )
         return
@@ -446,7 +457,6 @@ async def revoke_command(client: Client, message: Message):
                 "ᴛʜᴇ ꜰɪʟᴇ ᴅᴏᴇꜱɴ'ᴛ ᴇxɪꜱᴛ ᴏʀ ʜᴀꜱ ᴀʟʀᴇᴀᴅʏ ʙᴇᴇɴ ᴅᴇʟᴇᴛᴇᴅ."
             ),
             reply_to_message_id=message.id,
-            disable_web_page_preview=True,
         
         )
         return
@@ -466,7 +476,6 @@ async def revoke_command(client: Client, message: Message):
             "ᴀʟʟ ʟɪɴᴋꜱ ʜᴀᴠᴇ ʙᴇᴇɴ ᴅᴇʟᴇᴛᴇᴅ."
         ),
         reply_to_message_id=message.id,
-        disable_web_page_preview=True,
     
     )
 
@@ -493,7 +502,6 @@ async def revokeall_command(client: Client, message: Message):
                     "ᴜꜱᴀɢᴇ: `/revokeall <user_id>`"
                 ),
                 reply_to_message_id=message.id,
-                disable_web_page_preview=True,
             
             )
             return
@@ -507,7 +515,6 @@ async def revokeall_command(client: Client, message: Message):
                 chat_id=message.chat.id,
                 text=f"📂 ɴᴏ ꜰɪʟᴇꜱ ꜰᴏᴜɴᴅ ꜰᴏʀ ᴜꜱᴇʀ `{target_id}`.",
                 reply_to_message_id=message.id,
-                disable_web_page_preview=True,
             
             )
             return
@@ -534,7 +541,6 @@ async def revokeall_command(client: Client, message: Message):
                     ),
                 ]
             ]),
-            disable_web_page_preview=True,
         
         )
         return
@@ -548,7 +554,6 @@ async def revokeall_command(client: Client, message: Message):
             chat_id=message.chat.id,
             text="📂 ɴᴏ ꜰɪʟᴇꜱ ᴛᴏ ᴅᴇʟᴇᴛᴇ.",
             reply_to_message_id=message.id,
-            disable_web_page_preview=True,
         
         )
         return
@@ -568,7 +573,6 @@ async def revokeall_command(client: Client, message: Message):
                 InlineKeyboardButton("❌ ᴄᴀɴᴄᴇʟ",  callback_data="revokeall_cancel"),
             ]
         ]),
-        disable_web_page_preview=True,
     
     )
 
@@ -582,7 +586,6 @@ async def revokeall_callback(client: Client, callback: CallbackQuery):
         await callback.answer("❌ ᴄᴀɴᴄᴇʟʟᴇᴅ.", show_alert=False)
         try:
             await callback.message.edit_text("❌ **Revokeall cancelled.**",
-                disable_web_page_preview=True,
             )
         except Exception:
             pass
@@ -591,7 +594,6 @@ async def revokeall_callback(client: Client, callback: CallbackQuery):
     await callback.answer("🗑️ ᴅᴇʟᴇᴛɪɴɢ ᴀʟʟ ꜰɪʟᴇꜱ…", show_alert=False)
     try:
         await callback.message.edit_text("🗑️ ᴅᴇʟᴇᴛɪɴɢ ᴀʟʟ ꜰɪʟᴇꜱ…",
-            disable_web_page_preview=True,
         )
     except Exception:
         pass
@@ -601,7 +603,6 @@ async def revokeall_callback(client: Client, callback: CallbackQuery):
         await callback.message.edit_text(
             f"🗑️ **All files deleted!**\n\n"
             f"ᴅᴇʟᴇᴛᴇᴅ `{deleted_count}` ꜰɪʟᴇꜱ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ.",
-            disable_web_page_preview=True,
         
         )
     except Exception:
@@ -620,7 +621,6 @@ async def revokeuser_confirm_callback(client: Client, callback: CallbackQuery):
     try:
         await callback.message.edit_text(
             f"🗑️ ᴅᴇʟᴇᴛɪɴɢ ᴀʟʟ ꜰɪʟᴇꜱ ꜰᴏʀ ᴜꜱᴇʀ `{target_id}`…",
-            disable_web_page_preview=True,
         
         )
     except Exception:
@@ -632,7 +632,6 @@ async def revokeuser_confirm_callback(client: Client, callback: CallbackQuery):
             f"🗑️ **Done!**\n\n"
             f"ᴅᴇʟᴇᴛᴇᴅ `{deleted_count}` ꜰɪʟᴇꜱ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ "
             f"ꜰᴏʀ ᴜꜱᴇʀ `{target_id}`.",
-            disable_web_page_preview=True,
         
         )
     except Exception:
@@ -655,7 +654,6 @@ async def logs_command(client: Client, message: Message):
             chat_id=message.chat.id,
             text="❌ **Log file not found or empty.**",
             reply_to_message_id=message.id,
-            disable_web_page_preview=True,
         
         )
         return
@@ -671,7 +669,6 @@ async def logs_command(client: Client, message: Message):
                 f"📦 **Size:** `{human_size(os.path.getsize(log_file))}`"
             ),
             reply_to_message_id=message.id,
-            disable_web_page_preview=True,
         
         )
     except Exception as exc:
@@ -683,7 +680,6 @@ async def logs_command(client: Client, message: Message):
                 chat_id=message.chat.id,
                 text=f"📋 **Bot Logs** *(last 4 000 chars)*\n\n```\n{tail}\n```",
                 reply_to_message_id=message.id,
-                disable_web_page_preview=True,
             
             )
         except Exception as exc2:
@@ -692,6 +688,5 @@ async def logs_command(client: Client, message: Message):
                 chat_id=message.chat.id,
                 text=f"❌ **Error reading logs:** `{exc2}`",
                 reply_to_message_id=message.id,
-                disable_web_page_preview=True,
             
             )

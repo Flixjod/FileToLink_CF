@@ -48,7 +48,9 @@ async def start_command(client: Client, message: Message):
 
     # ── Deep-link (file hash in /start arg) ─────────────────────────────
     if len(message.command) > 1:
-        file_hash = message.command[1]
+        arg       = message.command[1]
+        # Support both plain hash and the "file_<hash>" share format
+        file_hash = arg[5:] if arg.startswith("file_") else arg
 
         if Config.get("fsub_mode", False):
             if not await check_fsub(client, message):
@@ -214,7 +216,6 @@ async def cb_start(client: Client, callback: CallbackQuery):
         InlineKeyboardButton(f"ℹ️ {small_caps('about')}", callback_data="about"),
     ]]
     await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons),
-        disable_web_page_preview=True,
     )
     await callback.answer()
 
@@ -235,7 +236,6 @@ async def cb_help(client: Client, callback: CallbackQuery):
         reply_markup=InlineKeyboardMarkup([[
             InlineKeyboardButton(f"🏠 {small_caps('home')}", callback_data="start"),
         ]]),
-        disable_web_page_preview=True,
     
     )
     await callback.answer()
@@ -254,7 +254,6 @@ async def cb_about(client: Client, callback: CallbackQuery):
         reply_markup=InlineKeyboardMarkup([[
             InlineKeyboardButton(f"🏠 {small_caps('home')}", callback_data="start"),
         ]]),
-        disable_web_page_preview=True,
     
     )
     await callback.answer()

@@ -65,7 +65,6 @@ class Config:
                 "fsub_inv_link":  cls.FSUB_INV_LINK or "",
                 "bandwidth_mode": True,
                 "max_bandwidth":  int(os.environ.get("MAX_BANDWIDTH", 107374182400)),
-                "bandwidth_used": 0,
                 "public_bot":     os.environ.get("PUBLIC_BOT", "False").lower() == "true",
                 "max_file_size":  int(os.environ.get("MAX_FILE_SIZE", 4294967296)),
             }

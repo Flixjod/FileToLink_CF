@@ -138,7 +138,6 @@ async def file_handler(client: Client, message: Message):
             f"❌ **{small_caps('failed to process file')}**\n\n"
             "ᴄᴏᴜʟᴅ ɴᴏᴛ ꜰᴏʀᴡᴀʀᴅ ꜰɪʟᴇ ᴛᴏ ꜱᴛᴏʀᴀɢᴇ.\n"
             f"`{exc}`",
-            disable_web_page_preview=True,
         
         )
         return
@@ -159,7 +158,6 @@ async def file_handler(client: Client, message: Message):
             f"❌ **{small_caps('file processing failed')}**\n\n"
             "ꜰɪʟᴇ ᴄᴏᴜʟᴅ ɴᴏᴛ ʙᴇ ʀᴇᴀᴅ ꜰʀᴏᴍ ᴛᴇʟᴇɢʀᴀᴍ ᴀꜰᴛᴇʀ ꜰᴏʀᴡᴀʀᴅɪɴɢ.\n"
             "ᴛʜɪꜱ ᴜꜱᴜᴀʟʟʏ ʜᴀᴘᴘᴇɴꜱ ᴡɪᴛʜ ᴠᴇʀʏ ʟᴀʀɢᴇ ꜰɪʟᴇꜱ. ᴘʟᴇᴀꜱᴇ ᴛʀʏ ᴀɢᴀɪɴ.",
-            disable_web_page_preview=True,
         
         )
         return
@@ -174,7 +172,6 @@ async def file_handler(client: Client, message: Message):
             f"**Fɪʟᴇ ɪᴅ** : `{file_hash}`"
         ),
         reply_to_message_id=file_info.id,
-        disable_web_page_preview=True,
     )
 
     base_url      = Config.URL or f"http://localhost:{Config.PORT}"
@@ -211,7 +208,7 @@ async def file_handler(client: Client, message: Message):
             # "Send file" — triggers bot to copy the file directly to user via callback
             InlineKeyboardButton(f"📨 {small_caps('send file')}", callback_data=f"sendfile_{file_hash}"),
             # "Share" — opens inline query so user can forward the file info to any chat
-            InlineKeyboardButton(f"🔁 {small_caps('share')}", switch_inline_query=file_hash),
+            InlineKeyboardButton(f"🔁 {small_caps('share')}", switch_inline_query=f"file_{file_hash}"),
         ],
     ])
 
@@ -235,7 +232,6 @@ async def file_handler(client: Client, message: Message):
     await processing_msg.edit_text(
         text,
         reply_markup=InlineKeyboardMarkup(buttons),
-        disable_web_page_preview=True,
     
     )
 
@@ -251,7 +247,6 @@ async def files_command(client: Client, message: Message):
                 chat_id=message.chat.id,
                 text="🚫 **Access Denied!**\n\n🔒 Only the bot owner can view other users' files.",
                 reply_to_message_id=message.id,
-                disable_web_page_preview=True,
             
             )
             return
@@ -265,7 +260,6 @@ async def files_command(client: Client, message: Message):
                     "ᴜꜱᴀɢᴇ: `/files <user_id>`"
                 ),
                 reply_to_message_id=message.id,
-                disable_web_page_preview=True,
             
             )
             return
@@ -283,7 +277,6 @@ async def files_command(client: Client, message: Message):
                     caption=caption,
                     reply_to_message_id=message.id,
                     reply_markup=markup,
-                    disable_web_page_preview=True,
                 
                 )
                 return
@@ -295,7 +288,6 @@ async def files_command(client: Client, message: Message):
             text=caption,
             reply_to_message_id=message.id,
             reply_markup=markup,
-            disable_web_page_preview=True,
         
         )
         return
@@ -306,7 +298,6 @@ async def files_command(client: Client, message: Message):
             chat_id=message.chat.id,
             text=f"❌ **{small_caps('access forbidden')}**",
             reply_to_message_id=message.id,
-            disable_web_page_preview=True,
         
         )
         return
@@ -323,7 +314,6 @@ async def files_command(client: Client, message: Message):
                 caption=caption,
                 reply_to_message_id=message.id,
                 reply_markup=markup,
-                disable_web_page_preview=True,
             
             )
             return
@@ -335,7 +325,6 @@ async def files_command(client: Client, message: Message):
         text=caption,
         reply_to_message_id=message.id,
         reply_markup=markup,
-        disable_web_page_preview=True,
     
     )
 
@@ -440,7 +429,6 @@ async def cb_user_files_page(client: Client, callback: CallbackQuery):
     )
     try:
         await callback.message.edit_text(caption, reply_markup=markup,
-            disable_web_page_preview=True,
         )
     except Exception:
         pass
@@ -464,7 +452,6 @@ async def cb_own_files_page(client: Client, callback: CallbackQuery):
     )
     try:
         await callback.message.edit_text(caption, reply_markup=markup,
-            disable_web_page_preview=True,
         )
     except Exception:
         pass
@@ -504,7 +491,7 @@ async def cb_myfile(client: Client, callback: CallbackQuery):
         ],
         [
             InlineKeyboardButton(f"📨 {small_caps('send file')}", callback_data=f"sendfile_{file_hash}"),
-            InlineKeyboardButton(f"🔁 {small_caps('share')}",     switch_inline_query=file_hash),
+            InlineKeyboardButton(f"🔁 {small_caps('share')}",     switch_inline_query=f"file_{file_hash}"),
         ],
         [InlineKeyboardButton(f"🗑️ {small_caps('revoke')}",  callback_data=f"revoke_{file_hash}")],
         [InlineKeyboardButton(f"⬅️ {small_caps('back')}",    callback_data=f"userfiles_{back_page}")],
@@ -517,7 +504,6 @@ async def cb_myfile(client: Client, callback: CallbackQuery):
         f"📅 **{small_caps('uploaded')}:** `{file_data['created_at'].strftime('%Y-%m-%d')}`"
     )
     await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons),
-        disable_web_page_preview=True,
     )
     await callback.answer()
 
@@ -553,7 +539,7 @@ async def cb_owner_view_file(client: Client, callback: CallbackQuery):
     base_url      = Config.URL or f"http://localhost:{Config.PORT}"
     stream_link   = f"{base_url}/stream/{file_hash}"
     download_link = f"{base_url}/dl/{file_hash}"
-    telegram_link = f"https://t.me/{Config.BOT_USERNAME}?start={file_hash}"
+    telegram_link = f"https://t.me/{Config.BOT_USERNAME}?start=file_{file_hash}"
 
     safe_name      = escape_markdown(file_data["file_name"])
     formatted_size = format_size(file_data["file_size"])
@@ -584,7 +570,6 @@ async def cb_owner_view_file(client: Client, callback: CallbackQuery):
         f"📅 **{small_caps('uploaded')}:** `{file_data['created_at'].strftime('%Y-%m-%d')}`"
     )
     await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons),
-        disable_web_page_preview=True,
     )
     await callback.answer()
 
@@ -625,7 +610,6 @@ async def cb_owner_revoke_file(client: Client, callback: CallbackQuery):
                 callback_data=f"ownfiles_{target_id}_1",
             )],
         ]),
-        disable_web_page_preview=True,
     
     )
     await callback.answer("✅ ꜰɪʟᴇ ʀᴇᴠᴏᴋᴇᴅ!", show_alert=False)
@@ -645,7 +629,6 @@ async def cb_owner_back(client: Client, callback: CallbackQuery):
     )
     try:
         await callback.message.edit_text(caption, reply_markup=markup,
-            disable_web_page_preview=True,
         )
     except Exception:
         pass
@@ -676,7 +659,7 @@ async def cb_view_file(client: Client, callback: CallbackQuery):
         ],
         [
             InlineKeyboardButton(f"📨 {small_caps('send file')}", callback_data=f"sendfile_{file_hash}"),
-            InlineKeyboardButton(f"🔁 {small_caps('share')}",     switch_inline_query=file_hash),
+            InlineKeyboardButton(f"🔁 {small_caps('share')}",     switch_inline_query=f"file_{file_hash}"),
         ],
         [InlineKeyboardButton(f"🗑️ {small_caps('revoke')}",  callback_data=f"revoke_{file_hash}")],
         [InlineKeyboardButton(f"⬅️ {small_caps('back')}",    callback_data="back_to_files")],
@@ -689,7 +672,6 @@ async def cb_view_file(client: Client, callback: CallbackQuery):
         f"📅 **{small_caps('uploaded')}:** `{file_data['created_at'].strftime('%Y-%m-%d')}`"
     )
     await callback.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons),
-        disable_web_page_preview=True,
     )
     await callback.answer()
 
@@ -714,7 +696,6 @@ async def cb_revoke(client: Client, callback: CallbackQuery):
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton(f"⬅️ {small_caps('back to files')}", callback_data="userfiles_1")],
         ]),
-        disable_web_page_preview=True,
     
     )
     await callback.answer("✅ ꜰɪʟᴇ ʀᴇᴠᴏᴋᴇᴅ!", show_alert=False)
@@ -729,7 +710,6 @@ async def cb_back_to_files(client: Client, callback: CallbackQuery):
     )
     try:
         await callback.message.edit_text(caption, reply_markup=markup,
-            disable_web_page_preview=True,
         )
     except Exception:
         pass
@@ -766,7 +746,6 @@ async def cb_send_file(client: Client, callback: CallbackQuery):
             await client.send_message(
                 chat_id=user_id,
                 text=f"❌ **{small_caps('could not send file')}**\n\n`{exc}`",
-                disable_web_page_preview=True,
             
             )
         except Exception:
@@ -790,7 +769,10 @@ async def inline_query_handler(client: Client, inline_query):
         )
         return
 
-    file_data = await db.get_file_by_hash(query)
+    # Strip the "file_" prefix that the Share button injects
+    file_hash_query = query[5:] if query.startswith("file_") else query
+
+    file_data = await db.get_file_by_hash(file_hash_query)
     if not file_data:
         await inline_query.answer(
             results=[],
@@ -804,7 +786,7 @@ async def inline_query_handler(client: Client, inline_query):
     file_hash     = file_data["file_id"]
     stream_link   = f"{base_url}/stream/{file_hash}"
     download_link = f"{base_url}/dl/{file_hash}"
-    telegram_link = f"https://t.me/{Config.BOT_USERNAME}?start={file_hash}"
+    telegram_link = f"https://t.me/{Config.BOT_USERNAME}?start=file_{file_hash}"
     file_type     = file_data.get("file_type", "document")
     is_streamable = file_type in STREAMABLE_TYPES
     safe_name     = escape_markdown(file_data["file_name"])
@@ -836,22 +818,39 @@ async def inline_query_handler(client: Client, inline_query):
     ])
     markup = InlineKeyboardMarkup(btn_rows)
 
-    # ── Build the inline result with file thumbnail ─────────────────────────
-    # Attempt to get thumbnail URL from Telegram for image/video files.
-    # For non-image types we still show a type-appropriate thumb_url.
-    THUMB_VIDEO    = "https://telegra.ph/file/3a85c1478f2a0b8d0b6c2.jpg"  # generic video icon
-    THUMB_AUDIO    = "https://telegra.ph/file/09af9f7d7dc47bb3e4f2f.jpg"  # generic audio icon
-    THUMB_DOCUMENT = "https://telegra.ph/file/1a2b3c4d5e6f7a8b9c0d1.jpg"  # generic doc icon
+    # ── Build the inline result with file-type icon (mirrors home.html icons) ──
+    # Icon map: same semantic icons used in the home page feature cards.
+    TYPE_ICONS = {
+        "video":    "🎬",
+        "audio":    "🎵",
+        "image":    "🖼️",
+        "document": "📄",
+    }
+    type_icon = TYPE_ICONS.get(file_type, "📁")
+
+    # Thumbnail URLs — distinct coloured square icons per file type.
+    # These are publicly hosted PNG icons that Telegram renders in the result list.
+    THUMB_VIDEO    = "https://i.imgur.com/rLkpZFV.png"   # 🎬 video
+    THUMB_AUDIO    = "https://i.imgur.com/BfFHs0Q.png"   # 🎵 audio
+    THUMB_IMAGE    = "https://i.imgur.com/0EQ3FQu.png"   # 🖼️ image
+    THUMB_DOCUMENT = "https://i.imgur.com/7jjhFxo.png"   # 📄 document
+
+    TYPE_THUMBS = {
+        "video":    THUMB_VIDEO,
+        "audio":    THUMB_AUDIO,
+        "image":    THUMB_IMAGE,
+        "document": THUMB_DOCUMENT,
+    }
+    thumb_url = TYPE_THUMBS.get(file_type, THUMB_DOCUMENT)
 
     result_item = None
 
     if file_type == "image" and tg_file_id:
-        # Use InlineQueryResultPhoto so the actual image is shown as thumbnail
         try:
             result_item = InlineQueryResultPhoto(
                 photo_url=stream_link,
                 thumb_url=stream_link,
-                title=file_data["file_name"],
+                title=f"{type_icon}  {file_data['file_name']}",
                 description=f"{fmt_size} • image",
                 caption=text,
                 reply_markup=markup,
@@ -860,24 +859,17 @@ async def inline_query_handler(client: Client, inline_query):
             logger.debug("InlineQueryResultPhoto build failed: %s", exc)
 
     if result_item is None:
-        # Fallback: Article with a type-specific thumbnail
-        if file_type == "video":
-            thumb = THUMB_VIDEO
-        elif file_type == "audio":
-            thumb = THUMB_AUDIO
-        else:
-            thumb = THUMB_DOCUMENT
-
         result_item = InlineQueryResultArticle(
-            title=file_data["file_name"],
+            title=f"{type_icon}  {file_data['file_name']}",
             description=f"{fmt_size} • {file_type}",
             input_message_content=InputTextMessageContent(
                 message_text=text,
+                disable_web_page_preview=True,
             ),
             reply_markup=markup,
-            thumb_url=thumb,
-            thumb_width=48,
-            thumb_height=48,
+            thumb_url=thumb_url,
+            thumb_width=64,
+            thumb_height=64,
         )
 
     await inline_query.answer(results=[result_item], cache_time=30)

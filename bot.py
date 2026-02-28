@@ -27,8 +27,36 @@ class Bot(Client):
         Config.UPTIME       = time.time()
         logger.info("⚡  ʙᴏᴛ: @%s  │  ɴᴀᴍᴇ: %s  │  ɪᴅ: %s  │  ᴡᴏʀᴋᴇʀs: %s",
                     me.username, me.first_name, me.id, "50")
+        await self._resolve_log_channel()
         await self._set_commands()
         return me
+
+    async def _resolve_log_channel(self):
+        """Force-resolve the FLOG_CHAT_ID peer so Telegram caches it locally.
+
+        Without this, any cold-start deployment raises a PeerIdInvalid / 
+        'Could not find the input entity' error on the first send_cached_media 
+        call — because Pyrogram has never seen that chat in this session.
+
+        Calling get_chat() forces the MTProto layer to fetch and cache the 
+        peer's access hash so all subsequent calls work without the operator 
+        needing to manually send a message to the channel first.
+        """
+        if not Config.FLOG_CHAT_ID:
+            return
+        try:
+            chat = await self.get_chat(Config.FLOG_CHAT_ID)
+            logger.info(
+                "✅  ʟᴏɢ ᴄʜᴀɴɴᴇʟ ʀᴇꜱᴏʟᴠᴇᴅ  │  ɪᴅ: %s  │  ɴᴀᴍᴇ: %s",
+                Config.FLOG_CHAT_ID,
+                getattr(chat, "title", None) or getattr(chat, "first_name", "?"),
+            )
+        except Exception as exc:
+            logger.warning(
+                "⚠️  ᴄᴏᴜʟᴅ ɴᴏᴛ ʀᴇꜱᴏʟᴠᴇ FLOG_CHAT_ID %s — ʙᴏᴛ ᴍᴜꜱᴛ ʙᴇ ᴀ ᴍᴇᴍʙᴇʀ/ᴀᴅᴍɪɴ: %s",
+                Config.FLOG_CHAT_ID,
+                exc,
+            )
 
     async def stop(self, *args):
         await super().stop()

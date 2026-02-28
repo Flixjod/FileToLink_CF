@@ -161,6 +161,7 @@ class Database:
             return 0
 
     async def update_bandwidth(self, size: int) -> bool:
+        """Increment today's bandwidth counter in the daily tracking collection."""
         try:
             today = datetime.utcnow().date().isoformat()
             await self.bandwidth.update_one(
@@ -177,15 +178,34 @@ class Database:
             return False
 
     async def track_bandwidth(self, message_id: str, size: int) -> bool:
+        """Record bandwidth used for a file stream/download.
+        
+        Updates both the per-file counter and the global daily bandwidth log.
+        Only actual bytes sent should be passed (never the full Content-Length
+        for a partial range request that was never fully consumed).
+        """
         try:
+            # Per-file bandwidth (useful for per-file stats / future analytics)
             await self.files.update_one(
                 {"message_id": message_id},
                 {"$inc": {"bandwidth_used": size}},
             )
+            # Global daily bandwidth log (used for limit checks & admin stats)
             await self.update_bandwidth(size)
             return True
         except Exception as e:
             logger.error("track bandwidth error: %s", e)
+            return False
+
+    async def reset_bandwidth(self) -> bool:
+        """Wipe all bandwidth records (admin reset action)."""
+        try:
+            await self.bandwidth.delete_many({})
+            # Also zero out per-file bandwidth counters
+            await self.files.update_many({}, {"$set": {"bandwidth_used": 0}})
+            return True
+        except Exception as e:
+            logger.error("reset bandwidth error: %s", e)
             return False
 
     async def register_user_on_start(self, user_data: Dict) -> bool:
