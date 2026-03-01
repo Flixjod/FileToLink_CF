@@ -19,10 +19,6 @@ from helper import small_caps, format_size, escape_markdown, format_uptime, huma
 logger = logging.getLogger(__name__)
 
 
-# ════════════════════════════════════════════════════════════════════════════ #
-#  Settings panel helper                                                       #
-# ════════════════════════════════════════════════════════════════════════════ #
-
 async def show_panel(client: Client, source, panel_type: str):
     config = Config.all()
     msg    = source.message if isinstance(source, CallbackQuery) else source
@@ -134,10 +130,7 @@ async def show_panel(client: Client, source, panel_type: str):
 
     if isinstance(source, CallbackQuery):
         try:
-            await source.message.edit_text(
-                text,
-                reply_markup=buttons,
-            )
+            await source.message.edit_text(text, reply_markup=buttons)
         except Exception:
             await client.send_message(
                 chat_id=source.message.chat.id,
@@ -153,7 +146,6 @@ async def show_panel(client: Client, source, panel_type: str):
         )
 
 
-# ── Pending input helper ──────────────────────────────────────────────────────
 _pending: dict[int, asyncio.Future] = {}
 
 
@@ -175,8 +167,7 @@ async def ask_input(
     ask_msg = None
     reply   = None
     try:
-        ask_msg = await client.send_message(user_id, prompt,
-        )
+        ask_msg = await client.send_message(user_id, prompt)
         reply   = await asyncio.wait_for(future, timeout=timeout)
         return reply.text.strip() if reply and reply.text else None
     except asyncio.TimeoutError:
@@ -194,10 +185,6 @@ async def ask_input(
                 except Exception:
                     pass
 
-
-# ════════════════════════════════════════════════════════════════════════════ #
-#  /bot_settings                                                               #
-# ════════════════════════════════════════════════════════════════════════════ #
 
 @Client.on_message(filters.command("bot_settings") & filters.private, group=2)
 async def open_settings(client: Client, message: Message):
@@ -237,7 +224,6 @@ async def settings_callback(client: Client, callback: CallbackQuery):
             pass
         return
 
-    # ── Toggles ──────────────────────────────────────────────────────────
     if data == "toggle_bandwidth":
         new_val = not config.get("bandwidth_mode", True)
         await Config.update(db.db, {"bandwidth_mode": new_val})
@@ -257,7 +243,6 @@ async def settings_callback(client: Client, callback: CallbackQuery):
         await callback.answer("✅ Fᴏʀᴄᴇ ꜱᴜʙ ᴛᴏɢɢʟᴇᴅ!", show_alert=True)
         return await show_panel(client, callback, "fsub_panel")
 
-    # ── Bandwidth limit ───────────────────────────────────────────────────
     if data == "set_bandwidth_limit":
         text = await ask_input(
             client, callback.from_user.id,
@@ -278,7 +263,6 @@ async def settings_callback(client: Client, callback: CallbackQuery):
         await callback.answer(f"✅ Lɪᴍɪᴛ ꜱᴇᴛ ᴛᴏ {format_size(new_limit)}!", show_alert=True)
         return await show_panel(client, callback, "bandwidth_panel")
 
-    # ── Reset bandwidth usage ─────────────────────────────────────────────
     if data == "reset_bandwidth":
         await callback.answer("🔄 Rᴇꜱᴇᴛᴛɪɴɢ ʙᴀɴᴅᴡɪᴅᴛʜ ᴜꜱᴀɢᴇ…", show_alert=False)
         ok = await db.reset_bandwidth()
@@ -288,7 +272,6 @@ async def settings_callback(client: Client, callback: CallbackQuery):
             await callback.answer("❌ Fᴀɪʟᴇᴅ ᴛᴏ ʀᴇꜱᴇᴛ ʙᴀɴᴅᴡɪᴅᴛʜ.", show_alert=True)
         return await show_panel(client, callback, "bandwidth_panel")
 
-    # ── Sudo add ──────────────────────────────────────────────────────────
     if data == "sudo_add":
         text = await ask_input(
             client, callback.from_user.id,
@@ -303,7 +286,6 @@ async def settings_callback(client: Client, callback: CallbackQuery):
         await callback.answer(f"✅ `{text}` ᴀᴅᴅᴇᴅ ᴀꜱ ꜱᴜᴅᴏ!", show_alert=True)
         return await show_panel(client, callback, "sudo_panel")
 
-    # ── Sudo remove ───────────────────────────────────────────────────────
     if data == "sudo_remove":
         text = await ask_input(
             client, callback.from_user.id,
@@ -318,7 +300,6 @@ async def settings_callback(client: Client, callback: CallbackQuery):
             await callback.answer(f"❌ `{text}` ɴᴏᴛ ꜰᴏᴜɴᴅ ɪɴ ꜱᴜᴅᴏ ʟɪꜱᴛ.", show_alert=True)
         return await show_panel(client, callback, "sudo_panel")
 
-    # ── Force-sub settings ────────────────────────────────────────────────
     if data == "set_fsub_id":
         text = await ask_input(
             client, callback.from_user.id,
@@ -388,10 +369,6 @@ async def settings_callback(client: Client, callback: CallbackQuery):
         return
 
 
-# ════════════════════════════════════════════════════════════════════════════ #
-#  /adminstats  (owner-only: uptime, bandwidth, users, files)                  #
-# ════════════════════════════════════════════════════════════════════════════ #
-
 @Client.on_message(filters.command("adminstats") & filters.private, group=2)
 async def adminstats_command(client: Client, message: Message):
     if not await check_owner(client, message):
@@ -421,13 +398,8 @@ async def adminstats_command(client: Client, message: Message):
         chat_id=message.chat.id,
         text=text,
         reply_to_message_id=message.id,
-    
     )
 
-
-# ════════════════════════════════════════════════════════════════════════════ #
-#  /revoke <file_hash>  (owner — revoke a single file by hash)                 #
-# ════════════════════════════════════════════════════════════════════════════ #
 
 @Client.on_message(filters.command("revoke") & filters.private, group=0)
 async def revoke_command(client: Client, message: Message):
@@ -442,7 +414,6 @@ async def revoke_command(client: Client, message: Message):
                 "ᴜꜱᴀɢᴇ: `/revoke <file_hash>`"
             ),
             reply_to_message_id=message.id,
-        
         )
         return
 
@@ -457,41 +428,75 @@ async def revoke_command(client: Client, message: Message):
                 "ᴛʜᴇ ꜰɪʟᴇ ᴅᴏᴇꜱɴ'ᴛ ᴇxɪꜱᴛ ᴏʀ ʜᴀꜱ ᴀʟʀᴇᴀᴅʏ ʙᴇᴇɴ ᴅᴇʟᴇᴛᴇᴅ."
             ),
             reply_to_message_id=message.id,
-        
         )
         return
 
-    try:
-        await client.delete_messages(Config.FLOG_CHAT_ID, int(file_data["message_id"]))
-    except Exception as exc:
-        logger.error("revoke delete dump message: msg=%s err=%s", file_data["message_id"], exc)
-
-    await db.delete_file(file_data["message_id"])
-
+    safe_name = escape_markdown(file_data["file_name"])
     await client.send_message(
         chat_id=message.chat.id,
         text=(
-            f"🗑️ **{small_caps('file revoked successfully')}!**\n\n"
-            f"📂 **{small_caps('file')}:** `{escape_markdown(file_data['file_name'])}`\n\n"
-            "ᴀʟʟ ʟɪɴᴋꜱ ʜᴀᴠᴇ ʙᴇᴇɴ ᴅᴇʟᴇᴛᴇᴅ."
+            f"**Cᴏɴғɪʀᴍ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ᴅᴇʟᴇᴛᴇ ᴛʜᴇ Fɪʟᴇ**\n\n"
+            f"📂 `{safe_name}`"
         ),
         reply_to_message_id=message.id,
-    
+        reply_markup=InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("ʏᴇs", callback_data=f"msgdelpvtyes_{file_hash}"),
+                InlineKeyboardButton("ɴᴏ",  callback_data=f"mainstream_{file_hash}"),
+            ]
+        ]),
     )
 
 
-# ════════════════════════════════════════════════════════════════════════════ #
-#  /revokeall [user_id]  (owner)                                               #
-#  - No argument  → revoke ALL files (global, with confirmation)               #
-#  - With user_id → revoke all files belonging to that specific user           #
-# ════════════════════════════════════════════════════════════════════════════ #
+@Client.on_callback_query(filters.regex(r"^(msgdelpvtyes_|mainstream_)"), group=2)
+async def revoke_confirm_callback(client: Client, callback: CallbackQuery):
+    if not await check_owner(client, callback):
+        return
+
+    data = callback.data
+
+    if data.startswith("mainstream_"):
+        file_hash = data[len("mainstream_"):]
+        await callback.answer("❌ ᴄᴀɴᴄᴇʟʟᴇᴅ.", show_alert=False)
+        try:
+            await callback.message.edit_text(
+                f"❌ **{small_caps('revoke cancelled')}.**"
+            )
+        except Exception:
+            pass
+        return
+
+    if data.startswith("msgdelpvtyes_"):
+        file_hash = data[len("msgdelpvtyes_"):]
+        file_data = await db.get_file_by_hash(file_hash)
+
+        if not file_data:
+            await callback.answer("❌ ꜰɪʟᴇ ɴᴏᴛ ꜰᴏᴜɴᴅ ᴏʀ ᴀʟʀᴇᴀᴅʏ ᴅᴇʟᴇᴛᴇᴅ.", show_alert=True)
+            return
+
+        try:
+            await client.delete_messages(Config.FLOG_CHAT_ID, int(file_data["message_id"]))
+        except Exception as exc:
+            logger.error("revoke delete dump message: msg=%s err=%s", file_data["message_id"], exc)
+
+        await db.delete_file(file_data["message_id"])
+
+        try:
+            await callback.message.edit_text(
+                f"🗑️ **{small_caps('file revoked successfully')}!**\n\n"
+                f"📂 **{small_caps('file')}:** `{escape_markdown(file_data['file_name'])}`\n\n"
+                "ᴀʟʟ ʟɪɴᴋꜱ ʜᴀᴠᴇ ʙᴇᴇɴ ᴅᴇʟᴇᴛᴇᴅ."
+            )
+        except Exception:
+            pass
+        await callback.answer("✅ ꜰɪʟᴇ ʀᴇᴠᴏᴋᴇᴅ!", show_alert=False)
+
 
 @Client.on_message(filters.command("revokeall") & filters.private, group=2)
 async def revokeall_command(client: Client, message: Message):
     if not await check_owner(client, message):
         return
 
-    # ── Per-user bulk revoke: /revokeall <user_id> ───────────────────────
     if len(message.command) > 1:
         raw = message.command[1]
         if not raw.lstrip("-").isdigit():
@@ -502,7 +507,6 @@ async def revokeall_command(client: Client, message: Message):
                     "ᴜꜱᴀɢᴇ: `/revokeall <user_id>`"
                 ),
                 reply_to_message_id=message.id,
-            
             )
             return
 
@@ -515,37 +519,27 @@ async def revokeall_command(client: Client, message: Message):
                 chat_id=message.chat.id,
                 text=f"📂 ɴᴏ ꜰɪʟᴇꜱ ꜰᴏᴜɴᴅ ꜰᴏʀ ᴜꜱᴇʀ `{target_id}`.",
                 reply_to_message_id=message.id,
-            
             )
             return
 
         await client.send_message(
             chat_id=message.chat.id,
             text=(
-                f"⚠️ **Warning**\n\n"
+                f"**Cᴏɴғɪʀᴍ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ᴅᴇʟᴇᴛᴇ ᴛʜᴇ Fɪʟᴇ**\n\n"
                 f"ᴛʜɪꜱ ᴡɪʟʟ ᴘᴇʀᴍᴀɴᴇɴᴛʟʏ ᴅᴇʟᴇᴛᴇ **{count}** ꜰɪʟᴇꜱ "
                 f"ʙᴇʟᴏɴɢɪɴɢ ᴛᴏ ᴜꜱᴇʀ `{target_id}`.\n"
-                "ᴀʟʟ ꜱᴛʀᴇᴀᴍ/ᴅᴏᴡɴʟᴏᴀᴅ ʟɪɴᴋꜱ ᴡɪʟʟ ʙᴇᴄᴏᴍᴇ ɪɴᴠᴀʟɪᴅ.\n\n"
-                "ᴀʀᴇ ʏᴏᴜ ꜱᴜʀᴇ?"
+                "ᴀʟʟ ꜱᴛʀᴇᴀᴍ/ᴅᴏᴡɴʟᴏᴀᴅ ʟɪɴᴋꜱ ᴡɪʟʟ ʙᴇᴄᴏᴍᴇ ɪɴᴠᴀʟɪᴅ."
             ),
             reply_to_message_id=message.id,
             reply_markup=InlineKeyboardMarkup([
                 [
-                    InlineKeyboardButton(
-                        "✅ ᴄᴏɴꜰɪʀᴍ",
-                        callback_data=f"revokeuser_confirm_{target_id}",
-                    ),
-                    InlineKeyboardButton(
-                        "❌ ᴄᴀɴᴄᴇʟ",
-                        callback_data="revokeall_cancel",
-                    ),
+                    InlineKeyboardButton("ʏᴇs", callback_data=f"revokeuser_confirm_{target_id}"),
+                    InlineKeyboardButton("ɴᴏ",  callback_data="revokeall_cancel"),
                 ]
             ]),
-        
         )
         return
 
-    # ── Global bulk revoke: /revokeall (no args) ─────────────────────────
     stats       = await db.get_stats()
     total_files = stats["total_files"]
 
@@ -554,26 +548,23 @@ async def revokeall_command(client: Client, message: Message):
             chat_id=message.chat.id,
             text="📂 ɴᴏ ꜰɪʟᴇꜱ ᴛᴏ ᴅᴇʟᴇᴛᴇ.",
             reply_to_message_id=message.id,
-        
         )
         return
 
     await client.send_message(
         chat_id=message.chat.id,
         text=(
-            f"⚠️ **Warning**\n\n"
+            f"**Cᴏɴғɪʀᴍ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ᴅᴇʟᴇᴛᴇ ᴛʜᴇ Fɪʟᴇ**\n\n"
             f"ᴛʜɪꜱ ᴡɪʟʟ ᴘᴇʀᴍᴀɴᴇɴᴛʟʏ ᴅᴇʟᴇᴛᴇ **{total_files}** ꜰɪʟᴇꜱ ꜰʀᴏᴍ ᴛʜᴇ ᴅᴀᴛᴀʙᴀꜱᴇ.\n"
-            "ᴀʟʟ ꜱᴛʀᴇᴀᴍ/ᴅᴏᴡɴʟᴏᴀᴅ ʟɪɴᴋꜱ ᴡɪʟʟ ʙᴇᴄᴏᴍᴇ ɪɴᴠᴀʟɪᴅ.\n\n"
-            "ᴀʀᴇ ʏᴏᴜ ꜱᴜʀᴇ?"
+            "ᴀʟʟ ꜱᴛʀᴇᴀᴍ/ᴅᴏᴡɴʟᴏᴀᴅ ʟɪɴᴋꜱ ᴡɪʟʟ ʙᴇᴄᴏᴍᴇ ɪɴᴠᴀʟɪᴅ."
         ),
         reply_to_message_id=message.id,
         reply_markup=InlineKeyboardMarkup([
             [
-                InlineKeyboardButton("✅ ᴄᴏɴꜰɪʀᴍ", callback_data="revokeall_confirm"),
-                InlineKeyboardButton("❌ ᴄᴀɴᴄᴇʟ",  callback_data="revokeall_cancel"),
+                InlineKeyboardButton("ʏᴇs", callback_data="revokeall_confirm"),
+                InlineKeyboardButton("ɴᴏ",  callback_data="revokeall_cancel"),
             ]
         ]),
-    
     )
 
 
@@ -585,31 +576,27 @@ async def revokeall_callback(client: Client, callback: CallbackQuery):
     if callback.data == "revokeall_cancel":
         await callback.answer("❌ ᴄᴀɴᴄᴇʟʟᴇᴅ.", show_alert=False)
         try:
-            await callback.message.edit_text("❌ **Revokeall cancelled.**",
-            )
+            await callback.message.edit_text(f"❌ **{small_caps('revokeall cancelled')}.**")
         except Exception:
             pass
         return
 
     await callback.answer("🗑️ ᴅᴇʟᴇᴛɪɴɢ ᴀʟʟ ꜰɪʟᴇꜱ…", show_alert=False)
     try:
-        await callback.message.edit_text("🗑️ ᴅᴇʟᴇᴛɪɴɢ ᴀʟʟ ꜰɪʟᴇꜱ…",
-        )
+        await callback.message.edit_text("🗑️ ᴅᴇʟᴇᴛɪɴɢ ᴀʟʟ ꜰɪʟᴇꜱ…")
     except Exception:
         pass
 
     deleted_count = await db.delete_all_files()
     try:
         await callback.message.edit_text(
-            f"🗑️ **All files deleted!**\n\n"
-            f"ᴅᴇʟᴇᴛᴇᴅ `{deleted_count}` ꜰɪʟᴇꜱ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ.",
-        
+            f"🗑️ **{small_caps('all files deleted')}!**\n\n"
+            f"ᴅᴇʟᴇᴛᴇᴅ `{deleted_count}` ꜰɪʟᴇꜱ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ."
         )
     except Exception:
         pass
 
 
-# ── Confirm per-user bulk revoke ──────────────────────────────────────────────
 @Client.on_callback_query(filters.regex(r"^revokeuser_confirm_"), group=2)
 async def revokeuser_confirm_callback(client: Client, callback: CallbackQuery):
     if not await check_owner(client, callback):
@@ -620,8 +607,7 @@ async def revokeuser_confirm_callback(client: Client, callback: CallbackQuery):
     await callback.answer("🗑️ ᴅᴇʟᴇᴛɪɴɢ…", show_alert=False)
     try:
         await callback.message.edit_text(
-            f"🗑️ ᴅᴇʟᴇᴛɪɴɢ ᴀʟʟ ꜰɪʟᴇꜱ ꜰᴏʀ ᴜꜱᴇʀ `{target_id}`…",
-        
+            f"🗑️ ᴅᴇʟᴇᴛɪɴɢ ᴀʟʟ ꜰɪʟᴇꜱ ꜰᴏʀ ᴜꜱᴇʀ `{target_id}`…"
         )
     except Exception:
         pass
@@ -629,18 +615,13 @@ async def revokeuser_confirm_callback(client: Client, callback: CallbackQuery):
     deleted_count = await db.delete_user_files(target_id)
     try:
         await callback.message.edit_text(
-            f"🗑️ **Done!**\n\n"
+            f"🗑️ **{small_caps('done')}!**\n\n"
             f"ᴅᴇʟᴇᴛᴇᴅ `{deleted_count}` ꜰɪʟᴇꜱ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ "
-            f"ꜰᴏʀ ᴜꜱᴇʀ `{target_id}`.",
-        
+            f"ꜰᴏʀ ᴜꜱᴇʀ `{target_id}`."
         )
     except Exception:
         pass
 
-
-# ════════════════════════════════════════════════════════════════════════════ #
-#  /logs  (owner — sends the log file as a document)                           #
-# ════════════════════════════════════════════════════════════════════════════ #
 
 @Client.on_message(filters.command("logs") & filters.private, group=2)
 async def logs_command(client: Client, message: Message):
@@ -654,7 +635,6 @@ async def logs_command(client: Client, message: Message):
             chat_id=message.chat.id,
             text="❌ **Log file not found or empty.**",
             reply_to_message_id=message.id,
-        
         )
         return
 
@@ -669,7 +649,6 @@ async def logs_command(client: Client, message: Message):
                 f"📦 **Size:** `{human_size(os.path.getsize(log_file))}`"
             ),
             reply_to_message_id=message.id,
-        
         )
     except Exception as exc:
         logger.error("logs_command send document error: %s", exc)
@@ -680,7 +659,6 @@ async def logs_command(client: Client, message: Message):
                 chat_id=message.chat.id,
                 text=f"📋 **Bot Logs** *(last 4 000 chars)*\n\n```\n{tail}\n```",
                 reply_to_message_id=message.id,
-            
             )
         except Exception as exc2:
             logger.error("logs_command fallback error: %s", exc2)
@@ -688,5 +666,4 @@ async def logs_command(client: Client, message: Message):
                 chat_id=message.chat.id,
                 text=f"❌ **Error reading logs:** `{exc2}`",
                 reply_to_message_id=message.id,
-            
             )

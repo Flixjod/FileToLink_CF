@@ -73,23 +73,15 @@ def build_app(bot: Bot, database) -> web.Application:
         }
 
     async def stream_page(request: web.Request):
-        """
-        GET /stream/<file_hash>
-
-        - Browser requests (Accept: text/html, no Range) → render HTML player page.
-        - Media player / Range requests                  → stream bytes directly.
-        """
         file_hash = request.match_info["file_hash"]
         accept    = request.headers.get("Accept", "")
         range_h   = request.headers.get("Range", "")
 
-        # ── Direct byte streaming for media players & range requests ──────
         if range_h or "text/html" not in accept:
             return await streaming_service.stream_file(
                 request, file_hash, is_download=False
             )
 
-        # ── HTML player page for browsers ──────────────────────────────────
         file_data = await database.get_file_by_hash(file_hash)
         if not file_data:
             raise web.HTTPNotFound(reason="File not found")
@@ -119,7 +111,6 @@ def build_app(bot: Bot, database) -> web.Application:
         return aiohttp_jinja2.render_template("stream.html", request, context)
 
     async def download_file(request: web.Request):
-        """GET /dl/<file_hash> — always force-download."""
         file_hash = request.match_info["file_hash"]
         return await streaming_service.stream_file(request, file_hash, is_download=True)
 

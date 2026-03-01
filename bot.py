@@ -32,16 +32,6 @@ class Bot(Client):
         return me
 
     async def _resolve_log_channel(self):
-        """Force-resolve the FLOG_CHAT_ID peer so Telegram caches it locally.
-
-        Without this, any cold-start deployment raises a PeerIdInvalid / 
-        'Could not find the input entity' error on the first send_cached_media 
-        call — because Pyrogram has never seen that chat in this session.
-
-        Calling get_chat() forces the MTProto layer to fetch and cache the 
-        peer's access hash so all subsequent calls work without the operator 
-        needing to manually send a message to the channel first.
-        """
         if not Config.FLOG_CHAT_ID:
             return
         try:
