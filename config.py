@@ -6,9 +6,6 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_BOT_NAME     = "Fɪʟᴇ Sᴛʀᴇᴀᴍ Bᴏᴛ"
-DEFAULT_BOT_USERNAME = "FileStreamRo_Bot"
-
 
 class Config:
     _data = {}
