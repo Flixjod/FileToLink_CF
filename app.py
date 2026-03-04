@@ -18,10 +18,28 @@ logger = logging.getLogger(__name__)
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 
-# Tracks live streaming / download sessions in real-time.
-# Incremented when a stream or download begins sending bytes;
-# decremented the moment the response is fully written (or errors).
-_active_connections = 0
+# ── Active connections ───────────────────────────────────────────────────────
+# asyncio.Lock-protected counter so concurrent coroutines never race.
+_active_connections: int = 0
+_active_connections_lock = asyncio.Lock()
+
+
+async def _increment_conns() -> int:
+    global _active_connections
+    async with _active_connections_lock:
+        _active_connections += 1
+        return _active_connections
+
+
+async def _decrement_conns() -> int:
+    global _active_connections
+    async with _active_connections_lock:
+        _active_connections = max(0, _active_connections - 1)
+        return _active_connections
+
+
+def _get_active_conns() -> int:
+    return _active_connections
 
 
 def _bot_info(bot: Bot) -> dict:
@@ -92,12 +110,11 @@ def build_app(bot: Bot, database) -> web.Application:
 
     async def _tracked_stream(request: web.Request, file_hash: str, is_download: bool):
         """Wrap stream_file so _active_connections accurately counts live sessions."""
-        global _active_connections
-        _active_connections += 1
+        await _increment_conns()
         try:
             return await streaming_service.stream_file(request, file_hash, is_download=is_download)
         finally:
-            _active_connections = max(0, _active_connections - 1)
+            await _decrement_conns()
 
     async def stream_page(request: web.Request):
         file_hash = request.match_info["file_hash"]
@@ -144,7 +161,10 @@ def build_app(bot: Bot, database) -> web.Application:
             stats    = await database.get_stats()
             bw_stats = await database.get_bandwidth_stats()
         except Exception:
-            stats    = {"total_users": 0, "total_files": 0}
+            stats    = {
+                "total_users": 0, "total_groups": 0,
+                "total_channels": 0, "total_chats": 0, "total_files": 0
+            }
             bw_stats = {"total_bandwidth": 0, "today_bandwidth": 0}
 
         max_bw    = Config.get("max_bandwidth", 107374182400)
@@ -159,10 +179,13 @@ def build_app(bot: Bot, database) -> web.Application:
             ram_pct      = ram.percent
             ram_used_fmt = format_size(ram.used)
             cpu_pct      = psutil.cpu_percent(interval=None)
+            # Bot load = average of CPU + RAM usage percentages
+            bot_load_pct = round((cpu_pct + ram_pct) / 2, 1)
         except Exception:
             ram_pct      = 0
             ram_used_fmt = "N/A"
             cpu_pct      = 0
+            bot_load_pct = 0
 
         uptime_seconds = time.time() - Config.UPTIME if Config.UPTIME else 0
         uptime_str     = _format_uptime(uptime_seconds)
@@ -171,21 +194,24 @@ def build_app(bot: Bot, database) -> web.Application:
 
         return {
             **info,
-            "total_users":  stats.get("total_users",  0),
-            "total_chats":  stats.get("total_users",  0),
-            "total_files":  stats.get("total_files",  0),
-            "ram_used":     ram_used_fmt,
-            "ram_pct":      ram_pct,
-            "cpu_pct":      cpu_pct,
-            "uptime":       uptime_str,
-            "bw_mode":      bw_mode,
-            "bw_limit":     format_size(max_bw),
-            "bw_used":      format_size(bw_used),
-            "bw_today":     format_size(bw_today),
-            "bw_remaining": format_size(remaining),
-            "bw_pct":       bw_pct,
-            "bot_status":   "running" if getattr(bot, "me", None) else "initializing",
-            "active_conns": _active_connections,
+            "total_users":    stats.get("total_users",    0),
+            "total_groups":   stats.get("total_groups",   0),
+            "total_channels": stats.get("total_channels", 0),
+            "total_chats":    stats.get("total_chats",    0),
+            "total_files":    stats.get("total_files",    0),
+            "ram_used":       ram_used_fmt,
+            "ram_pct":        ram_pct,
+            "cpu_pct":        cpu_pct,
+            "bot_load_pct":   bot_load_pct,
+            "uptime":         uptime_str,
+            "bw_mode":        bw_mode,
+            "bw_limit":       format_size(max_bw),
+            "bw_used":        format_size(bw_used),
+            "bw_today":       format_size(bw_today),
+            "bw_remaining":   format_size(remaining),
+            "bw_pct":         bw_pct,
+            "bot_status":     "running" if getattr(bot, "me", None) else "initializing",
+            "active_conns":   _get_active_conns(),
         }
 
     def _format_uptime(seconds: float) -> str:
@@ -220,24 +246,31 @@ def build_app(bot: Bot, database) -> web.Application:
             try:
                 ram          = psutil.virtual_memory()
                 cpu_pct      = psutil.cpu_percent(interval=None)
+                ram_pct      = ram.percent
                 ram_used_fmt = format_size(ram.used)
+                bot_load_pct = round((cpu_pct + ram_pct) / 2, 1)
             except Exception:
                 cpu_pct      = 0
+                ram_pct      = 0
                 ram_used_fmt = "N/A"
+                bot_load_pct = 0
 
             uptime_str = _format_uptime(time.time() - Config.UPTIME if Config.UPTIME else 0)
 
             payload = {
-                "total_users": stats.get("total_users", 0),
-                "total_chats": stats.get("total_users", 0),
-                "total_files": stats.get("total_files", 0),
-                "ram_used":    ram_used_fmt,
-                "cpu_pct":     cpu_pct,
-                "uptime":      uptime_str,
-                "bw_pct":      bw_pct,
-                "bw_used":     format_size(bw_used),
-                "bw_today":    format_size(bw_today),
-                "bw_limit":    format_size(max_bw),
+                "total_users":    stats.get("total_users",    0),
+                "total_groups":   stats.get("total_groups",   0),
+                "total_channels": stats.get("total_channels", 0),
+                "total_chats":    stats.get("total_chats",    0),
+                "total_files":    stats.get("total_files",    0),
+                "ram_used":       ram_used_fmt,
+                "cpu_pct":        cpu_pct,
+                "bot_load_pct":   bot_load_pct,
+                "uptime":         uptime_str,
+                "bw_pct":         bw_pct,
+                "bw_used":        format_size(bw_used),
+                "bw_today":       format_size(bw_today),
+                "bw_limit":       format_size(max_bw),
             }
             return web.Response(text=json.dumps(payload), content_type="application/json")
         except Exception as exc:
@@ -275,13 +308,13 @@ def build_app(bot: Bot, database) -> web.Application:
         try:
             info = _bot_info(bot)
             payload = {
-                "status":                  "ok",
-                "bot_status":              "running" if getattr(bot, "me", None) else "initializing",
-                "bot_name":                info["bot_name"],
-                "bot_username":            info["bot_username"],
-                "bot_id":                  info["bot_id"],
-                "bot_dc":                  info["bot_dc"],
-                "active_conns":            _active_connections,
+                "status":                   "ok",
+                "bot_status":               "running" if getattr(bot, "me", None) else "initializing",
+                "bot_name":                 info["bot_name"],
+                "bot_username":             info["bot_username"],
+                "bot_id":                   info["bot_id"],
+                "bot_dc":                   info["bot_dc"],
+                "active_conns":             _get_active_conns(),
                 "active_conns_description": "Live streaming/download sessions currently transferring bytes",
             }
             return web.Response(text=json.dumps(payload), content_type="application/json")

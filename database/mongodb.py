@@ -19,6 +19,8 @@ class Database:
         self.db         = self.client[database_name]
         self.files      = self.db.files
         self.users      = self.db.users
+        self.groups     = self.db.groups
+        self.channels   = self.db.channels
         self.bandwidth  = self.db.bandwidth
         self.sudo_users = self.db.sudo_users
         self.config     = self.db.config
@@ -44,6 +46,14 @@ class Database:
                 await self.users.create_index('user_id',      unique=True)
             if 'last_activity' not in users_idx:
                 await self.users.create_index('last_activity')
+
+            groups_idx = await _existing(self.groups)
+            if 'chat_id' not in groups_idx:
+                await self.groups.create_index('chat_id', unique=True)
+
+            channels_idx = await _existing(self.channels)
+            if 'chat_id' not in channels_idx:
+                await self.channels.create_index('chat_id', unique=True)
 
             bw_idx = await _existing(self.bandwidth)
             if 'date' not in bw_idx:
@@ -235,14 +245,62 @@ class Database:
             logger.error("get bandwidth stats error: %s", e)
             return {"total_bandwidth": 0, "today_bandwidth": 0}
 
+    async def register_group(self, chat_id: int, title: str = "") -> bool:
+        """Register a group; return True if new, False if already known."""
+        try:
+            existing = await self.groups.find_one({"chat_id": chat_id})
+            if existing:
+                await self.groups.update_one(
+                    {"chat_id": chat_id},
+                    {"$set": {"last_activity": datetime.utcnow(), "title": title}},
+                )
+                return False
+            await self.groups.insert_one({
+                "chat_id":       chat_id,
+                "title":         title,
+                "first_seen":    datetime.utcnow(),
+                "last_activity": datetime.utcnow(),
+            })
+            return True
+        except Exception as e:
+            logger.error("register_group error: %s", e)
+            return False
+
+    async def register_channel(self, chat_id: int, title: str = "") -> bool:
+        """Register a channel; return True if new, False if already known."""
+        try:
+            existing = await self.channels.find_one({"chat_id": chat_id})
+            if existing:
+                await self.channels.update_one(
+                    {"chat_id": chat_id},
+                    {"$set": {"last_activity": datetime.utcnow(), "title": title}},
+                )
+                return False
+            await self.channels.insert_one({
+                "chat_id":       chat_id,
+                "title":         title,
+                "first_seen":    datetime.utcnow(),
+                "last_activity": datetime.utcnow(),
+            })
+            return True
+        except Exception as e:
+            logger.error("register_channel error: %s", e)
+            return False
+
     async def get_stats(self) -> Dict:
         try:
-            total_files = await self.files.count_documents({})
-            total_users = await self.users.count_documents({})
-            bw          = await self.get_bandwidth_stats()
+            total_files    = await self.files.count_documents({})
+            total_users    = await self.users.count_documents({})
+            total_groups   = await self.groups.count_documents({})
+            total_channels = await self.channels.count_documents({})
+            total_chats    = total_users + total_groups + total_channels
+            bw             = await self.get_bandwidth_stats()
             return {
                 "total_files":     total_files,
                 "total_users":     total_users,
+                "total_groups":    total_groups,
+                "total_channels":  total_channels,
+                "total_chats":     total_chats,
                 "total_bandwidth": bw["total_bandwidth"],
                 "today_bandwidth": bw["today_bandwidth"],
             }
@@ -250,6 +308,8 @@ class Database:
             logger.error("get stats error: %s", e)
             return {
                 "total_files": 0, "total_users": 0,
+                "total_groups": 0, "total_channels": 0,
+                "total_chats": 0,
                 "total_bandwidth": 0, "today_bandwidth": 0,
             }
 

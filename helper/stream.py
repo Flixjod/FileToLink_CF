@@ -15,8 +15,10 @@ from database import Database
 
 logger = logging.getLogger(__name__)
 
-# Telegram hard-caps upload.GetFile at 1 MB per call.
-CHUNK_SIZE = 1024 * 1024  # 1 MB
+# 244 KB chunk size — optimal for stable streaming and controlled bandwidth.
+# 244 × 1024 = 249,856 bytes = 61 × 4,096 — valid Telegram GetFile boundary.
+# Keeps per-request payload small and avoids inflated bandwidth accounting.
+CHUNK_SIZE = 244 * 1024  # 249,856 bytes
 
 MIME_TYPE_MAP = {
     "video":    "video/mp4",

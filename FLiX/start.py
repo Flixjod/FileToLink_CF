@@ -14,6 +14,17 @@ from helper import small_caps, format_size, escape_markdown, check_fsub
 
 logger = logging.getLogger(__name__)
 
+# ── Module-level bot-self cache to avoid repeated get_me() round-trips ───────
+_bot_me_cache: dict = {}   # {id(client): pyrogram User object}
+
+
+async def _get_me_cached(client) -> object:
+    """Return cached bot-self object; re-fetches only once per process."""
+    cid = id(client)
+    if cid not in _bot_me_cache:
+        _bot_me_cache[cid] = await client.get_me()
+    return _bot_me_cache[cid]
+
 
 def show_nav(page: str, user=None, bot_username: str = "") -> tuple[str, InlineKeyboardMarkup]:
 
@@ -74,7 +85,7 @@ def show_nav(page: str, user=None, bot_username: str = "") -> tuple[str, InlineK
 async def start_command(client: Client, message: Message):
     user    = message.from_user
     user_id = user.id
-    _me     = await client.get_me()
+    _me     = await _get_me_cached(client)
 
     is_new = await db.register_user_on_start({
         "user_id":    str(user_id),
@@ -208,7 +219,7 @@ async def help_command(client: Client, message: Message):
 
 @Client.on_message(filters.command("about") & filters.private, group=1)
 async def about_command(client: Client, message: Message):
-    _me = await client.get_me()
+    _me = await _get_me_cached(client)
     text, buttons = show_nav("about", message.from_user, bot_username=_me.username or "")
     await client.send_message(
         chat_id=message.chat.id,
@@ -221,7 +232,7 @@ async def about_command(client: Client, message: Message):
 
 @Client.on_callback_query(filters.regex(r"^(start|help|about)$"), group=1)
 async def cb_info(client: Client, callback: CallbackQuery):
-    _me = await client.get_me()
+    _me = await _get_me_cached(client)
     text, markup = show_nav(callback.data, callback.from_user, bot_username=_me.username or "")
     msg = callback.message
 
@@ -244,3 +255,23 @@ async def cb_info(client: Client, callback: CallbackQuery):
         )
 
     await callback.answer()
+
+
+# ── Auto-register groups & channels so Total Chats is accurate ───────────────
+
+@Client.on_message(filters.group & ~filters.service, group=5)
+async def track_group(client: Client, message: Message):
+    """Silently register any group the bot receives a message in."""
+    chat = message.chat
+    if chat and chat.id:
+        title = getattr(chat, "title", "") or ""
+        await db.register_group(chat.id, title)
+
+
+@Client.on_message(filters.channel & ~filters.service, group=5)
+async def track_channel(client: Client, message: Message):
+    """Silently register any channel the bot receives a message in."""
+    chat = message.chat
+    if chat and chat.id:
+        title = getattr(chat, "title", "") or ""
+        await db.register_channel(chat.id, title)

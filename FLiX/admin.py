@@ -386,15 +386,23 @@ async def adminstats_command(client: Client, message: Message):
     bw_pct  = (bw_used / max_bw * 100) if max_bw else 0
     bw_mode = f"🟢 {small_caps('active')}" if Config.get("bandwidth_mode", True) else f"🔴 {small_caps('inactive')}"
 
+    total_users    = stats['total_users']
+    total_groups   = stats['total_groups']
+    total_channels = stats['total_channels']
+    total_chats    = stats['total_chats']
+
     text = (
         f"📊 **{small_caps('admin statistics')}**\n\n"
-        f"⏱️ **{small_caps('uptime')}:**         `{uptime_str}`\n\n"
-        f"👥 **{small_caps('total users')}:**     `{stats['total_users']}`\n"
-        f"📂 **{small_caps('total files')}:**     `{stats['total_files']}`\n\n"
+        f"⏱️ **{small_caps('uptime')}:**            `{uptime_str}`\n\n"
+        f"👤 **{small_caps('users')}:**             `{total_users}`\n"
+        f"👥 **{small_caps('groups')}:**            `{total_groups}`\n"
+        f"📢 **{small_caps('channels')}:**          `{total_channels}`\n"
+        f"💬 **{small_caps('total chats')}:**       `{total_chats}` _(users + groups + channels)_\n\n"
+        f"📂 **{small_caps('total files')}:**       `{stats['total_files']}`\n\n"
         f"📡 **{small_caps('bandwidth mode')}:**  {bw_mode}\n"
-        f"📶 **{small_caps('bw limit')}:**        `{format_size(max_bw)}`\n"
-        f"📤 **{small_caps('bw used total')}:**   `{format_size(bw_used)}` ({bw_pct:.1f}%)\n"
-        f"📅 **{small_caps('bw used today')}:**   `{format_size(bw_stats['today_bandwidth'])}`"
+        f"📶 **{small_caps('bw limit')}:**          `{format_size(max_bw)}`\n"
+        f"📤 **{small_caps('bw used total')}:**     `{format_size(bw_used)}` ({bw_pct:.1f}%)\n"
+        f"📅 **{small_caps('bw used today')}:**     `{format_size(bw_stats['today_bandwidth'])}`"
     )
 
     await client.send_message(

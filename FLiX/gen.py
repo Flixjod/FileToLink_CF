@@ -21,6 +21,17 @@ logger = logging.getLogger(__name__)
 STREAMABLE_TYPES = ("video", "audio")
 PAGE_SIZE = 10
 
+# ── Module-level bot-self cache to avoid repeated get_me() calls ──────────────
+_bot_me_cache: dict = {}   # {id(client): pyrogram User object}
+
+
+async def _get_me_cached(client) -> object:
+    """Return cached bot-self object; re-fetches only once per process."""
+    cid = id(client)
+    if cid not in _bot_me_cache:
+        _bot_me_cache[cid] = await client.get_me()
+    return _bot_me_cache[cid]
+
 
 async def check_access(user_id: int) -> bool:
     if Config.get("public_bot", False):
@@ -508,7 +519,7 @@ async def cb_owner_file_detail(client: Client, callback: CallbackQuery):
     base_url      = Config.URL or f"http://localhost:{Config.PORT}"
     stream_link   = f"{base_url}/stream/{file_hash}"
     download_link = f"{base_url}/dl/{file_hash}"
-    telegram_link = f"https://t.me/{(await client.get_me()).username}?start=file_{file_hash}"
+    telegram_link = f"https://t.me/{(await _get_me_cached(client)).username}?start=file_{file_hash}"
 
     safe_name      = escape_markdown(file_data["file_name"])
     formatted_size = format_size(file_data["file_size"])
@@ -794,7 +805,8 @@ async def inline_query_handler(client: Client, inline_query):
     file_hash     = file_data["file_id"]
     stream_link   = f"{base_url}/stream/{file_hash}"
     download_link = f"{base_url}/dl/{file_hash}"
-    bot_username  = (await client.get_me()).username
+    bot_me        = await _get_me_cached(client)
+    bot_username  = bot_me.username
     telegram_link = f"https://t.me/{bot_username}?start=file_{file_hash}"
     file_type     = file_data.get("file_type", "document")
     is_streamable = file_type in STREAMABLE_TYPES
@@ -891,4 +903,4 @@ async def inline_query_handler(client: Client, inline_query):
             thumb_height=320,
         )
 
-    await inline_query.answer(results=[result_item], cache_time=30)
+    await inline_query.answer(results=[result_item], cache_time=5)
