@@ -18,6 +18,9 @@ from helper.stream import (
     _register_session,
     _unregister_session,
     _get_client_ip,
+    _mime_for_filename,
+    is_browser_playable,
+    MIME_TYPE_MAP,
 )
 
 logger = logging.getLogger(__name__)
@@ -133,17 +136,31 @@ def build_app(bot: Bot, database) -> web.Application:
             else "audio" if file_data["file_type"] == Config.FILE_TYPE_AUDIO
             else "document"
         )
+
+        # Resolve MIME so the template knows whether the browser can play it
+        mime = (
+            file_data.get("mime_type")
+            or _mime_for_filename(
+                file_data["file_name"],
+                MIME_TYPE_MAP.get(file_data.get("file_type"), "application/octet-stream"),
+            )
+            or "application/octet-stream"
+        )
+        playable = is_browser_playable(mime)
+
         info = _bot_info(bot)
         context = {
-            "bot_name":       info["bot_name"],
-            "bot_username":   info["bot_username"],
-            "owner_username": "FLiX_LY",
-            "file_name":      file_data["file_name"],
-            "file_size":      format_size(file_data["file_size"]),
-            "file_type":      file_type,
-            "stream_url":     f"{base}/stream/{file_hash}",
-            "download_url":   f"{base}/dl/{file_hash}",
-            "telegram_url":   f"https://t.me/{info['bot_username']}?start={file_hash}",
+            "bot_name":        info["bot_name"],
+            "bot_username":    info["bot_username"],
+            "owner_username":  "FLiX_LY",
+            "file_name":       file_data["file_name"],
+            "file_size":       format_size(file_data["file_size"]),
+            "file_type":       file_type,
+            "mime_type":       mime,
+            "browser_playable": playable,
+            "stream_url":      f"{base}/stream/{file_hash}",
+            "download_url":    f"{base}/dl/{file_hash}",
+            "telegram_url":    f"https://t.me/{info['bot_username']}?start={file_hash}",
         }
         return aiohttp_jinja2.render_template("stream.html", request, context)
 

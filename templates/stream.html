@@ -11,7 +11,6 @@
   <meta property="og:image" content="https://i.ibb.co/KzqHfL05/photo-2026-02-07-13-38-13.jpg">
   <meta property="og:description" content="Watch {{ file_name }} — stream or download instantly.">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <!-- Using Font Awesome 6.6.0 from jsDelivr CDN for maximum speed & icon coverage -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.6.0/css/all.min.css">
   <style>
     /* ── CSS Custom Properties ──────────────────────────────── */
@@ -87,16 +86,18 @@
       --b-sp-hover:          rgba(167,139,250,.12);
       --hk-section-bg:       rgba(255,255,255,0.06);
       --hk-section-border:   rgba(255,255,255,.12);
-      /* Settings popup */
       --popup-bg:            rgba(18,14,46,.97);
       --popup-border:        rgba(102,126,234,.28);
       --popup-shadow:        0 16px 48px rgba(0,0,0,.7), 0 0 30px rgba(102,126,234,.18);
       --popup-item-hover:    rgba(102,126,234,.15);
       --popup-item-active:   rgba(102,126,234,.25);
-      /* Controls */
       --ctrl-bg:             rgba(0,0,0,.82);
       --ctrl-btn-hover:      rgba(255,255,255,.14);
       --ctrl-btn-active:     rgba(102,126,234,.3);
+      /* Error banner */
+      --err-banner-bg:       rgba(239,68,68,.13);
+      --err-banner-border:   rgba(239,68,68,.38);
+      --err-banner-color:    #f87171;
     }
 
     [data-theme="light"] {
@@ -178,6 +179,9 @@
       --ctrl-bg:             rgba(0,0,0,.82);
       --ctrl-btn-hover:      rgba(255,255,255,.18);
       --ctrl-btn-active:     rgba(102,126,234,.4);
+      --err-banner-bg:       rgba(220,38,38,.08);
+      --err-banner-border:   rgba(220,38,38,.28);
+      --err-banner-color:    #dc2626;
     }
 
     /* ── Reset ──────────────────────────────────────────────── */
@@ -358,6 +362,58 @@
     }
     .player-card:hover { box-shadow: var(--player-card-hover); }
 
+    /* ── Unsupported Format Banner ───────────────────────────── */
+    .unsupported-banner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 48px 24px 52px;
+      text-align: center;
+    }
+    .unsupported-icon {
+      width: 72px; height: 72px;
+      border-radius: 22px;
+      background: var(--err-banner-bg);
+      border: 1px solid var(--err-banner-border);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      margin-bottom: 4px;
+    }
+    .unsupported-icon i {
+      font-size: 2rem;
+      color: var(--err-banner-color);
+    }
+    .unsupported-title {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1.35;
+    }
+    .unsupported-msg {
+      font-size: .85rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      max-width: 460px;
+      /* Prevent long filenames or MIME strings from breaking layout */
+      overflow-wrap: break-word;
+      word-break: break-word;
+    }
+    .unsupported-mime {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .78rem;
+      background: var(--err-banner-bg);
+      border: 1px solid var(--err-banner-border);
+      color: var(--err-banner-color);
+      border-radius: 7px;
+      padding: 4px 12px;
+      /* Contain long MIME strings */
+      overflow-wrap: break-word;
+      word-break: break-all;
+      max-width: 100%;
+    }
+
     /* ── Custom Video Wrapper ────────────────────────────────── */
     .video-wrapper {
       position: relative;
@@ -366,7 +422,6 @@
       border-radius: 24px;
       overflow: hidden;
       user-select: none;
-      /* Isolation: creates stacking context so z-index of children is self-contained */
       isolation: isolate;
     }
 
@@ -399,6 +454,73 @@
       max-height: 100vh;
       object-fit: contain;
     }
+
+    /* ── In-player Error Overlay ─────────────────────────────── */
+    .player-error-overlay {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: rgba(8,6,28,.92);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-radius: 24px;
+      z-index: 25;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .player-error-overlay.active { display: flex; }
+    .player-error-inner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      text-align: center;
+      max-width: 380px;
+      width: 100%;
+    }
+    .player-error-icon {
+      width: 64px; height: 64px;
+      border-radius: 18px;
+      background: rgba(248,113,113,.14);
+      border: 1px solid rgba(248,113,113,.32);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .player-error-icon i { font-size: 1.8rem; color: #f87171; }
+    .player-error-title { font-size: .98rem; font-weight: 800; color: #fff; line-height: 1.35; }
+    .player-error-msg {
+      font-size: .8rem;
+      color: rgba(255,255,255,.6);
+      line-height: 1.55;
+      /* Constrain long messages to stay inside the overlay */
+      overflow-wrap: break-word;
+      word-break: break-word;
+      max-width: 100%;
+    }
+    .player-error-btns {
+      display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; width: 100%;
+    }
+    .player-error-btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 9px 20px;
+      border-radius: 10px;
+      font-family: 'Poppins', sans-serif;
+      font-size: .8rem; font-weight: 700;
+      cursor: pointer; border: none;
+      transition: all .22s cubic-bezier(.34,1.56,.64,1);
+    }
+    .player-error-btn.primary {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(102,126,234,.4);
+    }
+    .player-error-btn.primary:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(102,126,234,.55); }
+    .player-error-btn.secondary {
+      background: rgba(255,255,255,.08);
+      color: rgba(255,255,255,.7);
+      border: 1px solid rgba(255,255,255,.14);
+    }
+    .player-error-btn.secondary:hover { background: rgba(255,255,255,.14); color: #fff; }
 
     /* ──────────────────────────────────────────────────────────
        PROGRESS ROW
@@ -470,8 +592,15 @@
       background: linear-gradient(transparent, rgba(0,0,0,.88));
       opacity: 0;
       transition: opacity .25s ease;
+      /* z-index: lower than the settings popup (200) */
       z-index: 10;
       border-radius: 0 0 24px 24px;
+      /* CRITICAL: pointer-events must always be 'auto' here.
+         The old code inadvertently inherited pointer-events:none from
+         the parent when the popup overlay was active, which locked all
+         ctrl-bar buttons. Explicitly re-enabling ensures buttons are
+         always clickable when the bar is visible. */
+      pointer-events: auto;
     }
     .video-wrapper:hover .ctrl-bar,
     .video-wrapper.ctrl-visible .ctrl-bar { opacity: 1; }
@@ -502,6 +631,9 @@
       flex-shrink: 0;
       position: relative;
       outline: none;
+      /* Ensure buttons are always on top of any sibling overlays */
+      z-index: 1;
+      pointer-events: auto;
     }
     .ctrl-btn:hover {
       background: var(--ctrl-btn-hover);
@@ -585,7 +717,7 @@
     }
     .big-play.hidden { opacity: 0; pointer-events: none; }
 
-    /* ── PiP Banner — Redesigned ─────────────────────────────── */
+    /* ── PiP Banner ──────────────────────────────────────────── */
     .pip-banner {
       display: none;
       position: absolute;
@@ -598,7 +730,6 @@
     }
     .pip-banner.active { display: flex; align-items: center; justify-content: center; }
 
-    /* Inner content card */
     .pip-inner {
       display: flex;
       flex-direction: column;
@@ -670,21 +801,28 @@
 
     /* ──────────────────────────────────────────────────────────
        SETTINGS POPUP
-       IMPORTANT: z-index must be above ctrl-bar (10) but the
-       popup lives INSIDE .video-wrapper which has isolation:isolate
-       so it never leaks blur or z-index outside the player.
+       IMPORTANT: Lives INSIDE .video-wrapper (isolation:isolate).
+       z-index: 200 — sits above ctrl-bar (10) but within the
+       video-wrapper stacking context only.
+
+       KEY FIX (settings button was "locked"):
+       The old code set pointer-events:none on .settings-overlay
+       which inadvertently inherited down to the ctrl-bar on some
+       mobile browsers. We now ensure the overlay never covers the
+       ctrl-bar by giving it a strictly lower z-index, and we
+       add explicit pointer-events:auto to the ctrl-bar and its
+       child buttons (see above).
     ─────────────────────────────────────────────────────────── */
     .settings-popup {
       position: absolute;
-      bottom: 50px;
+      bottom: 54px;
       right: 8px;
       background: var(--popup-bg);
       border: 1px solid var(--popup-border);
       border-radius: 16px;
       box-shadow: var(--popup-shadow);
-      /* Compact: slightly smaller padding, narrower min-width */
       padding: 4px 4px 6px;
-      min-width: 224px;
+      min-width: 248px;
       max-width: calc(100vw - 24px);
       z-index: 200;
       opacity: 0;
@@ -693,11 +831,10 @@
       transition: opacity .2s ease, transform .2s cubic-bezier(.34,1.56,.64,1);
       backdrop-filter: blur(18px);
       -webkit-backdrop-filter: blur(18px);
-      /* Prevent the popup from blurring or filtering the video behind it */
       isolation: isolate;
     }
 
-    /* Mobile: bottom sheet style */
+    /* Mobile: bottom sheet */
     @media (max-width: 600px) {
       .settings-popup {
         position: fixed;
@@ -707,7 +844,7 @@
         max-width: 100vw;
         padding: 10px 6px 22px;
         transform: translateY(20px) scale(1);
-        max-height: 75vh;
+        max-height: 78vh;
         overflow-y: auto;
         z-index: 2000;
       }
@@ -813,25 +950,79 @@
     [data-theme="light"] .popup-item-arrow { color: rgba(0,0,0,.3); }
     .popup-item-check { font-size: .7rem; color: #4ade80; flex-shrink: 0; }
 
-    /* Speed sub-panel */
-    .speed-options { display: none; padding: 1px 6px 5px; }
+    /* ── Speed sub-panel ─────────────────────────────────────── */
+    .speed-options { display: none; padding: 2px 6px 6px; }
     .speed-options.open { display: block; }
-    .speed-chips { display: flex; flex-wrap: wrap; gap: 5px; padding-top: 3px; }
+    .speed-chips { display: flex; flex-wrap: wrap; gap: 5px; padding: 3px 0 4px; }
     .speed-chip {
       background: rgba(255,255,255,.06);
       border: 1px solid rgba(255,255,255,.1);
       border-radius: 7px;
-      padding: 4px 10px;
+      padding: 5px 12px;
       font-size: .72rem;
       cursor: pointer;
       color: var(--text-secondary);
       transition: all .15s ease;
       font-family: 'Poppins', sans-serif;
-      font-weight: 500;
+      font-weight: 600;
     }
     .speed-chip:hover { background: rgba(102,126,234,.2); color: #667eea; border-color: rgba(102,126,234,.4); }
     .speed-chip.active { background: rgba(102,126,234,.25); color: #667eea; border-color: #667eea; font-weight: 700; }
     [data-theme="light"] .speed-chip { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.1); color: var(--text-secondary); }
+
+    /* Custom speed slider row */
+    .custom-speed-row {
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      padding: 5px 4px 4px;
+    }
+    .custom-speed-row.open { display: flex; }
+    .custom-speed-label {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: .72rem;
+      color: var(--text-secondary);
+    }
+    .custom-speed-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      color: #667eea;
+      min-width: 36px;
+      text-align: right;
+    }
+    .custom-speed-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 4px;
+      border-radius: 999px;
+      background: rgba(102,126,234,.25);
+      outline: none;
+      cursor: pointer;
+    }
+    .custom-speed-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea, #a78bfa);
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(102,126,234,.5);
+    }
+    .custom-speed-slider::-moz-range-thumb {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea, #a78bfa);
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 2px 6px rgba(102,126,234,.5);
+    }
+    .speed-range-hints {
+      display: flex; justify-content: space-between;
+      font-size: .6rem;
+      color: rgba(255,255,255,.3);
+      padding: 0 1px;
+    }
+    [data-theme="light"] .speed-range-hints { color: rgba(0,0,0,.28); }
 
     /* Audio track / subtitle lists */
     .track-list { padding: 2px 4px 3px; }
@@ -849,22 +1040,19 @@
     .track-item i { font-size: .66rem; width: 13px; color: #667eea; flex-shrink: 0; }
     .no-tracks { padding: 5px 12px 3px; font-size: .73rem; color: var(--text-muted); font-style: italic; }
 
-    /* ── Settings Overlay (mobile backdrop)
-       IMPORTANT: This is ONLY shown on mobile (≤600px).
-       On desktop the popup is inside the video-wrapper with z-index:200,
-       so it never needs a full-screen overlay.
-       The overlay must NOT cover the video-wrapper itself — it sits behind it.
-    ─────────────────────────────────────────────────────────── */
+    /* ── Settings Overlay (mobile backdrop) ──────────────────── */
     .settings-overlay {
       display: none;
       position: fixed;
       inset: 0;
       background: rgba(0,0,0,.5);
-      /* z-index lower than the fixed settings-popup on mobile (2000) */
+      /* CRITICAL FIX: z-index must be BELOW the fixed popup (2000) on mobile
+         but NOT cover the ctrl-bar on desktop. On desktop the popup is
+         absolute inside the player wrapper so no overlay is needed at all. */
       z-index: 1999;
-      /* NO backdrop-filter here — we don't want global blur */
     }
     .settings-overlay.active { display: block; }
+    /* Never show the overlay on desktop — the popup is inside the player */
     @media (min-width: 601px) { .settings-overlay { display: none !important; } }
 
     /* non-video file card */
@@ -911,7 +1099,7 @@
     }
     .pip-btn.pip-active { background: rgba(102,126,234,.2); color: #667eea; border-color: #667eea; }
 
-    /* ── Info Panel ──────────────────────────────────────────── */
+    /* ── Info Panel (Resolution removed — only Size / Type / Status) ── */
     .info-panel {
       background: var(--info-panel-bg);
       backdrop-filter: blur(22px);
@@ -1044,7 +1232,7 @@
       min-width: 28px; text-align: center;
     }
 
-    /* ── Footer — unified with other pages ──────────────────── */
+    /* ── Footer — unified across all pages ──────────────────── */
     .footer-note {
       margin-top: 10px;
       color: var(--text-muted);
@@ -1115,7 +1303,7 @@
     <span></span><span></span><span></span><span></span><span></span>
   </div>
 
-  <!-- Mobile settings overlay (backdrop — only on mobile, behind popup) -->
+  <!-- Mobile settings overlay (backdrop — mobile only, BEHIND popup) -->
   <div class="settings-overlay" id="settings-overlay" onclick="closeSettings()"></div>
 
   <div class="container">
@@ -1145,181 +1333,239 @@
     <div class="player-card" id="player-card">
       {% if file_type == 'video' %}
 
-      <!-- Video wrapper is the fullscreen target -->
-      <div class="video-wrapper" id="video-wrapper">
+        {% if browser_playable %}
+        <!-- ── Native video player ───────────────────────────── -->
+        <div class="video-wrapper" id="video-wrapper">
 
-        <!-- ── PiP overlay banner (redesigned) ──────────────── -->
-        <div class="pip-banner" id="pip-banner">
-          <div class="pip-inner">
-            <div class="pip-banner-icon">
-              <i class="fa-solid fa-tv"></i>
+          <!-- PiP overlay banner -->
+          <div class="pip-banner" id="pip-banner">
+            <div class="pip-inner">
+              <div class="pip-banner-icon">
+                <i class="fa-solid fa-tv"></i>
+              </div>
+              <div class="pip-banner-text">
+                <h3>Playing in Picture‑in‑Picture</h3>
+                <p>Video is floating in a separate window</p>
+              </div>
+              <button class="pip-return-btn" onclick="exitPiP()" aria-label="Return to player">
+                <i class="fa-solid fa-arrow-left"></i>
+                Back to Player
+              </button>
             </div>
-            <div class="pip-banner-text">
-              <h3>Playing in Picture‑in‑Picture</h3>
-              <p>Video is floating in a separate window</p>
+          </div>
+
+          <!-- In-player error overlay (shown on MediaError) -->
+          <div class="player-error-overlay" id="player-error-overlay">
+            <div class="player-error-inner">
+              <div class="player-error-icon"><i class="fa-solid fa-circle-exclamation"></i></div>
+              <div class="player-error-title" id="player-error-title">Playback Error</div>
+              <div class="player-error-msg" id="player-error-msg"></div>
+              <div class="player-error-btns">
+                <button class="player-error-btn primary" onclick="retryPlayback()">
+                  <i class="fa-solid fa-rotate-right"></i> Retry
+                </button>
+                <button class="player-error-btn secondary" onclick="lazyDownload()">
+                  <i class="fa-solid fa-cloud-arrow-down"></i> Download Instead
+                </button>
+              </div>
             </div>
-            <button class="pip-return-btn" onclick="exitPiP()" aria-label="Return to player">
-              <i class="fa-solid fa-arrow-left"></i>
-              Back to Player
-            </button>
-          </div>
-        </div>
-
-        <!-- The actual video element
-             preload="metadata" → browser only downloads headers first,
-             so duration/resolution are available instantly even for large files.
-             src on video tag (not <source>) for better range-request handling. -->
-        <video id="player"
-               playsinline
-               webkit-playsinline
-               preload="metadata"
-               crossorigin="anonymous"
-               src="{{ stream_url }}">
-        </video>
-
-        <!-- Big play button shown when paused -->
-        <button class="big-play hidden" id="big-play" onclick="togglePlay()" aria-label="Play/Pause">
-          <i class="fa-solid fa-play" id="big-play-icon"></i>
-        </button>
-
-        <!-- Seek progress row -->
-        <div class="progress-row" id="progress-row">
-          <div class="progress-track" id="progress-track">
-            <div class="progress-buffered" id="progress-buffered" style="width:0%"></div>
-            <div class="progress-fill" id="progress-fill" style="width:0%"></div>
-            <div class="progress-thumb" id="progress-thumb"></div>
-          </div>
-        </div>
-
-        <!-- ── Settings popup (INSIDE wrapper → survives fullscreen,
-             isolated from page so it NEVER blurs the page background) ── -->
-        <div class="settings-popup" id="settings-popup" role="dialog" aria-label="Player Settings">
-          <!-- drag handle (mobile) -->
-          <div class="settings-drag-handle"></div>
-
-          <!-- header -->
-          <div class="settings-header">
-            <span class="settings-header-title">
-              <i class="fa-solid fa-sliders"></i> Player Settings
-            </span>
-            <button class="settings-close-btn" onclick="closeSettings()" aria-label="Close settings">
-              <i class="fa-solid fa-xmark"></i>
-            </button>
           </div>
 
-          <!-- ── Playback Speed ──────────────────────── -->
-          <div class="popup-section">
-            <span class="popup-label">Playback Speed</span>
-            <div class="popup-item" id="speed-toggle" onclick="toggleSpeedPanel()" aria-expanded="false">
-              <div class="popup-item-left">
-                <div class="popup-item-icon">
-                  <i class="fa-solid fa-gauge-high"></i>
+          <!-- Video element
+               preload="auto" + fast buffering:
+               • preload="auto" tells the browser to start loading data
+                 immediately so playback starts as quickly as possible.
+               • crossorigin="anonymous" enables CORS-based caching.
+               • src on <video> (not <source>) gives cleaner range-request handling. -->
+          <video id="player"
+                 playsinline
+                 webkit-playsinline
+                 preload="auto"
+                 crossorigin="anonymous"
+                 src="{{ stream_url }}">
+          </video>
+
+          <!-- Big play button (shown when paused) -->
+          <button class="big-play hidden" id="big-play" onclick="togglePlay()" aria-label="Play/Pause">
+            <i class="fa-solid fa-play" id="big-play-icon"></i>
+          </button>
+
+          <!-- Seek progress row -->
+          <div class="progress-row" id="progress-row">
+            <div class="progress-track" id="progress-track">
+              <div class="progress-buffered" id="progress-buffered" style="width:0%"></div>
+              <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+              <div class="progress-thumb" id="progress-thumb"></div>
+            </div>
+          </div>
+
+          <!-- ── Settings popup (INSIDE wrapper → survives fullscreen) ── -->
+          <div class="settings-popup" id="settings-popup" role="dialog" aria-label="Player Settings">
+            <div class="settings-drag-handle"></div>
+
+            <div class="settings-header">
+              <span class="settings-header-title">
+                <i class="fa-solid fa-sliders"></i> Player Settings
+              </span>
+              <button class="settings-close-btn" onclick="closeSettings()" aria-label="Close settings">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <!-- ── Playback Speed ─────────────────────────────── -->
+            <div class="popup-section">
+              <span class="popup-label">Playback Speed</span>
+              <div class="popup-item" id="speed-toggle" onclick="toggleSpeedPanel()" aria-expanded="false">
+                <div class="popup-item-left">
+                  <div class="popup-item-icon">
+                    <i class="fa-solid fa-gauge-high"></i>
+                  </div>
+                  <span class="popup-item-label">Speed</span>
                 </div>
-                <span class="popup-item-label">Speed</span>
+                <span class="popup-item-value" id="speed-current-label">Normal</span>
+                <i class="fa-solid fa-chevron-down popup-item-arrow" id="speed-arrow"></i>
               </div>
-              <span class="popup-item-value" id="speed-current-label">1×</span>
-              <i class="fa-solid fa-chevron-down popup-item-arrow" id="speed-arrow"></i>
-            </div>
-            <div class="speed-options" id="speed-options">
-              <div class="speed-chips">
-                <span class="speed-chip" data-speed="0.5">0.5×</span>
-                <span class="speed-chip active" data-speed="1">1× <small style="opacity:.6;font-size:.66rem">(Normal)</small></span>
-                <span class="speed-chip" data-speed="1.5">1.5×</span>
-                <span class="speed-chip" data-speed="2">2×</span>
+
+              <div class="speed-options" id="speed-options">
+                <div class="speed-chips">
+                  <!-- Preset chips: Slow / Normal / Fast Forward / Custom -->
+                  <span class="speed-chip" data-speed="0.5" data-label="Slow">
+                    <i class="fa-solid fa-backward" style="font-size:.6rem;margin-right:3px"></i>Slow
+                  </span>
+                  <span class="speed-chip active" data-speed="1" data-label="Normal">
+                    <i class="fa-solid fa-circle-play" style="font-size:.6rem;margin-right:3px"></i>Normal
+                  </span>
+                  <span class="speed-chip" data-speed="1.5" data-label="Fast">
+                    <i class="fa-solid fa-forward" style="font-size:.6rem;margin-right:3px"></i>Fast Forward
+                  </span>
+                  <span class="speed-chip" data-speed="custom" data-label="Custom">
+                    <i class="fa-solid fa-sliders" style="font-size:.6rem;margin-right:3px"></i>Custom
+                  </span>
+                </div>
+
+                <!-- Custom speed slider — shown only when Custom is selected -->
+                <div class="custom-speed-row" id="custom-speed-row">
+                  <div class="custom-speed-label">
+                    <span>Custom Speed</span>
+                    <span class="custom-speed-val" id="custom-speed-val">1.0×</span>
+                  </div>
+                  <input type="range" class="custom-speed-slider" id="custom-speed-slider"
+                         min="0.1" max="4" step="0.1" value="1"
+                         aria-label="Custom playback speed"
+                         oninput="onCustomSpeedSlider(this.value)">
+                  <div class="speed-range-hints">
+                    <span>0.1×</span><span>1.0×</span><span>2.0×</span><span>3.0×</span><span>4.0×</span>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div class="popup-divider"></div>
+            <div class="popup-divider"></div>
 
-          <!-- ── Audio Tracks ────────────────────────── -->
-          <div class="popup-section">
-            <span class="popup-label">Audio Track</span>
-            <div class="track-list" id="audio-track-list">
-              <div class="track-item active">
-                <i class="fa-solid fa-check"></i> Default
+            <!-- ── Audio Tracks ──────────────────────────────── -->
+            <div class="popup-section">
+              <span class="popup-label">Audio Track</span>
+              <div class="track-list" id="audio-track-list">
+                <div class="track-item active">
+                  <i class="fa-solid fa-check"></i> Default
+                </div>
               </div>
             </div>
-          </div>
 
-          <div class="popup-divider"></div>
+            <div class="popup-divider"></div>
 
-          <!-- ── Subtitles ───────────────────────────── -->
-          <div class="popup-section">
-            <span class="popup-label">Subtitles / Captions</span>
-            <div class="track-list" id="subtitle-list">
-              <div class="no-tracks">No subtitles available</div>
+            <!-- ── Subtitles ─────────────────────────────────── -->
+            <div class="popup-section">
+              <span class="popup-label">Subtitles / Captions</span>
+              <div class="track-list" id="subtitle-list">
+                <div class="no-tracks">No subtitles available</div>
+              </div>
             </div>
-          </div>
 
-        </div><!-- /settings-popup -->
+          </div><!-- /settings-popup -->
 
-        <!-- ── Controls bar ─────────────────────────────────── -->
-        <div class="ctrl-bar" id="ctrl-bar">
+          <!-- ── Controls bar ──────────────────────────────────── -->
+          <div class="ctrl-bar" id="ctrl-bar">
 
-          <!-- Play / Pause -->
-          <button class="ctrl-btn play-btn" id="play-btn" onclick="togglePlay()" title="Play/Pause (Space)">
-            <i class="fa-solid fa-play" id="play-icon"></i>
-          </button>
-
-          <!-- Seek back 10s -->
-          <button class="ctrl-btn seek-btn" onclick="seekRelative(-10)" title="Rewind 10s">
-            <i class="fa-solid fa-rotate-left"></i>
-          </button>
-
-          <!-- Seek forward 10s -->
-          <button class="ctrl-btn seek-btn" onclick="seekRelative(10)" title="Forward 10s">
-            <i class="fa-solid fa-rotate-right"></i>
-          </button>
-
-          <!-- Volume -->
-          <div class="vol-group">
-            <button class="ctrl-btn" id="mute-btn" onclick="toggleMute()" title="Mute (M)">
-              <i class="fa-solid fa-volume-high" id="mute-icon"></i>
+            <!-- Play / Pause -->
+            <button class="ctrl-btn play-btn" id="play-btn" onclick="togglePlay()" title="Play/Pause (Space)">
+              <i class="fa-solid fa-play" id="play-icon"></i>
             </button>
-            <input type="range" class="vol-slider" id="vol-slider"
-                   min="0" max="1" step="0.02" value="1"
-                   aria-label="Volume"
-                   oninput="setVolume(this.value)">
+
+            <!-- Seek back 10s -->
+            <button class="ctrl-btn seek-btn" onclick="seekRelative(-10)" title="Rewind 10s">
+              <i class="fa-solid fa-rotate-left"></i>
+            </button>
+
+            <!-- Seek forward 10s -->
+            <button class="ctrl-btn seek-btn" onclick="seekRelative(10)" title="Forward 10s">
+              <i class="fa-solid fa-rotate-right"></i>
+            </button>
+
+            <!-- Volume -->
+            <div class="vol-group">
+              <button class="ctrl-btn" id="mute-btn" onclick="toggleMute()" title="Mute (M)">
+                <i class="fa-solid fa-volume-high" id="mute-icon"></i>
+              </button>
+              <input type="range" class="vol-slider" id="vol-slider"
+                     min="0" max="1" step="0.02" value="1"
+                     aria-label="Volume"
+                     oninput="setVolume(this.value)">
+            </div>
+
+            <div class="ctrl-sep"></div>
+
+            <!-- Time display -->
+            <span class="ctrl-time" id="ctrl-time">0:00 / 0:00</span>
+
+            <div class="ctrl-spacer"></div>
+
+            <!-- PiP -->
+            <button class="ctrl-btn" id="pip-btn" onclick="togglePiP()" title="Picture-in-Picture (P)">
+              <i class="fa-solid fa-window-restore"></i>
+            </button>
+
+            <!-- Settings — z-index and pointer-events are explicitly set
+                 on .ctrl-btn so this button can NEVER be blocked by the overlay -->
+            <button class="ctrl-btn" id="settings-btn" onclick="toggleSettings(event)" title="Settings (S)">
+              <i class="fa-solid fa-gear"></i>
+            </button>
+
+            <!-- Fullscreen -->
+            <button class="ctrl-btn" id="fs-btn" onclick="toggleFullscreen()" title="Fullscreen (F)">
+              <i class="fa-solid fa-expand" id="fs-icon"></i>
+            </button>
+
           </div>
 
-          <div class="ctrl-sep"></div>
+        </div><!-- /video-wrapper -->
 
-          <!-- Time display -->
-          <span class="ctrl-time" id="ctrl-time">0:00 / 0:00</span>
-
-          <div class="ctrl-spacer"></div>
-
-          <!-- PiP -->
-          <button class="ctrl-btn" id="pip-btn" onclick="togglePiP()" title="Picture-in-Picture (P)">
-            <i class="fa-solid fa-window-restore"></i>
+        <!-- PiP action bar (below player) -->
+        <div class="pip-action-bar">
+          <button class="pip-btn" id="pip-bar-btn" onclick="togglePiP()">
+            <i class="fa-solid fa-window-restore"></i> Picture-in-Picture
           </button>
-
-          <!-- Settings -->
-          <button class="ctrl-btn" id="settings-btn" onclick="toggleSettings(event)" title="Settings (S)">
-            <i class="fa-solid fa-gear"></i>
-          </button>
-
-          <!-- Fullscreen -->
-          <button class="ctrl-btn" id="fs-btn" onclick="toggleFullscreen()" title="Fullscreen (F)">
-            <i class="fa-solid fa-expand" id="fs-icon"></i>
-          </button>
-
         </div>
 
-      </div><!-- /video-wrapper -->
-
-      <!-- PiP action bar (below player, visible) -->
-      <div class="pip-action-bar">
-        <button class="pip-btn" id="pip-bar-btn" onclick="togglePiP()">
-          <i class="fa-solid fa-window-restore"></i> Picture-in-Picture
-        </button>
-      </div>
+        {% else %}
+        <!-- ── Unsupported format banner ──────────────────────── -->
+        <div class="unsupported-banner">
+          <div class="unsupported-icon">
+            <i class="fa-solid fa-circle-exclamation"></i>
+          </div>
+          <div class="unsupported-title">Format Not Supported in Browser</div>
+          <div class="unsupported-msg">
+            This file's format (<span class="unsupported-mime">{{ mime_type }}</span>)
+            cannot be played directly in the browser.<br>
+            Use one of the external player buttons below, or download the file to watch it locally.
+          </div>
+        </div>
+        {% endif %}
 
       {% elif file_type == 'audio' %}
-      <audio id="player" controls preload="metadata"
+      <audio id="player" controls preload="auto"
              style="width:100%;padding:28px 20px;display:block;background:transparent;">
-        <source src="{{ stream_url }}" type="audio/mpeg">
+        <source src="{{ stream_url }}" type="{{ mime_type }}">
       </audio>
       {% else %}
       <div class="doc-card">
@@ -1330,7 +1576,7 @@
       {% endif %}
     </div>
 
-    <!-- ── Info Panel ─────────────────────────────────────────── -->
+    <!-- ── Info Panel (Resolution removed per requirements) ──── -->
     <div class="info-panel">
       {% if file_type in ('video', 'audio') %}
       <div class="ii">
@@ -1338,13 +1584,6 @@
         <span class="val" id="dur-val">—</span>
       </div>
       <div class="idiv"></div>
-      {% if file_type == 'video' %}
-      <div class="ii">
-        <span class="lbl">Resolution</span>
-        <span class="val" id="res-val">—</span>
-      </div>
-      <div class="idiv"></div>
-      {% endif %}
       {% endif %}
       <div class="ii">
         <span class="lbl">Size</span>
@@ -1392,7 +1631,7 @@
     </div>
 
     <!-- ── Keyboard Shortcuts ─────────────────────────────────── -->
-    {% if file_type == 'video' %}
+    {% if file_type == 'video' and browser_playable %}
     <div class="hk-panel">
       <div class="hk-title"><i class="fa-solid fa-keyboard"></i> Keyboard Shortcuts</div>
       <div class="hk-grid">
@@ -1407,7 +1646,7 @@
     </div>
     {% endif %}
 
-    <!-- ── Footer — unified with other pages ─────────────────── -->
+    <!-- ── Footer — identical on all pages ───────────────────── -->
     <div class="footer-note">
       <i class="fa-solid fa-crown" style="color:#ffd700;margin-right:5px;"></i>
       Powered by <a href="https://t.me/{{ bot_username }}">{{ bot_name }}</a> &nbsp;·&nbsp;
@@ -1451,11 +1690,13 @@
   /* =========================================================
      Template variables
   ========================================================= */
-  const STREAM_URL   = {{ stream_url | tojson }};
-  const DOWNLOAD_URL = {{ download_url | tojson }};
-  const FILE_NAME    = {{ file_name | tojson }};
-  const FILE_TYPE    = {{ file_type | tojson }};
-  const BOT_NAME     = {{ bot_name | tojson }};
+  const STREAM_URL      = {{ stream_url | tojson }};
+  const DOWNLOAD_URL    = {{ download_url | tojson }};
+  const FILE_NAME       = {{ file_name | tojson }};
+  const FILE_TYPE       = {{ file_type | tojson }};
+  const MIME_TYPE       = {{ mime_type | tojson }};
+  const BROWSER_PLAYABLE = {{ 'true' if browser_playable else 'false' }};
+  const BOT_NAME        = {{ bot_name | tojson }};
 
   /* =========================================================
      Video player bootstrap
@@ -1464,9 +1705,9 @@
   const wrapper = document.getElementById('video-wrapper');
   const sv      = document.getElementById('status-val');
 
-  if (video && FILE_TYPE === 'video') {
+  if (video && FILE_TYPE === 'video' && BROWSER_PLAYABLE) {
     setupPlayer();
-  } else if (video) {
+  } else if (video && FILE_TYPE === 'audio') {
     setupAudioEvents();
   }
 
@@ -1475,11 +1716,11 @@
   ========================================================= */
   function setupAudioEvents() {
     if (!video || !sv) return;
-    video.addEventListener('playing',         () => setStatus('● Playing', 'var(--status-playing)'));
-    video.addEventListener('pause',           () => setStatus('Paused',    'var(--status-paused)'));
-    video.addEventListener('waiting',         () => setStatus('Buffering…','var(--status-buffer)'));
-    video.addEventListener('error',           () => setStatus('Error',     'var(--status-error)'));
-    video.addEventListener('loadedmetadata',  onMetadata);
+    video.addEventListener('playing',        () => setStatus('● Playing', 'var(--status-playing)'));
+    video.addEventListener('pause',          () => setStatus('Paused',    'var(--status-paused)'));
+    video.addEventListener('waiting',        () => setStatus('Buffering…','var(--status-buffer)'));
+    video.addEventListener('error',          () => setStatus('Error',     'var(--status-error)'));
+    video.addEventListener('loadedmetadata', onMetadata);
   }
 
   /* =========================================================
@@ -1487,58 +1728,77 @@
   ========================================================= */
   function setupPlayer() {
 
-    /* ── Large-file / buffering strategy ─────────────────────
-       - preload="metadata" (set on HTML) ensures the browser fetches
-         only the first few KB (moov atom) to read duration & resolution
-         without downloading the whole file first.
-       - We use src attribute on <video> directly (not <source>) for
-         better range-request handling on all browsers.
-       - Stall recovery: if still waiting after 8 s, nudge the player.
+    /* ── Error handling ──────────────────────────────────────
+       Show a contained, responsive error overlay so users
+       always know what went wrong instead of a blank player.
     ──────────────────────────────────────────────────────── */
-
-    /* Error handling */
     video.addEventListener('error', () => {
       const err = video.error;
-      let msg = 'Playback error';
+      let title = 'Playback Error';
+      let msg   = 'An unexpected error occurred while loading the video.';
+
       if (err) {
         switch (err.code) {
-          case MediaError.MEDIA_ERR_NETWORK:           msg = 'Network error — check connection'; break;
-          case MediaError.MEDIA_ERR_DECODE:            msg = 'Decode error — try another browser'; break;
-          case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED: msg = 'Format not supported'; break;
+          case MediaError.MEDIA_ERR_ABORTED:
+            title = 'Playback Aborted';
+            msg   = 'You or the browser aborted the media playback.';
+            break;
+          case MediaError.MEDIA_ERR_NETWORK:
+            title = 'Network Error';
+            msg   = 'A network error caused the video download to fail. Check your connection and try again.';
+            break;
+          case MediaError.MEDIA_ERR_DECODE:
+            title = 'Decode Error';
+            msg   = 'The video could not be decoded. The file may be corrupted or the codec is unsupported. Try opening in VLC or MX Player.';
+            break;
+          case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+            title = 'Format Not Supported';
+            msg   = `This browser cannot play "${MIME_TYPE || FILE_NAME}". Try VLC, MX Player, or download the file.`;
+            break;
+          default:
+            msg = err.message || msg;
         }
       }
+
       setStatus('Error', 'var(--status-error)');
-      showToast(msg, 'fa-circle-xmark');
+      showPlayerError(title, msg);
+      showToast(title, 'fa-circle-xmark');
     });
 
-    /* Stall recovery for large files */
+    /* ── Stall recovery ──────────────────────────────────────
+       Aggressive strategy:
+       • Reduce stall timeout to 5 s (was 8 s).
+       • On stall, nudge currentTime by a tiny amount to force
+         the browser to re-issue the range request.
+    ──────────────────────────────────────────────────────── */
     let stallTimer;
     video.addEventListener('waiting', () => {
       setStatus('Buffering…', 'var(--status-buffer)');
       clearTimeout(stallTimer);
       stallTimer = setTimeout(() => {
-        if (video.readyState < 3 && !video.paused) {
+        if (video.readyState < 3 && !video.paused && !video.error) {
           const t = video.currentTime;
-          video.currentTime = t + 0.001; // nudge to re-trigger buffering
+          video.currentTime = t + 0.001;
         }
-      }, 8000);
+      }, 5000);
     });
     video.addEventListener('playing', () => {
       clearTimeout(stallTimer);
       setStatus('● Playing', 'var(--status-playing)');
+      hidePlayerError();
     });
     video.addEventListener('canplay', () => {
       clearTimeout(stallTimer);
-      setStatus('Ready', 'var(--status-playing)');
+      if (!video.error) setStatus('Ready', 'var(--status-playing)');
     });
     video.addEventListener('pause', () => setStatus('Paused', 'var(--status-paused)'));
 
-    /* Metadata — fires as soon as duration/dimensions are known */
+    /* Metadata */
     video.addEventListener('loadedmetadata', onMetadata);
 
     /* Buffer progress */
-    video.addEventListener('progress',    updateBuffered);
-    video.addEventListener('timeupdate',  updateProgress);
+    video.addEventListener('progress',   updateBuffered);
+    video.addEventListener('timeupdate', updateProgress);
 
     /* Big play button */
     const bigPlay  = document.getElementById('big-play');
@@ -1568,7 +1828,7 @@
       let wasPaused = false;
 
       const getSeekPos = (e) => {
-        const rect   = track.getBoundingClientRect();
+        const rect    = track.getBoundingClientRect();
         const clientX = (e.clientX !== undefined) ? e.clientX : e.touches[0].clientX;
         return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
       };
@@ -1588,8 +1848,8 @@
         doSeek(e);
         e.preventDefault();
       });
-      document.addEventListener('mousemove',  (e) => { if (seeking) doSeek(e); });
-      document.addEventListener('mouseup',    ()  => {
+      document.addEventListener('mousemove', (e) => { if (seeking) doSeek(e); });
+      document.addEventListener('mouseup',   ()  => {
         if (seeking) { seeking = false; if (!wasPaused) video.play().catch(() => {}); }
       });
 
@@ -1635,16 +1895,51 @@
     document.querySelectorAll('.speed-chip').forEach(chip => {
       chip.addEventListener('click', (e) => {
         e.stopPropagation();
-        applySpeed(parseFloat(chip.dataset.speed));
-        setTimeout(closeSettings, 220);
+        const speed = chip.dataset.speed;
+        if (speed === 'custom') {
+          activateCustomSpeed();
+        } else {
+          applySpeed(parseFloat(speed), chip.dataset.label);
+          setTimeout(closeSettings, 220);
+        }
       });
     });
+
+    /* Custom speed slider */
+    const customSlider = document.getElementById('custom-speed-slider');
+    if (customSlider) {
+      customSlider.addEventListener('input', () => onCustomSpeedSlider(customSlider.value));
+    }
   }
 
   /* =========================================================
-     Metadata / resolution
-     Fires on 'loadedmetadata' — for large files this works because
-     we use preload="metadata" which fetches just the file headers.
+     Player error overlay
+  ========================================================= */
+  function showPlayerError(title, msg) {
+    const overlay = document.getElementById('player-error-overlay');
+    const titleEl = document.getElementById('player-error-title');
+    const msgEl   = document.getElementById('player-error-msg');
+    if (overlay) overlay.classList.add('active');
+    if (titleEl) titleEl.textContent = title;
+    if (msgEl)   msgEl.textContent   = msg;
+  }
+
+  function hidePlayerError() {
+    const overlay = document.getElementById('player-error-overlay');
+    if (overlay) overlay.classList.remove('active');
+  }
+
+  function retryPlayback() {
+    hidePlayerError();
+    if (!video) return;
+    const t = video.currentTime;
+    video.load();
+    video.currentTime = t;
+    video.play().catch(() => {});
+  }
+
+  /* =========================================================
+     Metadata
   ========================================================= */
   function onMetadata() {
     if (!video) return;
@@ -1655,10 +1950,6 @@
     const durEl = document.getElementById('dur-val');
     if (durEl && isFinite(s) && s > 0)
       durEl.textContent = (h ? h + 'h ' : '') + (m ? m + 'm ' : '') + sc + 's';
-
-    const resEl = document.getElementById('res-val');
-    if (resEl && video.videoWidth)
-      resEl.textContent = video.videoWidth + '×' + video.videoHeight;
   }
 
   /* =========================================================
@@ -1677,9 +1968,9 @@
   }
 
   function updateProgressImmediate(fraction) {
-    const pct   = fraction * 100;
-    const fill  = document.getElementById('progress-fill');
-    const thumb = document.getElementById('progress-thumb');
+    const pct    = fraction * 100;
+    const fill   = document.getElementById('progress-fill');
+    const thumb  = document.getElementById('progress-thumb');
     const timeEl = document.getElementById('ctrl-time');
     if (fill)   fill.style.width  = pct + '%';
     if (thumb)  thumb.style.right = (100 - pct) + '%';
@@ -1691,9 +1982,14 @@
     if (!video || !video.duration || !isFinite(video.duration)) return;
     const buf = video.buffered;
     if (!buf || buf.length === 0) return;
-    const bufferedEnd = buf.end(buf.length - 1);
-    const pct         = Math.min(100, (bufferedEnd / video.duration) * 100);
-    const bufferedEl  = document.getElementById('progress-buffered');
+    // Find the buffered range that contains the current position for accuracy
+    let bufferedEnd = 0;
+    for (let i = 0; i < buf.length; i++) {
+      if (buf.start(i) <= video.currentTime && buf.end(i) > bufferedEnd)
+        bufferedEnd = buf.end(i);
+    }
+    const pct        = Math.min(100, (bufferedEnd / video.duration) * 100);
+    const bufferedEl = document.getElementById('progress-buffered');
     if (bufferedEl) bufferedEl.style.width = pct + '%';
   }
 
@@ -1712,7 +2008,9 @@
   function togglePlay() {
     if (!video) return;
     if (video.paused) {
-      video.play().catch(err => showToast('Playback error: ' + err.message, 'fa-circle-xmark'));
+      video.play().catch(err => {
+        showToast('Playback error: ' + err.message, 'fa-circle-xmark');
+      });
     } else {
       video.pause();
     }
@@ -1754,24 +2052,17 @@
   }
 
   /* =========================================================
-     Fullscreen — cross-platform, cross-browser
-     Strategy:
-       1. Try wrapper.requestFullscreen() — keeps our custom controls inside FS
-       2. On iOS Safari, webkit-specific webkitEnterFullscreen on the video element
-          is the only supported method
-       3. Fallback: try video element fullscreen
-     All vendor prefixes are handled.
+     Fullscreen — cross-platform
   ========================================================= */
   function toggleFullscreen() {
     const fsEl = (
-      document.fullscreenElement        ||
-      document.webkitFullscreenElement  ||
-      document.mozFullScreenElement     ||
+      document.fullscreenElement       ||
+      document.webkitFullscreenElement ||
+      document.mozFullScreenElement    ||
       document.msFullscreenElement
     );
 
     if (fsEl) {
-      /* ── Exit fullscreen ──────────────────────────────── */
       const exit = (
         document.exitFullscreen        ||
         document.webkitExitFullscreen  ||
@@ -1784,8 +2075,6 @@
 
     if (!wrapper || !video) return;
 
-    /* ── Enter fullscreen ─────────────────────────────── */
-    /* Try wrapper first (keeps custom UI inside fullscreen) */
     const wEnter = (
       wrapper.requestFullscreen         ||
       wrapper.webkitRequestFullscreen   ||
@@ -1795,24 +2084,15 @@
     if (wEnter) {
       wEnter.call(wrapper, { navigationUI: 'hide' })
         .then(() => {})
-        .catch(() => {
-          /* Wrapper failed — try native video element (iOS/Android fallback) */
-          _tryVideoFullscreen();
-        });
+        .catch(() => { _tryVideoFullscreen(); });
       return;
     }
-
-    /* Wrapper has no FS API at all — go straight to video fallback */
     _tryVideoFullscreen();
   }
 
   function _tryVideoFullscreen() {
     if (!video) return;
-    /* iOS Safari: webkitEnterFullscreen on the video element */
-    if (video.webkitEnterFullscreen) {
-      video.webkitEnterFullscreen();
-      return;
-    }
+    if (video.webkitEnterFullscreen) { video.webkitEnterFullscreen(); return; }
     const vEnter = (
       video.requestFullscreen        ||
       video.webkitRequestFullscreen  ||
@@ -1830,12 +2110,11 @@
 
   function onFullscreenChange() {
     const fsEl = (
-      document.fullscreenElement        ||
-      document.webkitFullscreenElement  ||
-      document.mozFullScreenElement     ||
+      document.fullscreenElement       ||
+      document.webkitFullscreenElement ||
+      document.mozFullScreenElement    ||
       document.msFullscreenElement
     );
-    /* iOS Safari fires webkitbeginfullscreen on the video element itself */
     const iosFS = video && (video.webkitDisplayingFullscreen || false);
     const inFS  = !!(fsEl || iosFS);
 
@@ -1854,7 +2133,6 @@
     }
   }
 
-  /* iOS Safari fullscreen events on the video element */
   if (video) {
     video.addEventListener('webkitbeginfullscreen', onFullscreenChange);
     video.addEventListener('webkitendfullscreen',   onFullscreenChange);
@@ -1862,12 +2140,14 @@
 
   /* =========================================================
      Settings Popup
-     The popup lives INSIDE .video-wrapper (isolation:isolate).
-     On desktop: absolute-positioned, no overlay needed.
-     On mobile: fixed (bottom-sheet), dark overlay behind it.
-     The blur of the backdrop-filter on the POPUP itself only
-     affects content within the popup's stacking context — it
-     does NOT blur the video or the page behind the player.
+     FIX: The settings button was "locked" because the
+     settings-overlay (with pointer-events:none) could
+     inadvertently cover ctrl-bar children on some browsers.
+     Solution:
+       1. The overlay never renders on desktop (CSS media query).
+       2. ctrl-bar and .ctrl-btn have explicit pointer-events:auto.
+       3. The popup's z-index (200) > ctrl-bar (10), so the open
+          popup itself is never occluded by the bar.
   ========================================================= */
   let settingsOpen   = false;
   let speedPanelOpen = false;
@@ -1894,12 +2174,15 @@
     if (overlay) overlay.classList.remove('active');
     settingsOpen   = false;
     speedPanelOpen = false;
+
     const opts  = document.getElementById('speed-options');
     const arrow = document.getElementById('speed-arrow');
     const btn   = document.getElementById('settings-btn');
+    const cr    = document.getElementById('custom-speed-row');
     if (opts)  opts.classList.remove('open');
     if (arrow) arrow.style.transform = '';
     if (btn)   btn.classList.remove('active');
+    if (cr)    cr.classList.remove('open');
   }
 
   function toggleSpeedPanel() {
@@ -1909,7 +2192,7 @@
     const toggle = document.getElementById('speed-toggle');
     if (opts)   opts.classList.toggle('open', speedPanelOpen);
     if (arrow)  arrow.style.transform = speedPanelOpen ? 'rotate(180deg)' : '';
-    if (toggle) toggle.setAttribute('aria-expanded', speedPanelOpen);
+    if (toggle) toggle.setAttribute('aria-expanded', String(speedPanelOpen));
   }
 
   /* Close settings on outside click (desktop only) */
@@ -1924,14 +2207,62 @@
 
   /* =========================================================
      Speed control
+     Modes:
+       Slow        → 0.5×
+       Normal      → 1×
+       Fast Forward→ 1.5×
+       Custom      → show slider (0.1× – 4×)
   ========================================================= */
-  function applySpeed(speed) {
+  function applySpeed(speed, label) {
     if (video) video.playbackRate = speed;
+
+    // Update active chip
     document.querySelectorAll('.speed-chip').forEach(c => {
+      const isCustom = c.dataset.speed === 'custom';
+      if (isCustom) {
+        c.classList.remove('active');
+        return;
+      }
       c.classList.toggle('active', parseFloat(c.dataset.speed) === speed);
     });
+
     const lbl = document.getElementById('speed-current-label');
-    if (lbl) lbl.textContent = speed + '×';
+    if (lbl) lbl.textContent = label || (speed + '×');
+
+    // Hide custom slider
+    const cr = document.getElementById('custom-speed-row');
+    if (cr) cr.classList.remove('open');
+  }
+
+  function activateCustomSpeed() {
+    // Mark "Custom" chip as active, deselect others
+    document.querySelectorAll('.speed-chip').forEach(c => {
+      c.classList.toggle('active', c.dataset.speed === 'custom');
+    });
+
+    const lbl = document.getElementById('speed-current-label');
+    if (lbl) lbl.textContent = 'Custom';
+
+    // Show slider
+    const cr = document.getElementById('custom-speed-row');
+    if (cr) cr.classList.add('open');
+
+    // Sync slider to current playback rate
+    const slider = document.getElementById('custom-speed-slider');
+    const valEl  = document.getElementById('custom-speed-val');
+    if (slider && video) {
+      slider.value = video.playbackRate;
+      if (valEl) valEl.textContent = parseFloat(video.playbackRate).toFixed(1) + '×';
+    }
+  }
+
+  function onCustomSpeedSlider(val) {
+    const speed = parseFloat(val);
+    if (video) video.playbackRate = speed;
+    const valEl = document.getElementById('custom-speed-val');
+    if (valEl) valEl.textContent = speed.toFixed(1) + '×';
+    const lbl = document.getElementById('speed-current-label');
+    if (lbl) lbl.textContent = speed.toFixed(1) + '×';
   }
 
   /* =========================================================
@@ -2043,7 +2374,7 @@
   function s_player()      { go('intent:' + STREAM_URL + '#Intent;package=com.simplemobiletools.videoplayer;end'); }
 
   /* =========================================================
-     Download
+     Download (fast — fires a hidden anchor immediately)
   ========================================================= */
   function lazyDownload() {
     showToast('Download started…', 'fa-cloud-arrow-down');
@@ -2093,16 +2424,16 @@
         if (FILE_TYPE === 'video' || FILE_TYPE === 'audio') togglePlay();
         break;
       case 'f':
-        if (FILE_TYPE === 'video') toggleFullscreen();
+        if (FILE_TYPE === 'video' && BROWSER_PLAYABLE) toggleFullscreen();
         break;
       case 'm':
         if (FILE_TYPE === 'video' || FILE_TYPE === 'audio') toggleMute();
         break;
       case 'arrowleft':
-        if (video && FILE_TYPE === 'video') { e.preventDefault(); seekRelative(-10); }
+        if (video && FILE_TYPE === 'video' && BROWSER_PLAYABLE) { e.preventDefault(); seekRelative(-10); }
         break;
       case 'arrowright':
-        if (video && FILE_TYPE === 'video') { e.preventDefault(); seekRelative(10); }
+        if (video && FILE_TYPE === 'video' && BROWSER_PLAYABLE) { e.preventDefault(); seekRelative(10); }
         break;
       case 'arrowup':
         if (video) {
@@ -2125,10 +2456,10 @@
         }
         break;
       case 'p':
-        if (FILE_TYPE === 'video') togglePiP();
+        if (FILE_TYPE === 'video' && BROWSER_PLAYABLE) togglePiP();
         break;
       case 's':
-        if (FILE_TYPE === 'video') toggleSettings(null);
+        if (FILE_TYPE === 'video' && BROWSER_PLAYABLE) toggleSettings(null);
         break;
       case 'escape':
         if (settingsOpen) closeSettings();
