@@ -27,9 +27,6 @@ logger = logging.getLogger(__name__)
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 
-# Active connection count is now managed by stream.py's dedup session tracker.
-# _active_connections kept for backward-compat references only — read via get_active_session_count().
-
 
 def _bot_info(bot: Bot) -> dict:
     me = getattr(bot, "me", None)
@@ -98,14 +95,9 @@ def build_app(bot: Bot, database) -> web.Application:
         }
 
     async def _tracked_stream(request: web.Request, file_hash: str, is_download: bool):
-        """
-        Wrap stream_file with accurate unique-session tracking.
-        
-        A session key is (file_hash, client_ip).  Multiple range-requests from
-        the same IP playing the same file count as ONE session, eliminating the
-        inflated viewer count that occurred when a single player issued 3-5
-        probe/prefetch requests before starting playback.
-        """
+        # One (file_hash, client_ip) pair = one unique session.
+        # Registration is idempotent: repeated range-requests from the same
+        # player only refresh the heartbeat, they never increment the counter.
         client_ip   = _get_client_ip(request)
         session_key = f"{file_hash}:{client_ip}"
         await _register_session(session_key)
@@ -137,7 +129,6 @@ def build_app(bot: Bot, database) -> web.Application:
             else "document"
         )
 
-        # Resolve MIME so the template knows whether the browser can play it
         mime = (
             file_data.get("mime_type")
             or _mime_for_filename(
@@ -150,17 +141,17 @@ def build_app(bot: Bot, database) -> web.Application:
 
         info = _bot_info(bot)
         context = {
-            "bot_name":        info["bot_name"],
-            "bot_username":    info["bot_username"],
-            "owner_username":  "FLiX_LY",
-            "file_name":       file_data["file_name"],
-            "file_size":       format_size(file_data["file_size"]),
-            "file_type":       file_type,
-            "mime_type":       mime,
+            "bot_name":         info["bot_name"],
+            "bot_username":     info["bot_username"],
+            "owner_username":   "FLiX_LY",
+            "file_name":        file_data["file_name"],
+            "file_size":        format_size(file_data["file_size"]),
+            "file_type":        file_type,
+            "mime_type":        mime,
             "browser_playable": playable,
-            "stream_url":      f"{base}/stream/{file_hash}",
-            "download_url":    f"{base}/dl/{file_hash}",
-            "telegram_url":    f"https://t.me/{info['bot_username']}?start={file_hash}",
+            "stream_url":       f"{base}/stream/{file_hash}",
+            "download_url":     f"{base}/dl/{file_hash}",
+            "telegram_url":     f"https://t.me/{info['bot_username']}?start={file_hash}",
         }
         return aiohttp_jinja2.render_template("stream.html", request, context)
 
@@ -304,14 +295,13 @@ def build_app(bot: Bot, database) -> web.Application:
         try:
             info = _bot_info(bot)
             payload = {
-                "status":                  "ok",
-                "bot_status":              "running" if getattr(bot, "me", None) else "initializing",
-                "bot_name":                info["bot_name"],
-                "bot_username":            info["bot_username"],
-                "bot_id":                  info["bot_id"],
-                "bot_dc":                  info["bot_dc"],
-                "active_conns":            get_active_session_count(),
-                "active_conns_description": "Live streaming/download sessions currently transferring bytes",
+                "status":       "ok",
+                "bot_status":   "running" if getattr(bot, "me", None) else "initializing",
+                "bot_name":     info["bot_name"],
+                "bot_username": info["bot_username"],
+                "bot_id":       info["bot_id"],
+                "bot_dc":       info["bot_dc"],
+                "active_conns": get_active_session_count(),
             }
             return web.Response(text=json.dumps(payload), content_type="application/json")
         except Exception as exc:
