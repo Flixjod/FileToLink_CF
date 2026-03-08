@@ -13,7 +13,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.6.0/css/all.min.css">
   <style>
-    /* ── CSS Custom Properties ──────────────────────────────── */
+    /* ── CSS Custom Properties ─────────────────────── */
     :root,
     [data-theme="dark"] {
       --bg-base:             #0f0c29;
@@ -184,7 +184,7 @@
       --err-banner-color:    #dc2626;
     }
 
-    /* ── Reset ──────────────────────────────────────────────── */
+    /* ── Reset ─────────────────────────────────────── */
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
     html { min-height: 100%; background-color: var(--bg-base); overscroll-behavior: none; }
     body {
@@ -202,7 +202,7 @@
       transition: background .45s ease, color .45s ease;
     }
 
-    /* ── Theme Toggle ────────────────────────────────────────── */
+    /* ── Theme Toggle ──────────────────────────────── */
     .theme-toggle {
       position: fixed;
       top: 18px; left: 18px;
@@ -228,7 +228,7 @@
       box-shadow: 0 6px 22px rgba(102,126,234,.5);
     }
 
-    /* ── Background Particles ───────────────────────────────── */
+    /* ── Background Particles ──────────────────────── */
     .bg-animation {
       position: fixed; top: 0; left: 0;
       width: 100%; height: 100%;
@@ -259,7 +259,7 @@
       100% { transform: translateY(-110vh) rotate(720deg); opacity: 0; }
     }
 
-    /* ── Container ──────────────────────────────────────────── */
+    /* ── Container ─────────────────────────────────── */
     .container {
       position: relative; z-index: 1;
       width: 100%; max-width: 920px;
@@ -270,7 +270,7 @@
       to   { opacity:1; transform:translateY(0); }
     }
 
-    /* ── Site Header ─────────────────────────────────────────── */
+    /* ── Site Header ───────────────────────────────── */
     .site-header {
       display: flex; align-items: center; justify-content: space-between;
       padding-bottom: 28px;
@@ -322,7 +322,7 @@
       transform: translateY(-1px);
     }
 
-    /* ── File Title & Meta ───────────────────────────────────── */
+    /* ── File Title & Meta ─────────────────────────── */
     .file-title {
       font-size: clamp(1.05rem, 2.5vw, 1.45rem);
       font-weight: 800;
@@ -347,7 +347,7 @@
     .bp-k  { background: var(--badge-sec-bg);     color: var(--badge-sec-color);    border: 1px solid var(--badge-sec-border); }
     .bp-sz { background: var(--badge-sz-bg);      color: var(--badge-sz-color);     border: 1px solid var(--badge-sz-border); }
 
-    /* ── Player Card ─────────────────────────────────────────── */
+    /* ── Player Card ───────────────────────────────── */
     .player-card {
       background: var(--card-bg);
       backdrop-filter: blur(22px);
@@ -362,7 +362,7 @@
     }
     .player-card:hover { box-shadow: var(--player-card-hover); }
 
-    /* ── Unsupported Format Banner ───────────────────────────── */
+    /* ── Unsupported Format Banner ─────────────────── */
     .unsupported-banner {
       display: flex;
       flex-direction: column;
@@ -414,7 +414,7 @@
       max-width: 100%;
     }
 
-    /* ── Custom Video Wrapper ────────────────────────────────── */
+    /* ── Custom Video Wrapper ──────────────────────── */
     .video-wrapper {
       position: relative;
       width: 100%;
@@ -434,7 +434,7 @@
       cursor: pointer;
     }
 
-    /* ── Fullscreen overrides ────────────────────────────────── */
+    /* ── Fullscreen overrides ──────────────────────── */
     .video-wrapper:fullscreen,
     .video-wrapper:-webkit-full-screen,
     .video-wrapper:-moz-full-screen,
@@ -455,7 +455,7 @@
       object-fit: contain;
     }
 
-    /* ── In-player Error Overlay ─────────────────────────────── */
+    /* ── In-player Error Overlay ───────────────────── */
     .player-error-overlay {
       display: none;
       position: absolute;
@@ -522,16 +522,14 @@
     }
     .player-error-btn.secondary:hover { background: rgba(255,255,255,.14); color: #fff; }
 
-    /* ──────────────────────────────────────────────────────────
-       PROGRESS ROW
-    ─────────────────────────────────────────────────────────── */
+    /* ── Progress row ──────────────────────────────── */
     .progress-row {
       position: absolute;
       bottom: 52px; left: 0; right: 0;
       padding: 0 12px;
       opacity: 0;
       transition: opacity .25s ease;
-      z-index: 11;
+      z-index: 2001;
       cursor: pointer;
     }
     .video-wrapper:hover .progress-row,
@@ -579,9 +577,7 @@
     }
     .progress-track:hover .progress-thumb { opacity: 1; transform: translate(50%, -50%) scale(1.2); }
 
-    /* ──────────────────────────────────────────────────────────
-       CONTROL BAR
-    ─────────────────────────────────────────────────────────── */
+    /* ── Control bar ───────────────────────────────── */
     .ctrl-bar {
       position: absolute;
       bottom: 0; left: 0; right: 0;
@@ -592,14 +588,10 @@
       background: linear-gradient(transparent, rgba(0,0,0,.88));
       opacity: 0;
       transition: opacity .25s ease;
-      /* z-index: lower than the settings popup (200) */
-      z-index: 10;
+      /* z-index must exceed the mobile overlay (1999) so buttons stay
+         clickable even when the settings backdrop is displayed. */
+      z-index: 2001;
       border-radius: 0 0 24px 24px;
-      /* CRITICAL: pointer-events must always be 'auto' here.
-         The old code inadvertently inherited pointer-events:none from
-         the parent when the popup overlay was active, which locked all
-         ctrl-bar buttons. Explicitly re-enabling ensures buttons are
-         always clickable when the bar is visible. */
       pointer-events: auto;
     }
     .video-wrapper:hover .ctrl-bar,
@@ -693,7 +685,7 @@
       margin: 0 2px;
     }
 
-    /* ── Big Play Overlay ────────────────────────────────────── */
+    /* ── Big Play Overlay ──────────────────────────── */
     .big-play {
       position: absolute;
       top: 50%; left: 50%;
@@ -717,7 +709,7 @@
     }
     .big-play.hidden { opacity: 0; pointer-events: none; }
 
-    /* ── PiP Banner ──────────────────────────────────────────── */
+    /* ── PiP Banner ────────────────────────────────── */
     .pip-banner {
       display: none;
       position: absolute;
@@ -799,20 +791,12 @@
     }
     .pip-return-btn:active { transform: scale(.97); }
 
-    /* ──────────────────────────────────────────────────────────
-       SETTINGS POPUP
-       IMPORTANT: Lives INSIDE .video-wrapper (isolation:isolate).
-       z-index: 200 — sits above ctrl-bar (10) but within the
-       video-wrapper stacking context only.
-
-       KEY FIX (settings button was "locked"):
-       The old code set pointer-events:none on .settings-overlay
-       which inadvertently inherited down to the ctrl-bar on some
-       mobile browsers. We now ensure the overlay never covers the
-       ctrl-bar by giving it a strictly lower z-index, and we
-       add explicit pointer-events:auto to the ctrl-bar and its
-       child buttons (see above).
-    ─────────────────────────────────────────────────────────── */
+    /* ── Settings popup ──────────────────────────────────────
+       Lives inside .video-wrapper (isolation:isolate).
+       z-index: 200 on desktop; overridden to 2002 on mobile.
+       The ctrl-bar sits at z-index 2001 so it is always
+       accessible even when the mobile overlay backdrop is active.
+    ────────────────────────────────────────────────────────── */
     .settings-popup {
       position: absolute;
       bottom: 54px;
@@ -834,7 +818,7 @@
       isolation: isolate;
     }
 
-    /* Mobile: bottom sheet */
+    /* Mobile: bottom sheet — z-index (2002) above ctrl-bar (2001) and overlay (1999) */
     @media (max-width: 600px) {
       .settings-popup {
         position: fixed;
@@ -846,7 +830,7 @@
         transform: translateY(20px) scale(1);
         max-height: 78vh;
         overflow-y: auto;
-        z-index: 2000;
+        z-index: 2002;
       }
     }
 
@@ -854,6 +838,9 @@
       opacity: 1;
       transform: translateY(0) scale(1);
       pointer-events: all;
+      /* On mobile the popup is fixed, so it must be above the ctrl-bar.
+         The ctrl-bar has z-index 2001; this popup uses 2002 on mobile
+         (set in the media query above) and 200 on desktop (set above). */
     }
 
     /* Settings popup header */
@@ -950,7 +937,7 @@
     [data-theme="light"] .popup-item-arrow { color: rgba(0,0,0,.3); }
     .popup-item-check { font-size: .7rem; color: #4ade80; flex-shrink: 0; }
 
-    /* ── Speed sub-panel ─────────────────────────────────────── */
+    /* ── Speed sub-panel ───────────────────────────── */
     .speed-options { display: none; padding: 2px 6px 6px; }
     .speed-options.open { display: block; }
     .speed-chips { display: flex; flex-wrap: wrap; gap: 5px; padding: 3px 0 4px; }
@@ -1040,19 +1027,24 @@
     .track-item i { font-size: .66rem; width: 13px; color: #667eea; flex-shrink: 0; }
     .no-tracks { padding: 5px 12px 3px; font-size: .73rem; color: var(--text-muted); font-style: italic; }
 
-    /* ── Settings Overlay (mobile backdrop) ──────────────────── */
+    /* ── Settings Overlay (mobile backdrop) ────────── */
     .settings-overlay {
       display: none;
       position: fixed;
       inset: 0;
       background: rgba(0,0,0,.5);
-      /* CRITICAL FIX: z-index must be BELOW the fixed popup (2000) on mobile
-         but NOT cover the ctrl-bar on desktop. On desktop the popup is
-         absolute inside the player wrapper so no overlay is needed at all. */
+      /* z-index sits between ctrl-bar (10) and the popup (2000).
+         pointer-events:none keeps the ctrl-bar and its buttons fully
+         clickable even when the overlay is active on mobile.
+         The popup itself (pointer-events:all when .open) handles taps. */
       z-index: 1999;
+      pointer-events: none;
     }
-    .settings-overlay.active { display: block; }
-    /* Never show the overlay on desktop — the popup is inside the player */
+    .settings-overlay.active {
+      display: block;
+      pointer-events: auto;
+    }
+    /* Never show the overlay on desktop — the popup is absolute inside the player */
     @media (min-width: 601px) { .settings-overlay { display: none !important; } }
 
     /* non-video file card */
@@ -1148,7 +1140,7 @@
       transform: translateY(-1px);
     }
 
-    /* ── Action Buttons Grid ─────────────────────────────────── */
+    /* ── Action Buttons Grid ───────────────────────── */
     .actions-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -1193,7 +1185,7 @@
     }
     .b-dl:hover { box-shadow: 0 10px 32px rgba(102,126,234,.48); filter: brightness(1.08); }
 
-    /* ── Keyboard Shortcuts Panel ────────────────────────────── */
+    /* ── Keyboard Shortcuts Panel ──────────────────── */
     .hk-panel {
       background: var(--hk-section-bg);
       backdrop-filter: blur(22px);
@@ -1232,7 +1224,7 @@
       min-width: 28px; text-align: center;
     }
 
-    /* ── Footer — unified across all pages ──────────────────── */
+    /* ── Footer — unified across all pages ─────────── */
     .footer-note {
       margin-top: 10px;
       color: var(--text-muted);
@@ -1248,7 +1240,7 @@
     }
     .footer-note a:hover { color: var(--footer-hover); }
 
-    /* ── Toast ───────────────────────────────────────────────── */
+    /* ── Toast ─────────────────────────────────────── */
     .toast-wrap {
       position: fixed; bottom: 28px; left: 50%;
       transform: translateX(-50%);
@@ -1271,12 +1263,12 @@
     .tp.show { opacity: 1; transform: translateY(0) scale(1); }
     .ti { color: var(--gold); }
 
-    /* ── Scrollbar ───────────────────────────────────────────── */
+    /* ── Scrollbar ─────────────────────────────────── */
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: var(--bg-base); }
     ::-webkit-scrollbar-thumb { background: rgba(102,126,234,.28); border-radius: 3px; }
 
-    /* ── Responsive ─────────────────────────────────────────── */
+    /* ── Responsive ────────────────────────────────── */
     @media (max-width: 600px) {
       .actions-grid { grid-template-columns: repeat(2, 1fr); }
       .info-panel { flex-direction: column; align-items: flex-start; gap: 12px; }
@@ -1371,12 +1363,11 @@
             </div>
           </div>
 
-          <!-- Video element
-               preload="auto" + fast buffering:
-               • preload="auto" tells the browser to start loading data
-                 immediately so playback starts as quickly as possible.
-               • crossorigin="anonymous" enables CORS-based caching.
-               • src on <video> (not <source>) gives cleaner range-request handling. -->
+          <!-- Video element.
+               preload="auto"  → browser starts buffering immediately for
+                                  fast first-frame and low-latency seeks.
+               crossorigin     → enables CORS caching by shared proxies.
+               src on <video>  → cleaner range-request handling vs <source>. -->
           <video id="player"
                  playsinline
                  webkit-playsinline
@@ -1664,9 +1655,7 @@
   </div>
 
   <script>
-  /* =========================================================
-     Theme Toggle
-  ========================================================= */
+  // Theme Toggle
   (function() {
     const saved = localStorage.getItem('flix-theme') || 'dark';
     document.documentElement.setAttribute('data-theme', saved);
@@ -1687,9 +1676,7 @@
     setTimeout(() => { btn.style.transform = ''; }, 400);
   }
 
-  /* =========================================================
-     Template variables
-  ========================================================= */
+  // Template variables
   const STREAM_URL      = {{ stream_url | tojson }};
   const DOWNLOAD_URL    = {{ download_url | tojson }};
   const FILE_NAME       = {{ file_name | tojson }};
@@ -1698,9 +1685,7 @@
   const BROWSER_PLAYABLE = {{ 'true' if browser_playable else 'false' }};
   const BOT_NAME        = {{ bot_name | tojson }};
 
-  /* =========================================================
-     Video player bootstrap
-  ========================================================= */
+  // Video player bootstrap
   const video   = document.getElementById('player');
   const wrapper = document.getElementById('video-wrapper');
   const sv      = document.getElementById('status-val');
@@ -1711,9 +1696,7 @@
     setupAudioEvents();
   }
 
-  /* =========================================================
-     Audio-only events
-  ========================================================= */
+  // Audio-only events
   function setupAudioEvents() {
     if (!video || !sv) return;
     video.addEventListener('playing',        () => setStatus('● Playing', 'var(--status-playing)'));
@@ -1723,19 +1706,23 @@
     video.addEventListener('loadedmetadata', onMetadata);
   }
 
-  /* =========================================================
-     Full video player setup
-  ========================================================= */
+  // Full video player setup
   function setupPlayer() {
 
     /* ── Error handling ──────────────────────────────────────
-       Show a contained, responsive error overlay so users
-       always know what went wrong instead of a blank player.
-    ──────────────────────────────────────────────────────── */
+       Single, contained in-player error overlay.
+       MEDIA_ERR_SRC_NOT_SUPPORTED: shows the overlay but does NOT
+       fire a duplicate toast — the unsupported-banner (rendered by
+       the server when browser_playable=false) already communicates
+       this condition to the user.
+    ────────────────────────────────────────────────────────── */
+    let _errorShown = false;
     video.addEventListener('error', () => {
+      if (_errorShown) return;
       const err = video.error;
       let title = 'Playback Error';
       let msg   = 'An unexpected error occurred while loading the video.';
+      let suppressToast = false;
 
       if (err) {
         switch (err.code) {
@@ -1753,32 +1740,33 @@
             break;
           case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
             title = 'Format Not Supported';
-            msg   = `This browser cannot play "${MIME_TYPE || FILE_NAME}". Try VLC, MX Player, or download the file.`;
+            msg   = `This browser cannot play "${MIME_TYPE || FILE_NAME}". Use VLC, MX Player, or download the file.`;
+            suppressToast = true;
             break;
           default:
             msg = err.message || msg;
         }
       }
 
+      _errorShown = true;
       setStatus('Error', 'var(--status-error)');
       showPlayerError(title, msg);
-      showToast(title, 'fa-circle-xmark');
+      if (!suppressToast) showToast(title, 'fa-circle-xmark');
     });
 
+    video.addEventListener('playing', () => { _errorShown = false; });
+
     /* ── Stall recovery ──────────────────────────────────────
-       Aggressive strategy:
-       • Reduce stall timeout to 5 s (was 8 s).
-       • On stall, nudge currentTime by a tiny amount to force
-         the browser to re-issue the range request.
-    ──────────────────────────────────────────────────────── */
+       On a 5-second stall, nudge currentTime by a tiny amount
+       to force the browser to re-issue the range request.
+    ────────────────────────────────────────────────────────── */
     let stallTimer;
     video.addEventListener('waiting', () => {
       setStatus('Buffering…', 'var(--status-buffer)');
       clearTimeout(stallTimer);
       stallTimer = setTimeout(() => {
         if (video.readyState < 3 && !video.paused && !video.error) {
-          const t = video.currentTime;
-          video.currentTime = t + 0.001;
+          video.currentTime = video.currentTime + 0.001;
         }
       }, 5000);
     });
@@ -1912,9 +1900,7 @@
     }
   }
 
-  /* =========================================================
-     Player error overlay
-  ========================================================= */
+  // Player error overlay
   function showPlayerError(title, msg) {
     const overlay = document.getElementById('player-error-overlay');
     const titleEl = document.getElementById('player-error-title');
@@ -1938,9 +1924,7 @@
     video.play().catch(() => {});
   }
 
-  /* =========================================================
-     Metadata
-  ========================================================= */
+  // Metadata
   function onMetadata() {
     if (!video) return;
     const s     = isFinite(video.duration) ? Math.floor(video.duration) : 0;
@@ -1952,9 +1936,7 @@
       durEl.textContent = (h ? h + 'h ' : '') + (m ? m + 'm ' : '') + sc + 's';
   }
 
-  /* =========================================================
-     Progress bar + buffered
-  ========================================================= */
+  // Progress bar + buffered
   function updateProgress() {
     if (!video || !video.duration || !isFinite(video.duration)) return;
     const pct    = (video.currentTime / video.duration) * 100;
@@ -2002,9 +1984,7 @@
     return m + ':' + String(sec).padStart(2,'0');
   }
 
-  /* =========================================================
-     Play / Pause
-  ========================================================= */
+  // Play / Pause
   function togglePlay() {
     if (!video) return;
     if (video.paused) {
@@ -2016,9 +1996,7 @@
     }
   }
 
-  /* =========================================================
-     Seek relative
-  ========================================================= */
+  // Seek relative
   function seekRelative(seconds) {
     if (!video) return;
     const newTime = Math.max(0, Math.min(video.duration || 0, video.currentTime + seconds));
@@ -2026,9 +2004,7 @@
     showToast((seconds > 0 ? '+' : '') + seconds + 's', seconds > 0 ? 'fa-forward' : 'fa-backward');
   }
 
-  /* =========================================================
-     Volume
-  ========================================================= */
+  // Volume
   function setVolume(v) {
     if (!video) return;
     video.volume = v;
@@ -2051,9 +2027,7 @@
     else                         icon.className = 'fa-solid fa-volume-high';
   }
 
-  /* =========================================================
-     Fullscreen — cross-platform
-  ========================================================= */
+  // Fullscreen — cross-platform
   function toggleFullscreen() {
     const fsEl = (
       document.fullscreenElement       ||
@@ -2138,17 +2112,9 @@
     video.addEventListener('webkitendfullscreen',   onFullscreenChange);
   }
 
-  /* =========================================================
-     Settings Popup
-     FIX: The settings button was "locked" because the
-     settings-overlay (with pointer-events:none) could
-     inadvertently cover ctrl-bar children on some browsers.
-     Solution:
-       1. The overlay never renders on desktop (CSS media query).
-       2. ctrl-bar and .ctrl-btn have explicit pointer-events:auto.
-       3. The popup's z-index (200) > ctrl-bar (10), so the open
-          popup itself is never occluded by the bar.
-  ========================================================= */
+  // Settings Popup
+  // Fix: ctrl-bar z-index (2001) > overlay (1999) so the
+  // settings button is always clickable on mobile and desktop.
   let settingsOpen   = false;
   let speedPanelOpen = false;
 
@@ -2205,14 +2171,12 @@
     }
   });
 
-  /* =========================================================
-     Speed control
-     Modes:
-       Slow        → 0.5×
-       Normal      → 1×
-       Fast Forward→ 1.5×
-       Custom      → show slider (0.1× – 4×)
-  ========================================================= */
+  // Speed control
+  // Modes:
+  // Slow        → 0.5×
+  // Normal      → 1×
+  // Fast Forward→ 1.5×
+  // Custom      → show slider (0.1× – 4×)
   function applySpeed(speed, label) {
     if (video) video.playbackRate = speed;
 
@@ -2265,9 +2229,7 @@
     if (lbl) lbl.textContent = speed.toFixed(1) + '×';
   }
 
-  /* =========================================================
-     Audio tracks & Subtitles
-  ========================================================= */
+  // Audio tracks & Subtitles
   function populateTracks() {
     if (!video) return;
 
@@ -2316,9 +2278,7 @@
     }
   }
 
-  /* =========================================================
-     Picture-in-Picture
-  ========================================================= */
+  // Picture-in-Picture
   function togglePiP() {
     if (!video) return;
     if (!document.pictureInPictureEnabled) {
@@ -2363,9 +2323,7 @@
     showToast('Returned from Picture-in-Picture');
   }
 
-  /* =========================================================
-     External player launchers
-  ========================================================= */
+  // External player launchers
   const go = u => { location.href = u; };
   function vlc_player()    { go('vlc://' + STREAM_URL); }
   function mx_player()     { go('intent:' + STREAM_URL + '#Intent;package=com.mxtech.videoplayer.ad;end'); }
@@ -2373,9 +2331,7 @@
   function km_player()     { go('intent:' + STREAM_URL + '#Intent;package=com.kmplayer;end'); }
   function s_player()      { go('intent:' + STREAM_URL + '#Intent;package=com.simplemobiletools.videoplayer;end'); }
 
-  /* =========================================================
-     Download (fast — fires a hidden anchor immediately)
-  ========================================================= */
+  // Download (fast — fires a hidden anchor immediately)
   function lazyDownload() {
     showToast('Download started…', 'fa-cloud-arrow-down');
     const a = document.createElement('a');
@@ -2386,22 +2342,16 @@
     a.remove();
   }
 
-  /* =========================================================
-     Copy helpers
-  ========================================================= */
+  // Copy helpers
   function copyLink()     { navigator.clipboard.writeText(location.href).then(() => showToast('Page link copied!')); }
   function copyVideoUrl() { navigator.clipboard.writeText(STREAM_URL).then(() => showToast('Stream URL copied!')); }
 
-  /* =========================================================
-     Status helper
-  ========================================================= */
+  // Status helper
   function setStatus(msg, color) {
     if (sv) { sv.textContent = msg; sv.style.color = color; }
   }
 
-  /* =========================================================
-     Toast
-  ========================================================= */
+  // Toast
   let _tt;
   function showToast(msg, icon = 'fa-check') {
     const t = document.getElementById('toast');
@@ -2413,9 +2363,7 @@
     _tt = setTimeout(() => t.classList.remove('show'), 2800);
   }
 
-  /* =========================================================
-     Keyboard shortcuts
-  ========================================================= */
+  // Keyboard shortcuts
   document.addEventListener('keydown', e => {
     if (['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return;
     switch (e.key.toLowerCase()) {

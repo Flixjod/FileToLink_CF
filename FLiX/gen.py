@@ -777,7 +777,6 @@ async def inline_query_handler(client: Client, inline_query):
         )
         return
 
-    # Strip the "file_" prefix that the Share button injects
     file_hash_query = query[5:] if query.startswith("file_") else query
 
     file_data = await db.get_file_by_hash(file_hash_query)
@@ -802,30 +801,20 @@ async def inline_query_handler(client: Client, inline_query):
     fmt_size      = format_size(file_data["file_size"])
     tg_file_id    = file_data.get("telegram_file_id", "")
 
-    TYPE_META = {
-        "video":    {"icon": "🎬", "label": "ᴠɪᴅᴇᴏ",    "action": "ꜱᴛʀᴇᴀᴍ / ᴅᴏᴡɴʟᴏᴀᴅ"},
-        "audio":    {"icon": "🎵", "label": "ᴀᴜᴅɪᴏ",    "action": "ꜱᴛʀᴇᴀᴍ / ᴅᴏᴡɴʟᴏᴀᴅ"},
-        "image":    {"icon": "🖼️", "label": "ɪᴍᴀɢᴇ",    "action": "ᴠɪᴇᴡ / ᴅᴏᴡɴʟᴏᴀᴅ"},
-        "document": {"icon": "📄", "label": "ᴅᴏᴄᴜᴍᴇɴᴛ", "action": "ᴅᴏᴡɴʟᴏᴀᴅ"},
-    }
-    meta = TYPE_META.get(file_type, {"icon": "📁", "label": "ꜰɪʟᴇ", "action": "ᴅᴏᴡɴʟᴏᴀᴅ"})
-    type_icon  = meta["icon"]
-    type_label = meta["label"]
-
+    # Message layout matches the /start file_<hash> deep-link response.
     text = (
         f"✅ **{small_caps('file found')}!**\n\n"
         f"📂 **{small_caps('name')}:** `{safe_name}`\n"
         f"💾 **{small_caps('size')}:** `{fmt_size}`\n"
-        f"📊 **{small_caps('type')}:** `{type_label}`\n"
+        f"📊 **{small_caps('type')}:** `{file_type}`\n\n"
     )
     if is_streamable:
         text += (
-            f"🎬 **{small_caps('streaming')}:** `Available`\n\n"
-            f"🔗 **{small_caps('stream link')}:**\n`{stream_link}`"
+            f"🎬 **{small_caps('stream link')}:**\n`{stream_link}`"
         )
     else:
         text += (
-            f"\n🔗 **{small_caps('download link')}:**\n`{download_link}`"
+            f"🔗 **{small_caps('download link')}:**\n`{download_link}`"
         )
 
     btn_rows = []
@@ -855,8 +844,8 @@ async def inline_query_handler(client: Client, inline_query):
     display_name = file_data["file_name"]
     if len(display_name) > 48:
         display_name = display_name[:45] + "…"
-    result_title = f"{display_name}"
-    result_desc  = f"{fmt_size} · {type_label.upper()} · ᴛᴀᴘ ᴛᴏ ꜱʜᴀʀᴇ ɪɴꜱᴛᴀɴᴛʟʏ"
+    result_title = display_name
+    result_desc  = f"{fmt_size} · {file_type.upper()} · ᴛᴀᴘ ᴛᴏ ꜱʜᴀʀᴇ ɪɴꜱᴛᴀɴᴛʟʏ"
 
     result_item = None
 
