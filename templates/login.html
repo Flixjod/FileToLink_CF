@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Login</title>
+  <link rel="icon" type="image/jpeg" href="https://i.ibb.co/2YsHg8tf/IMG-3062.jpg">
+  <link rel="shortcut icon" type="image/jpeg" href="https://i.ibb.co/2YsHg8tf/IMG-3062.jpg">
+  <link rel="apple-touch-icon" href="https://i.ibb.co/2YsHg8tf/IMG-3062.jpg">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    :root,
+    [data-theme="dark"] {
+      --bg-base:           #0f0c29;
+      --bg-gradient:       linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+      --card-bg:           rgba(255,255,255,0.06);
+      --card-border:       rgba(255,255,255,.13);
+      --card-shadow:       0 24px 64px rgba(0,0,0,.35);
+      --panel-bg:          rgba(255,255,255,0.06);
+      --panel-border:      rgba(255,255,255,.13);
+      --text-primary:      #ffffff;
+      --text-secondary:    rgba(255,255,255,.6);
+      --text-muted:        rgba(255,255,255,.38);
+      --text-label:        rgba(255,255,255,.48);
+      --input-bg:          rgba(255,255,255,.06);
+      --input-border:      rgba(255,255,255,.14);
+      --input-focus:       rgba(102,126,234,.6);
+      --particle-color:    rgba(160,140,255,0.18);
+      --particle-color2:   rgba(102,126,234,0.14);
+      --toggle-bg:         rgba(255,255,255,.08);
+      --toggle-border:     rgba(255,255,255,.18);
+      --toggle-color:      rgba(255,255,255,.8);
+      --footer-link:       rgba(255,215,0,.8);
+      --footer-hover:      #ffd700;
+      --err-bg:            rgba(239,68,68,.13);
+      --err-border:        rgba(239,68,68,.35);
+      --err-color:         #f87171;
+      --ok-bg:             rgba(67,233,123,.13);
+      --ok-border:         rgba(67,233,123,.35);
+      --ok-color:          #43e97b;
+    }
+
+    [data-theme="light"] {
+      --bg-base:           #eef0fb;
+      --bg-gradient:       linear-gradient(135deg, #e8eaf6 0%, #ede7f6 50%, #e3e8f0 100%);
+      --card-bg:           rgba(255,255,255,0.88);
+      --card-border:       rgba(102,126,234,.2);
+      --card-shadow:       0 24px 64px rgba(102,126,234,.14);
+      --panel-bg:          rgba(255,255,255,0.92);
+      --panel-border:      rgba(102,126,234,.18);
+      --text-primary:      #1a1a2e;
+      --text-secondary:    #4a5568;
+      --text-muted:        #8896a8;
+      --text-label:        #718096;
+      --input-bg:          rgba(255,255,255,.9);
+      --input-border:      rgba(102,126,234,.22);
+      --input-focus:       rgba(102,126,234,.5);
+      --particle-color:    rgba(102,126,234,0.22);
+      --particle-color2:   rgba(118,75,162,0.16);
+      --toggle-bg:         rgba(102,126,234,.12);
+      --toggle-border:     rgba(102,126,234,.3);
+      --toggle-color:      #4a5568;
+      --footer-link:       #7c6c1a;
+      --footer-hover:      #5a4c10;
+      --err-bg:            rgba(220,38,38,.08);
+      --err-border:        rgba(220,38,38,.28);
+      --err-color:         #dc2626;
+      --ok-bg:             rgba(22,163,74,.1);
+      --ok-border:         rgba(22,163,74,.28);
+      --ok-color:          #16a34a;
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html { min-height: 100%; background-color: var(--bg-base); overscroll-behavior: none; }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: var(--bg-gradient) fixed;
+      min-height: 100vh;
+      overflow-x: hidden;
+      overscroll-behavior: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      transition: background .45s ease, color .45s ease;
+    }
+
+    .theme-toggle {
+      position: fixed;
+      top: 18px; left: 18px;
+      z-index: 1000;
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      background: var(--toggle-bg);
+      border: 1px solid var(--toggle-border);
+      color: var(--toggle-color);
+      font-size: 1.15rem;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .35s cubic-bezier(.34,1.56,.64,1);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      box-shadow: 0 2px 12px rgba(0,0,0,.15);
+    }
+    .theme-toggle:hover {
+      transform: scale(1.15) rotate(15deg);
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #fff;
+      border-color: transparent;
+      box-shadow: 0 6px 22px rgba(102,126,234,.5);
+    }
+
+    .bg-animation {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0; overflow: hidden; pointer-events: none;
+    }
+    .bg-animation span {
+      position: absolute; display: block;
+      border-radius: 50%;
+      animation: floatUp 25s linear infinite;
+      bottom: -200px;
+    }
+    .bg-animation span:nth-child(odd)  { background: var(--particle-color); }
+    .bg-animation span:nth-child(even) { background: var(--particle-color2); }
+    .bg-animation span:nth-child(1)  { left:8%;  width:44px; height:44px; animation-delay:0s;   animation-duration:20s; }
+    .bg-animation span:nth-child(2)  { left:22%; width:18px; height:18px; animation-delay:2s;   animation-duration:14s; }
+    .bg-animation span:nth-child(3)  { left:50%; width:65px; height:65px; animation-delay:4s;   animation-duration:22s; }
+    .bg-animation span:nth-child(4)  { left:68%; width:22px; height:22px; animation-delay:1s;   animation-duration:18s; }
+    .bg-animation span:nth-child(5)  { left:83%; width:85px; height:85px; animation-delay:6s;   animation-duration:30s; }
+    .bg-animation span:nth-child(6)  { left:33%; width:28px; height:28px; animation-delay:8s;   animation-duration:16s; }
+    .bg-animation span:nth-child(7)  { left:58%; width:14px; height:14px; animation-delay:3s;   animation-duration:12s; }
+    .bg-animation span:nth-child(8)  { left:13%; width:95px; height:95px; animation-delay:10s;  animation-duration:35s; }
+    .bg-animation span:nth-child(9)  { left:88%; width:32px; height:32px; animation-delay:5s;   animation-duration:24s; }
+    .bg-animation span:nth-child(10) { left:43%; width:20px; height:20px; animation-delay:12s;  animation-duration:28s; }
+    @keyframes floatUp {
+      0%   { transform: translateY(0) rotate(0deg);       opacity: 0.12; }
+      15%  { opacity: 0.9; }
+      85%  { opacity: 0.6; }
+      100% { transform: translateY(-110vh) rotate(720deg); opacity: 0; }
+    }
+
+    .login-card {
+      position: relative; z-index: 1;
+      width: 100%; max-width: 420px;
+      background: var(--card-bg);
+      backdrop-filter: blur(22px);
+      -webkit-backdrop-filter: blur(22px);
+      border: 1px solid var(--card-border);
+      border-radius: 26px;
+      box-shadow: var(--card-shadow);
+      padding: 40px 36px 36px;
+      animation: fadeInDown .6s cubic-bezier(.22,.61,.36,1) both;
+    }
+    @keyframes fadeInDown {
+      from { opacity:0; transform:translateY(-24px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    .login-header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .login-icon {
+      width: 70px; height: 70px;
+      border-radius: 22px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 1.9rem; color: #fff;
+      box-shadow: 0 12px 32px rgba(102,126,234,.5);
+      margin-bottom: 18px;
+      animation: pulse-icon 3.2s ease-in-out infinite;
+    }
+    @keyframes pulse-icon {
+      0%,100% { box-shadow: 0 12px 32px rgba(102,126,234,.5); transform: scale(1); }
+      50%      { box-shadow: 0 16px 44px rgba(102,126,234,.76); transform: scale(1.04); }
+    }
+    .login-header h1 {
+      font-size: 1.5rem; font-weight: 800;
+      color: var(--text-primary); margin-bottom: 6px;
+      letter-spacing: -.02em;
+    }
+    .login-header p {
+      color: var(--text-secondary); font-size: .9rem;
+    }
+
+    .alert {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: .84rem;
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+    .alert i { font-size: .9rem; flex-shrink: 0; margin-top: 1px; }
+    .alert-error {
+      background: var(--err-bg);
+      border: 1px solid var(--err-border);
+      color: var(--err-color);
+    }
+    .alert-success {
+      background: var(--ok-bg);
+      border: 1px solid var(--ok-border);
+      color: var(--ok-color);
+    }
+    .alert-info {
+      background: rgba(79,172,254,.1);
+      border: 1px solid rgba(79,172,254,.28);
+      color: #4facfe;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+    .form-label {
+      display: block;
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--text-label);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      margin-bottom: 7px;
+    }
+    .input-wrap {
+      position: relative;
+    }
+    .input-icon {
+      position: absolute;
+      left: 14px; top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: .85rem;
+      pointer-events: none;
+      transition: color .2s ease;
+    }
+    .form-input {
+      width: 100%;
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: 12px;
+      padding: 12px 14px 12px 40px;
+      font-family: 'Poppins', sans-serif;
+      font-size: .9rem;
+      color: var(--text-primary);
+      outline: none;
+      transition: border-color .2s ease, box-shadow .2s ease;
+    }
+    .form-input::placeholder { color: var(--text-muted); }
+    .form-input:focus {
+      border-color: rgba(102,126,234,.6);
+      box-shadow: 0 0 0 3px rgba(102,126,234,.18);
+    }
+    .form-input:focus + .input-icon,
+    .input-wrap:focus-within .input-icon { color: #667eea; }
+
+    .pwd-toggle {
+      position: absolute;
+      right: 12px; top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: .85rem;
+      padding: 4px;
+      transition: color .2s ease;
+    }
+    .pwd-toggle:hover { color: #667eea; }
+
+    .btn-login {
+      width: 100%;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      border: none;
+      border-radius: 14px;
+      padding: 14px 24px;
+      font-family: 'Poppins', sans-serif;
+      font-size: .92rem;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 9px;
+      transition: all .25s cubic-bezier(.34,1.56,.64,1);
+      box-shadow: 0 8px 24px rgba(102,126,234,.42);
+      letter-spacing: .01em;
+      margin-top: 8px;
+    }
+    .btn-login:hover {
+      transform: translateY(-2px) scale(1.01);
+      box-shadow: 0 12px 32px rgba(102,126,234,.6);
+      filter: brightness(1.06);
+    }
+    .btn-login:active { transform: scale(.98); }
+
+    .login-footer {
+      text-align: center;
+      margin-top: 24px;
+      color: var(--text-muted);
+      font-size: .8rem;
+    }
+    .login-footer a {
+      color: var(--footer-link);
+      text-decoration: none;
+      font-weight: 700;
+      transition: color .2s;
+    }
+    .login-footer a:hover { color: var(--footer-hover); }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg-base); }
+    ::-webkit-scrollbar-thumb { background: rgba(102,126,234,.28); border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
+    <i class="fa-solid fa-moon" id="theme-icon"></i>
+  </button>
+
+  <div class="bg-animation">
+    <span></span><span></span><span></span><span></span><span></span>
+    <span></span><span></span><span></span><span></span><span></span>
+  </div>
+
+  <div class="login-card">
+    <div class="login-header">
+      <div class="login-icon">
+        <i class="fa-solid fa-shield-halved"></i>
+      </div>
+      <h1>Admin Login</h1>
+      <p>Sign in to access the bot control panel</p>
+    </div>
+
+    {% if message %}
+    <div class="alert alert-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <span>{{ message }}</span>
+    </div>
+    {% endif %}
+
+    {% if error == 'invalid_credentials' %}
+    <div class="alert alert-error">
+      <i class="fa-solid fa-circle-xmark"></i>
+      <span>Invalid username or password. Please try again.</span>
+    </div>
+    {% elif error == 'invalid_csrf' %}
+    <div class="alert alert-error">
+      <i class="fa-solid fa-circle-xmark"></i>
+      <span>Session verification failed. Please reload the page and try again.</span>
+    </div>
+    {% elif error == 'invalid_request' %}
+    <div class="alert alert-error">
+      <i class="fa-solid fa-circle-xmark"></i>
+      <span>Invalid request. Please try again.</span>
+    </div>
+    {% endif %}
+
+    {% if logged_out %}
+    <div class="alert alert-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <span>You have been logged out successfully.</span>
+    </div>
+    {% endif %}
+
+    <form method="POST" action="/login" autocomplete="on">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+      <div class="form-group">
+        <label class="form-label" for="username">Username</label>
+        <div class="input-wrap">
+          <input
+            type="text"
+            id="username"
+            name="username"
+            class="form-input"
+            placeholder="Enter your username"
+            autocomplete="username"
+            required
+            autofocus
+          >
+          <i class="fa-solid fa-user input-icon"></i>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <div class="input-wrap">
+          <input
+            type="password"
+            id="password"
+            name="password"
+            class="form-input"
+            placeholder="Enter your password"
+            autocomplete="current-password"
+            required
+          >
+          <i class="fa-solid fa-lock input-icon"></i>
+          <button type="button" class="pwd-toggle" id="pwd-toggle" onclick="togglePwd()" aria-label="Toggle password visibility">
+            <i class="fa-solid fa-eye" id="pwd-eye"></i>
+          </button>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-login">
+        <i class="fa-solid fa-right-to-bracket"></i>
+        Sign In
+      </button>
+    </form>
+
+    <div class="login-footer">
+      <i class="fa-solid fa-crown" style="color:#ffd700;margin-right:4px;"></i>
+      Secured Admin Panel
+    </div>
+  </div>
+
+  <script>
+  (function() {
+    const saved = localStorage.getItem('flix-theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', saved);
+    updateIcon(saved);
+  })();
+
+  function updateIcon(theme) {
+    const icon = document.getElementById('theme-icon');
+    if (icon) icon.className = theme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+  }
+
+  function toggleTheme() {
+    const html = document.documentElement;
+    const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('flix-theme', next);
+    updateIcon(next);
+  }
+
+  function togglePwd() {
+    const input = document.getElementById('password');
+    const eye   = document.getElementById('pwd-eye');
+    if (input.type === 'password') {
+      input.type = 'text';
+      eye.className = 'fa-solid fa-eye-slash';
+    } else {
+      input.type = 'password';
+      eye.className = 'fa-solid fa-eye';
+    }
+  }
+
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  </script>
+</body>
+</html>

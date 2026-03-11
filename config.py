@@ -40,6 +40,11 @@ class Config:
 
     SECRET_KEY = os.environ.get("SECRET_KEY", "change-this-secret-key")
 
+    # Admin panel credentials (set ADMIN_PASSWORD to a pre-hashed argon2 string
+    # or a plain password — plain passwords are hashed on first access in app.py)
+    ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
+    ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "changeme")
+
     BIND_ADDRESS = os.environ.get("BIND_ADDRESS", "0.0.0.0")
     PORT         = int(os.environ.get("PORT", 8080))
     URL          = os.environ.get("URL", os.environ.get("BASE_URL", ""))

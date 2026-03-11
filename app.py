@@ -1,9 +1,15 @@
+import hashlib
 import json
 import logging
+import os
+import secrets
 import time
 import asyncio
 from pathlib import Path
+from datetime import datetime, timedelta
+from collections import defaultdict
 
+import bcrypt
 import psutil
 from aiohttp import web
 import aiohttp_jinja2
@@ -27,6 +33,28 @@ logger = logging.getLogger(__name__)
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 
+DEFAULT_BOT_NAME     = "FLiX Stream"
+DEFAULT_BOT_USERNAME = "FLiX_LY"
+
+# ---------------------------------------------------------------------------
+# Session store (in-memory; keyed by session token)
+# ---------------------------------------------------------------------------
+_sessions: dict[str, dict] = {}
+_SESSION_LIFETIME = timedelta(hours=2)
+
+# ---------------------------------------------------------------------------
+# Login rate-limiter (5 attempts / minute per IP)
+# ---------------------------------------------------------------------------
+_login_attempts: dict[str, list] = defaultdict(list)
+_RATE_LIMIT = 5
+_RATE_WINDOW = 60  # seconds
+
+# ---------------------------------------------------------------------------
+# CSRF token store (maps token → creation_time)
+# ---------------------------------------------------------------------------
+_csrf_tokens: dict[str, float] = {}
+_CSRF_TOKEN_TTL = 3600
+
 
 def _bot_info(bot: Bot) -> dict:
     me = getattr(bot, "me", None)
@@ -38,6 +66,141 @@ def _bot_info(bot: Bot) -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# Session helpers
+# ---------------------------------------------------------------------------
+
+def _create_session() -> str:
+    token = secrets.token_urlsafe(48)
+    _sessions[token] = {
+        "authenticated": True,
+        "created_at": datetime.utcnow().isoformat(),
+        "last_active": time.monotonic(),
+    }
+    return token
+
+
+def _get_session(request: web.Request) -> dict | None:
+    token = request.cookies.get("session_token")
+    if not token:
+        return None
+    sess = _sessions.get(token)
+    if not sess:
+        return None
+    # Inactivity expiry
+    if time.monotonic() - sess["last_active"] > _SESSION_LIFETIME.total_seconds():
+        _sessions.pop(token, None)
+        return None
+    sess["last_active"] = time.monotonic()
+    return sess
+
+
+def _destroy_session(request: web.Request) -> None:
+    token = request.cookies.get("session_token")
+    if token:
+        _sessions.pop(token, None)
+
+
+def _is_authenticated(request: web.Request) -> bool:
+    sess = _get_session(request)
+    return bool(sess and sess.get("authenticated"))
+
+
+def _session_expired(request: web.Request) -> bool:
+    """Returns True if a session cookie exists but has expired."""
+    token = request.cookies.get("session_token")
+    if not token:
+        return False
+    if token not in _sessions:
+        return True
+    sess = _sessions[token]
+    if time.monotonic() - sess["last_active"] > _SESSION_LIFETIME.total_seconds():
+        _sessions.pop(token, None)
+        return True
+    return False
+
+
+# ---------------------------------------------------------------------------
+# CSRF helpers
+# ---------------------------------------------------------------------------
+
+def _new_csrf_token() -> str:
+    token = secrets.token_urlsafe(32)
+    _csrf_tokens[token] = time.monotonic()
+    return token
+
+
+def _validate_csrf(token: str | None) -> bool:
+    if not token:
+        return False
+    created = _csrf_tokens.pop(token, None)
+    if created is None:
+        return False
+    if time.monotonic() - created > _CSRF_TOKEN_TTL:
+        return False
+    return True
+
+
+def _prune_csrf_tokens() -> None:
+    now = time.monotonic()
+    expired = [t for t, ts in _csrf_tokens.items() if now - ts > _CSRF_TOKEN_TTL]
+    for t in expired:
+        del _csrf_tokens[t]
+
+
+# ---------------------------------------------------------------------------
+# Rate-limiter helpers
+# ---------------------------------------------------------------------------
+
+def _check_rate_limit(ip: str) -> bool:
+    """Returns True if the IP is within the rate limit (allowed), False if exceeded."""
+    now = time.monotonic()
+    attempts = _login_attempts[ip]
+    # Prune old attempts
+    _login_attempts[ip] = [ts for ts in attempts if now - ts < _RATE_WINDOW]
+    if len(_login_attempts[ip]) >= _RATE_LIMIT:
+        return False
+    _login_attempts[ip].append(now)
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Password verification
+# ---------------------------------------------------------------------------
+
+def _verify_password(plain: str, hashed: str) -> bool:
+    try:
+        return bcrypt.checkpw(plain.encode(), hashed.encode())
+    except Exception:
+        return False
+
+
+def _hash_password(plain: str) -> str:
+    return bcrypt.hashpw(plain.encode(), bcrypt.gensalt(rounds=12)).decode()
+
+
+# ---------------------------------------------------------------------------
+# Security headers middleware
+# ---------------------------------------------------------------------------
+
+@web.middleware
+async def security_headers_middleware(request: web.Request, handler):
+    response = await handler(request)
+    response.headers["X-Frame-Options"]        = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"]        = "no-referrer"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com; "
+        "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
+        "img-src 'self' data: https://i.ibb.co https://telegra.ph; "
+        "media-src 'self' blob:; "
+        "connect-src 'self';"
+    )
+    return response
+
+
 def build_app(bot: Bot, database) -> web.Application:
     streaming_service = StreamingService(bot, database)
 
@@ -46,6 +209,8 @@ def build_app(bot: Bot, database) -> web.Application:
         try:
             return await handler(request)
         except web.HTTPNotFound:
+            if request.headers.get("Accept", "").find("text/html") != -1:
+                return web.HTTPFound("/not_found.html")
             return await _render_not_found(request)
         except web.HTTPServiceUnavailable:
             return await _render_bandwidth_exceeded(request)
@@ -82,8 +247,12 @@ def build_app(bot: Bot, database) -> web.Application:
                 content_type="text/plain",
             )
 
-    app = web.Application(middlewares=[not_found_middleware])
+    app = web.Application(middlewares=[security_headers_middleware, not_found_middleware])
     aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader(str(TEMPLATES_DIR)))
+
+    # -----------------------------------------------------------------------
+    # Public routes
+    # -----------------------------------------------------------------------
 
     @aiohttp_jinja2.template("home.html")
     async def home(request: web.Request):
@@ -95,14 +264,13 @@ def build_app(bot: Bot, database) -> web.Application:
         }
 
     async def _tracked_stream(request: web.Request, file_hash: str, is_download: bool):
-        # One (file_hash, client_ip) pair = one unique session.
-        # Registration is idempotent: repeated range-requests from the same
-        # player only refresh the heartbeat, they never increment the counter.
         client_ip   = _get_client_ip(request)
         session_key = f"{file_hash}:{client_ip}"
         await _register_session(session_key)
         try:
             return await streaming_service.stream_file(request, file_hash, is_download=is_download)
+        except web.HTTPNotFound:
+            raise
         finally:
             await _unregister_session(session_key)
 
@@ -112,11 +280,14 @@ def build_app(bot: Bot, database) -> web.Application:
         range_h   = request.headers.get("Range", "")
 
         if range_h or "text/html" not in accept:
-            return await _tracked_stream(request, file_hash, is_download=False)
+            try:
+                return await _tracked_stream(request, file_hash, is_download=False)
+            except web.HTTPNotFound:
+                return web.HTTPFound("/not_found.html")
 
         file_data = await database.get_file_by_hash(file_hash)
         if not file_data:
-            raise web.HTTPNotFound(reason="File not found")
+            return web.HTTPFound("/not_found.html")
 
         allowed, _ = await check_bandwidth_limit(database)
         if not allowed:
@@ -139,6 +310,14 @@ def build_app(bot: Bot, database) -> web.Application:
         )
         playable = is_browser_playable(mime)
 
+        # Pre-warm the file-ID and metadata caches while the HTML page is
+        # being assembled so the first byte-range request from the player
+        # can start streaming immediately without a cold-cache Telegram RPC.
+        import asyncio as _asyncio
+        _asyncio.ensure_future(
+            streaming_service.streamer.get_file_properties(str(file_data["message_id"]))
+        )
+
         info = _bot_info(bot)
         context = {
             "bot_name":         info["bot_name"],
@@ -157,7 +336,214 @@ def build_app(bot: Bot, database) -> web.Application:
 
     async def download_file(request: web.Request):
         file_hash = request.match_info["file_hash"]
-        return await _tracked_stream(request, file_hash, is_download=True)
+        try:
+            return await _tracked_stream(request, file_hash, is_download=True)
+        except web.HTTPNotFound:
+            return web.HTTPFound("/not_found.html")
+
+    async def not_found_page(request: web.Request):
+        return await _render_not_found(request)
+
+    # -----------------------------------------------------------------------
+    # Authentication routes
+    # -----------------------------------------------------------------------
+
+    async def login_page(request: web.Request):
+        if _is_authenticated(request):
+            return web.HTTPFound("/bot_settings")
+
+        expired    = _session_expired(request)
+        logged_out = request.rel_url.query.get("message") == "logged_out"
+        csrf       = _new_csrf_token()
+
+        context = {
+            "csrf_token": csrf,
+            "error":      request.rel_url.query.get("error", ""),
+            "message":    "Your session expired due to inactivity. Please log in again." if expired else "",
+            "logged_out": logged_out,
+        }
+        return aiohttp_jinja2.render_template("login.html", request, context)
+
+    async def login_post(request: web.Request):
+        client_ip = _get_client_ip(request)
+
+        if not _check_rate_limit(client_ip):
+            return web.Response(
+                status=429,
+                text="Too many login attempts. Please wait a minute and try again.",
+                content_type="text/plain",
+            )
+
+        try:
+            data = await request.post()
+        except Exception:
+            return web.HTTPFound("/login?error=invalid_request")
+
+        csrf_token = data.get("csrf_token", "")
+        if not _validate_csrf(csrf_token):
+            return web.HTTPFound("/login?error=invalid_csrf")
+
+        username = data.get("username", "").strip()
+        password = data.get("password", "")
+
+        admin_user = os.environ.get("ADMIN_USERNAME", "admin")
+        admin_hash = os.environ.get("ADMIN_PASSWORD_HASH", "")
+
+        if not admin_hash:
+            # First-time setup fallback: plaintext from ADMIN_PASSWORD env var
+            admin_plain = os.environ.get("ADMIN_PASSWORD", "admin")
+            valid = (username == admin_user and password == admin_plain)
+        else:
+            valid = (username == admin_user and _verify_password(password, admin_hash))
+
+        if not valid:
+            logger.warning("Failed login attempt from IP %s", client_ip)
+            return web.HTTPFound("/login?error=invalid_credentials")
+
+        token    = _create_session()
+        response = web.HTTPFound("/bot_settings")
+        response.set_cookie(
+            "session_token",
+            token,
+            httponly=True,
+            secure=False,   # Set True in production with HTTPS
+            samesite="Strict",
+            max_age=int(_SESSION_LIFETIME.total_seconds()),
+        )
+        return response
+
+    async def logout(request: web.Request):
+        _destroy_session(request)
+        response = web.HTTPFound("/login?message=logged_out")
+        response.del_cookie("session_token", path="/")
+        return response
+
+    # -----------------------------------------------------------------------
+    # Protected: Bot Settings panel
+    # -----------------------------------------------------------------------
+
+    async def bot_settings_page(request: web.Request):
+        if not _is_authenticated(request):
+            return web.HTTPFound("/login")
+        try:
+            ctx = await _collect_panel_data()
+            return aiohttp_jinja2.render_template("bot_settings.html", request, ctx)
+        except Exception as exc:
+            logger.error("bot_settings page error: %s", exc)
+            return web.Response(status=500, text="Internal server error")
+
+    # -----------------------------------------------------------------------
+    # Protected: Admin APIs
+    # -----------------------------------------------------------------------
+
+    def _require_auth(handler):
+        async def wrapper(request: web.Request):
+            if not _is_authenticated(request):
+                return web.json_response({"error": "Unauthorized"}, status=401)
+            return await handler(request)
+        return wrapper
+
+    @_require_auth
+    async def api_stats(request: web.Request):
+        try:
+            stats    = await database.get_stats()
+            bw_stats = await database.get_bandwidth_stats()
+            max_bw   = Config.get("max_bandwidth", 107374182400)
+            bw_used  = bw_stats["total_bandwidth"]
+            bw_today = bw_stats["today_bandwidth"]
+            bw_pct   = round((bw_used / max_bw * 100) if max_bw else 0, 1)
+
+            try:
+                ram          = psutil.virtual_memory()
+                cpu_pct      = psutil.cpu_percent(interval=None)
+                ram_used_fmt = format_size(ram.used)
+            except Exception:
+                cpu_pct      = 0
+                ram_used_fmt = "N/A"
+
+            uptime_str = _format_uptime(time.time() - Config.UPTIME if Config.UPTIME else 0)
+
+            payload = {
+                "total_users": stats.get("total_users", 0),
+                "total_chats": stats.get("total_users", 0),
+                "total_files": stats.get("total_files", 0),
+                "ram_used":    ram_used_fmt,
+                "cpu_pct":     cpu_pct,
+                "uptime":      uptime_str,
+                "bw_pct":      bw_pct,
+                "bw_used":     format_size(bw_used),
+                "bw_today":    format_size(bw_today),
+                "bw_limit":    format_size(max_bw),
+            }
+            return web.Response(text=json.dumps(payload), content_type="application/json")
+        except Exception as exc:
+            logger.error("api_stats error: %s", exc)
+            return web.json_response({"error": str(exc)}, status=500)
+
+    @_require_auth
+    async def api_bandwidth(request: web.Request):
+        try:
+            stats     = await database.get_bandwidth_stats()
+            max_bw    = Config.get("max_bandwidth", 107374182400)
+            bw_mode   = Config.get("bandwidth_mode", True)
+            used      = stats["total_bandwidth"]
+            today     = stats["today_bandwidth"]
+            remaining = max(0, max_bw - used)
+            pct       = round((used / max_bw * 100) if max_bw else 0, 1)
+            payload = {
+                **stats,
+                "limit":          max_bw,
+                "remaining":      remaining,
+                "percentage":     pct,
+                "bandwidth_mode": bw_mode,
+                "formatted": {
+                    "total_bandwidth": format_size(used),
+                    "today_bandwidth": format_size(today),
+                    "limit":           format_size(max_bw),
+                    "remaining":       format_size(remaining),
+                },
+            }
+            return web.Response(text=json.dumps(payload), content_type="application/json")
+        except Exception as exc:
+            logger.error("api_bandwidth error: %s", exc)
+            return web.json_response({"error": str(exc)}, status=500)
+
+    @_require_auth
+    async def api_health(request: web.Request):
+        try:
+            info = _bot_info(bot)
+            payload = {
+                "status":       "ok",
+                "bot_status":   "running" if getattr(bot, "me", None) else "initializing",
+                "bot_name":     info["bot_name"],
+                "bot_username": info["bot_username"],
+                "bot_id":       info["bot_id"],
+                "bot_dc":       info["bot_dc"],
+                "active_conns": get_active_session_count(),
+            }
+            return web.Response(text=json.dumps(payload), content_type="application/json")
+        except Exception as exc:
+            logger.error("api_health error: %s", exc)
+            return web.json_response({"error": str(exc)}, status=500)
+
+    async def stats_endpoint(request: web.Request):
+        if "application/json" in request.headers.get("Accept", ""):
+            return await api_stats(request)
+        raise web.HTTPFound("/bot_settings")
+
+    async def bandwidth_endpoint(request: web.Request):
+        if "application/json" in request.headers.get("Accept", ""):
+            return await api_bandwidth(request)
+        raise web.HTTPFound("/bot_settings")
+
+    async def health_endpoint(request: web.Request):
+        if "application/json" in request.headers.get("Accept", ""):
+            return await api_health(request)
+        raise web.HTTPFound("/bot_settings")
+
+    # -----------------------------------------------------------------------
+    # Panel data helpers
+    # -----------------------------------------------------------------------
 
     async def _collect_panel_data():
         try:
@@ -220,116 +606,32 @@ def build_app(bot: Bot, database) -> web.Application:
         parts.append(f"{s}s")
         return " ".join(parts)
 
-    async def bot_settings_page(request: web.Request):
-        try:
-            ctx = await _collect_panel_data()
-            return aiohttp_jinja2.render_template("bot_settings.html", request, ctx)
-        except Exception as exc:
-            logger.error("bot_settings page error: %s", exc)
-            return web.Response(status=500, text="Internal server error")
+    # -----------------------------------------------------------------------
+    # Routes
+    # -----------------------------------------------------------------------
 
-    async def api_stats(request: web.Request):
-        try:
-            stats    = await database.get_stats()
-            bw_stats = await database.get_bandwidth_stats()
-            max_bw   = Config.get("max_bandwidth", 107374182400)
-            bw_used  = bw_stats["total_bandwidth"]
-            bw_today = bw_stats["today_bandwidth"]
-            bw_pct   = round((bw_used / max_bw * 100) if max_bw else 0, 1)
-
-            try:
-                ram          = psutil.virtual_memory()
-                cpu_pct      = psutil.cpu_percent(interval=None)
-                ram_used_fmt = format_size(ram.used)
-            except Exception:
-                cpu_pct      = 0
-                ram_used_fmt = "N/A"
-
-            uptime_str = _format_uptime(time.time() - Config.UPTIME if Config.UPTIME else 0)
-
-            payload = {
-                "total_users": stats.get("total_users", 0),
-                "total_chats": stats.get("total_users", 0),
-                "total_files": stats.get("total_files", 0),
-                "ram_used":    ram_used_fmt,
-                "cpu_pct":     cpu_pct,
-                "uptime":      uptime_str,
-                "bw_pct":      bw_pct,
-                "bw_used":     format_size(bw_used),
-                "bw_today":    format_size(bw_today),
-                "bw_limit":    format_size(max_bw),
-            }
-            return web.Response(text=json.dumps(payload), content_type="application/json")
-        except Exception as exc:
-            logger.error("api_stats error: %s", exc)
-            return web.json_response({"error": str(exc)}, status=500)
-
-    async def api_bandwidth(request: web.Request):
-        try:
-            stats     = await database.get_bandwidth_stats()
-            max_bw    = Config.get("max_bandwidth", 107374182400)
-            bw_mode   = Config.get("bandwidth_mode", True)
-            used      = stats["total_bandwidth"]
-            today     = stats["today_bandwidth"]
-            remaining = max(0, max_bw - used)
-            pct       = round((used / max_bw * 100) if max_bw else 0, 1)
-            payload = {
-                **stats,
-                "limit":          max_bw,
-                "remaining":      remaining,
-                "percentage":     pct,
-                "bandwidth_mode": bw_mode,
-                "formatted": {
-                    "total_bandwidth": format_size(used),
-                    "today_bandwidth": format_size(today),
-                    "limit":           format_size(max_bw),
-                    "remaining":       format_size(remaining),
-                },
-            }
-            return web.Response(text=json.dumps(payload), content_type="application/json")
-        except Exception as exc:
-            logger.error("api_bandwidth error: %s", exc)
-            return web.json_response({"error": str(exc)}, status=500)
-
-    async def api_health(request: web.Request):
-        try:
-            info = _bot_info(bot)
-            payload = {
-                "status":       "ok",
-                "bot_status":   "running" if getattr(bot, "me", None) else "initializing",
-                "bot_name":     info["bot_name"],
-                "bot_username": info["bot_username"],
-                "bot_id":       info["bot_id"],
-                "bot_dc":       info["bot_dc"],
-                "active_conns": get_active_session_count(),
-            }
-            return web.Response(text=json.dumps(payload), content_type="application/json")
-        except Exception as exc:
-            logger.error("api_health error: %s", exc)
-            return web.json_response({"error": str(exc)}, status=500)
-
-    async def stats_endpoint(request: web.Request):
-        if "application/json" in request.headers.get("Accept", ""):
-            return await api_stats(request)
-        raise web.HTTPFound("/bot_settings")
-
-    async def bandwidth_endpoint(request: web.Request):
-        if "application/json" in request.headers.get("Accept", ""):
-            return await api_bandwidth(request)
-        raise web.HTTPFound("/bot_settings")
-
-    async def health_endpoint(request: web.Request):
-        if "application/json" in request.headers.get("Accept", ""):
-            return await api_health(request)
-        raise web.HTTPFound("/bot_settings")
+    async def not_found_page(request: web.Request):
+        return await _render_not_found(request)
 
     app.router.add_get("/",                   home)
     app.router.add_get("/stream/{file_hash}", stream_page)
     app.router.add_get("/dl/{file_hash}",     download_file)
+    app.router.add_get("/not_found",          not_found_page)
+    app.router.add_get("/not_found.html",     not_found_page)
+
+    app.router.add_get("/login",              login_page)
+    app.router.add_post("/login",             login_post)
+    app.router.add_get("/logout",             logout)
+
     app.router.add_get("/bot_settings",       bot_settings_page)
+
     app.router.add_get("/api/stats",          api_stats)
     app.router.add_get("/api/bandwidth",      api_bandwidth)
     app.router.add_get("/api/health",         api_health)
+    app.router.add_get("/api/bot_settings",   api_stats)
+    app.router.add_get("/api/update_settings", api_stats)
+    app.router.add_get("/api/bot_config",     api_health)
+
     app.router.add_get("/stats",              stats_endpoint)
     app.router.add_get("/bandwidth",          bandwidth_endpoint)
     app.router.add_get("/health",             health_endpoint)

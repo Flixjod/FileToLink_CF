@@ -21,8 +21,9 @@ CHUNK_SIZE = 1024 * 1024
 
 # Keep this many chunks pre-fetched ahead of the writer.
 # Higher values smooth playback on fast connections at the cost of a little
-# extra memory per stream.
-PREFETCH_COUNT = 8
+# extra memory per stream.  12 chunks = 12 MB look-ahead which lets media
+# players decode several seconds before stalling on a typical 10 Mbps video.
+PREFETCH_COUNT = 12
 
 # Per-chunk retry cap and back-off base (seconds).
 _MAX_CHUNK_RETRIES = 6
@@ -550,6 +551,11 @@ class StreamingService:
             raise
         except Exception as exc:
             logger.error("get_file_properties failed: msg=%s err=%s", message_id, exc)
+            # Redirect browser requests to not_found.html; return 404 for
+            # raw range requests (e.g. from a media player already playing).
+            accept = request.headers.get("Accept", "")
+            if "text/html" in accept and not request.headers.get("Range"):
+                raise web.HTTPFound("/not_found")
             raise web.HTTPNotFound(reason="could not resolve file on Telegram")
 
         from_bytes, until_bytes = _parse_range(range_header, file_size)
@@ -592,8 +598,14 @@ class StreamingService:
             "Content-Length":              str(req_length),
             "Content-Disposition":         f'{disposition}; filename="{file_name}"',
             "Accept-Ranges":               "bytes",
+            # Allow clients (browsers, CDN proxies) to cache stream responses.
+            # 1 hour is a reasonable balance: short enough to reflect file
+            # changes, long enough to avoid redundant refetches on seek.
             "Cache-Control":               "public, max-age=3600",
             "Access-Control-Allow-Origin": "*",
+            # Keep the TCP connection open across range requests so the
+            # media player reuses it for every chunk and avoids reconnect
+            # overhead (reduces time-to-first-frame significantly).
             "Connection":                  "keep-alive",
             "X-Content-Type-Options":      "nosniff",
             "X-File-Size":                 str(file_size),
